@@ -31,27 +31,40 @@ O projeto avalia essa cadeia física em três blocos:
 Aquecimento do Pacífico -> Ponte atmosférica -> Precipitação no Brasil
 ```
 
-## 3. Escopo espacial e temporal
+## 3. Domínios espaciais do projeto
+
+O projeto trabalha com três áreas espaciais, cada uma com uma função física e computacional diferente.
+
+| Domínio | Fonte principal | Recorte | Função |
+|---|---|---|---|
+| Pacífico oceânico | ORAS/ORAS5 + CPC/NOAA | 35S a 30N / 120E a 70W | Caracterizar o aquecimento associado ao El NINO por variáveis oceânicas superficiais e subsuperficiais. |
+| Brasil | IBGE + precipitação em grade | 35S a 7N / 75W a 30W | Representar o território brasileiro, aplicar máscara espacial, agregar por recortes oficiais e avaliar anomalias de precipitação. |
+| Ponte atmosférica | ERA5 | área abrangendo Pacífico oceânico e Brasil | Medir como vento, pressão, umidade, geopotencial, movimento vertical e divergência conectam o Pacífico aquecido à resposta de chuva no Brasil. |
+
+O `IBGE` fornece os shapefiles, limites oficiais e máscaras territoriais. A série pluviométrica 1980-presente deve vir de uma base climática em grade, como `CPC/NOAA`, `CHIRPS`, `MERGE/INPE` ou outra fonte definida no catálogo.
+
+## 4. Escopo espacial e temporal
 
 ```text
 Período: 1980 até a data presente
 Pacífico: 35S a 30N / 120E a 70W
 Brasil: território nacional em grade pixel-a-pixel
+Atmosfera: domínio amplo cobrindo Pacífico oceânico e Brasil
 Frequência preferencial: diária
 Lags iniciais: 0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
 ```
 
-## 4. Dados e justificativa
+## 5. Dados e justificativa
 
 | Bloco | Fonte principal | Download local | Justificativa |
 |---|---|---|---|
-| Oceano reanalisado | ORAS/ORAS5 | `data/raw/oras/` | Fornece campo contínuo de temperatura e salinidade por profundidade para calcular termoclina, D20, camada de mistura e conteúdo de calor oceânico. |
+| Oceano Pacífico | ORAS/ORAS5 + CPC/NOAA | `data/raw/oras/` e `data/raw/cpc_noaa/` | Fornece temperatura, salinidade, SST/SSTA e variáveis derivadas para caracterizar o aquecimento do Pacífico. |
 | Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/` | Fornece perfis observacionais de temperatura e salinidade para validar, comparar e corrigir a estrutura vertical representada pelo ORAS. |
 | Atmosfera | ERA5 | `data/raw/era5/` | Representa a ponte atmosférica Pacífico -> Brasil por vento, pressão, umidade, geopotencial, movimento vertical, divergência e fluxos de calor. |
-| Precipitação | CPC/NOAA | `data/raw/cpc_noaa/` | Fornece a resposta observada de chuva usada para calcular anomalias, eventos secos e chuva acima do normal no Brasil. |
 | Mapa do Brasil | IBGE | `data/raw/ibge/` | Fornece limites oficiais para recorte, máscara territorial, agregação regional e mapas coropléticos. |
+| Precipitação Brasil | CPC/NOAA, CHIRPS, MERGE/INPE ou fonte definida | `data/raw/cpc_noaa/` ou pasta específica | Fornece a resposta observada de chuva usada para calcular anomalias, eventos secos e chuva acima do normal no Brasil. |
 
-## 5. Variáveis centrais
+## 6. Variáveis centrais
 
 ### Oceanográficas
 
@@ -86,7 +99,7 @@ Lags iniciais: 0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
 - evento seco abaixo de `P10`.
 - chuva acima do normal acima de `P90`.
 
-## 6. Fluxo e produto final
+## 7. Fluxo e produto final
 
 ```text
 download dos dados brutos
@@ -116,7 +129,7 @@ Produto final no GitHub Pages:
 - erro histórico.
 - confiança da previsão.
 
-## 7. Estrutura e execução na IDE
+## 8. Estrutura e execução na IDE
 
 ```text
 NINO26/

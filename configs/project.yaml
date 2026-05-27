@@ -23,6 +23,13 @@ domains:
     longitude_min: -75.0
     longitude_max: -30.0
     longitude_convention: "-180_180"
+  atmosphere_bridge:
+    latitude_min: -35.0
+    latitude_max: 30.0
+    longitude_min: 120.0
+    longitude_max: 330.0
+    longitude_convention: "0_360"
+    note: "330E equivale a 30W; dominio cobre o Pacifico oceanico e o Brasil."
 
 time:
   base_frequency: "daily"
