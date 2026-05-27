@@ -180,22 +180,9 @@ Para grandes volumes, mantenha `data/` dentro do WSL ou use um disco rápido mon
 
 ## 9. Credenciais Copernicus CDS
 
-Não coloque chave da Copernicus dentro de scripts versionados.
+As credenciais da Copernicus são lidas do arquivo local `.env`, que não entra no Git.
 
-Opção local recomendada:
-
-```bash
-cp .env.example .env
-```
-
-Edite `.env` e preencha:
-
-```text
-CDS_API_KEY=sua_chave_local
-CDS_API_URL=https://cds.climate.copernicus.eu/api
-```
-
-Depois confira:
+Confira:
 
 ```bash
 python scripts/data_pipeline.py check-cds

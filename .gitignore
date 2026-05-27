@@ -20,5 +20,4 @@ __pycache__/
 .venv-wsl/
 .env
 .env.*
-!.env.example
 *.pyc
