@@ -17,4 +17,5 @@ data/processed/**
 __pycache__/
 .pytest_cache/
 .venv/
+.venv-wsl/
 *.pyc
