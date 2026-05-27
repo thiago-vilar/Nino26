@@ -5,6 +5,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from tqdm import tqdm
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -12,12 +14,16 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from nino_brasil.config import load_config, project_path
+from nino_brasil.data.audit import AuditLog
 from nino_brasil.data.credentials import cds_credentials_status
 from nino_brasil.data.download_cds import (
     ATMOSPHERE_AREAS,
     download_era5_pressure_month,
     download_era5_single_month,
     download_oras_month,
+    ingest_era5_pressure_month,
+    ingest_era5_single_month,
+    ingest_oras_month,
 )
 from nino_brasil.data.download_chirps import download_chirps_year
 from nino_brasil.data.download_ibge import download_ibge
@@ -30,6 +36,7 @@ DATA_DIRS = [
     "data/raw/cpc_noaa",
     "data/raw/oras",
     "data/raw/era5",
+    "data/interim/oras",
     "data/interim/ibge",
     "data/interim/brazil_precipitation",
     "data/interim/pacific_warming",
@@ -37,6 +44,8 @@ DATA_DIRS = [
     "data/processed/zarr",
     "data/processed/parquet",
     "data/processed/geotiff",
+    "data/audit",
+    "data/state",
 ]
 
 
@@ -76,9 +85,10 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print("3. download-ibge --product municipios")
     print("4. implement/download precipitation grid")
     print("5. implement/download Pacific SST/SSTA")
-    print("6. build first lagged correlation maps")
-    print("7. add ERA5 atmosphere bridge")
-    print("8. add ORAS/ORAS5 subsurface ocean")
+    print("6. ingest-era5: download raw monthly chunks, validate, convert to Zarr")
+    print("7. ingest-oras: download raw monthly chunks, validate, convert to Zarr")
+    print("8. audit: verify status and failed tasks before continuing")
+    print("9. build first lagged correlation maps")
     return 0
 
 
@@ -102,6 +112,11 @@ def cmd_check_cds(_: argparse.Namespace) -> int:
         print()
         print("Set CDS_API_KEY in your shell or in a local .env file.")
         return 1
+    return 0
+
+
+def cmd_audit(_: argparse.Namespace) -> int:
+    AuditLog().print_summary()
     return 0
 
 
@@ -132,40 +147,95 @@ def cmd_download_oisst(args: argparse.Namespace) -> int:
 
 def cmd_download_era5(args: argparse.Namespace) -> int:
     raw_dir = project_path("data/raw/era5")
+    zarr_root = project_path("data/processed/zarr")
     regions = args.region or list(ATMOSPHERE_AREAS)
     months = iter_months(args.month)
-    for year in iter_years(args.start_year, args.end_year):
-        for month in months:
-            for region in regions:
-                if args.kind in {"single", "both"}:
-                    download_era5_single_month(
-                        year=year,
-                        month=month,
-                        region=region,
-                        raw_dir=raw_dir,
-                        dry_run=not args.execute,
-                    )
-                if args.kind in {"pressure", "both"}:
-                    download_era5_pressure_month(
-                        year=year,
-                        month=month,
-                        region=region,
-                        raw_dir=raw_dir,
-                        dry_run=not args.execute,
-                    )
+    audit = AuditLog()
+    tasks = [
+        (year, month, region)
+        for year in iter_years(args.start_year, args.end_year)
+        for month in months
+        for region in regions
+    ]
+    for year, month, region in tqdm(tasks, desc="ERA5 tasks", unit="task"):
+        if args.raw_only:
+            if args.kind in {"single", "both"}:
+                download_era5_single_month(
+                    year=year,
+                    month=month,
+                    region=region,
+                    raw_dir=raw_dir,
+                    dry_run=not args.execute,
+                    overwrite=args.overwrite,
+                )
+            if args.kind in {"pressure", "both"}:
+                download_era5_pressure_month(
+                    year=year,
+                    month=month,
+                    region=region,
+                    raw_dir=raw_dir,
+                    dry_run=not args.execute,
+                    overwrite=args.overwrite,
+                )
+        else:
+            if args.kind in {"single", "both"}:
+                ingest_era5_single_month(
+                    year=year,
+                    month=month,
+                    region=region,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    dry_run=not args.execute,
+                    overwrite=args.overwrite,
+                    include_hash=args.hash,
+                    audit=audit,
+                )
+            if args.kind in {"pressure", "both"}:
+                ingest_era5_pressure_month(
+                    year=year,
+                    month=month,
+                    region=region,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    dry_run=not args.execute,
+                    overwrite=args.overwrite,
+                    include_hash=args.hash,
+                    audit=audit,
+                )
     return 0
 
 
 def cmd_download_oras(args: argparse.Namespace) -> int:
     raw_dir = project_path("data/raw/oras")
+    interim_dir = project_path("data/interim/oras")
+    zarr_root = project_path("data/processed/zarr")
     months = iter_months(args.month)
-    for year in iter_years(args.start_year, args.end_year):
-        for month in months:
+    audit = AuditLog()
+    tasks = [
+        (year, month)
+        for year in iter_years(args.start_year, args.end_year)
+        for month in months
+    ]
+    for year, month in tqdm(tasks, desc="ORAS tasks", unit="task"):
+        if args.raw_only:
             download_oras_month(
                 year=year,
                 month=month,
                 raw_dir=raw_dir,
                 dry_run=not args.execute,
+                overwrite=args.overwrite,
+            )
+        else:
+            ingest_oras_month(
+                year=year,
+                month=month,
+                raw_dir=raw_dir,
+                interim_dir=interim_dir,
+                zarr_root=zarr_root,
+                dry_run=not args.execute,
+                overwrite=args.overwrite,
+                include_hash=args.hash,
+                audit=audit,
             )
     return 0
 
@@ -217,29 +287,47 @@ def cmd_download_all(args: argparse.Namespace) -> int:
 
     if args.include_cds:
         months = iter_months(args.month)
-        for year in iter_years(args.start_year, args.end_year):
-            for month in months:
-                for region in ATMOSPHERE_AREAS:
-                    download_era5_single_month(
-                        year=year,
-                        month=month,
-                        region=region,
-                        raw_dir=project_path("data/raw/era5"),
-                        dry_run=dry_run,
-                    )
-                    download_era5_pressure_month(
-                        year=year,
-                        month=month,
-                        region=region,
-                        raw_dir=project_path("data/raw/era5"),
-                        dry_run=dry_run,
-                    )
-                download_oras_month(
+        audit = AuditLog()
+        tasks = [
+            (year, month)
+            for year in iter_years(args.start_year, args.end_year)
+            for month in months
+        ]
+        for year, month in tqdm(tasks, desc="CDS ingest months", unit="month"):
+            for region in ATMOSPHERE_AREAS:
+                ingest_era5_single_month(
                     year=year,
                     month=month,
-                    raw_dir=project_path("data/raw/oras"),
+                    region=region,
+                    raw_dir=project_path("data/raw/era5"),
+                    zarr_root=project_path("data/processed/zarr"),
                     dry_run=dry_run,
+                    overwrite=args.overwrite,
+                    include_hash=args.hash,
+                    audit=audit,
                 )
+                ingest_era5_pressure_month(
+                    year=year,
+                    month=month,
+                    region=region,
+                    raw_dir=project_path("data/raw/era5"),
+                    zarr_root=project_path("data/processed/zarr"),
+                    dry_run=dry_run,
+                    overwrite=args.overwrite,
+                    include_hash=args.hash,
+                    audit=audit,
+                )
+            ingest_oras_month(
+                year=year,
+                month=month,
+                raw_dir=project_path("data/raw/oras"),
+                interim_dir=project_path("data/interim/oras"),
+                zarr_root=project_path("data/processed/zarr"),
+                dry_run=dry_run,
+                overwrite=args.overwrite,
+                include_hash=args.hash,
+                audit=audit,
+            )
     else:
         print("CDS downloads skipped. Add --include-cds to include ERA5 and ORAS.")
 
@@ -263,6 +351,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     cds_p = sub.add_parser("check-cds", help="Check Copernicus CDS credentials.")
     cds_p.set_defaults(func=cmd_check_cds)
+
+    audit_p = sub.add_parser("audit", help="Summarize the local audit ledger.")
+    audit_p.set_defaults(func=cmd_audit)
 
     ibge_p = sub.add_parser("download-ibge", help="Download official IBGE shapefiles.")
     ibge_p.add_argument(
@@ -297,6 +388,9 @@ def build_parser() -> argparse.ArgumentParser:
     era5_p.add_argument("--kind", choices=["single", "pressure", "both"], default="both")
     era5_p.add_argument("--region", action="append", choices=sorted(ATMOSPHERE_AREAS))
     era5_p.add_argument("--execute", action="store_true", help="Actually submit CDS requests.")
+    era5_p.add_argument("--overwrite", action="store_true")
+    era5_p.add_argument("--raw-only", action="store_true", help="Skip Zarr conversion.")
+    era5_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
     era5_p.set_defaults(func=cmd_download_era5)
 
     oras_p = sub.add_parser("download-oras", help="Download ORAS5 monthly files through CDS.")
@@ -304,6 +398,9 @@ def build_parser() -> argparse.ArgumentParser:
     oras_p.add_argument("--end-year", type=int, required=True)
     oras_p.add_argument("--month", type=int, action="append", choices=range(1, 13))
     oras_p.add_argument("--execute", action="store_true", help="Actually submit CDS requests.")
+    oras_p.add_argument("--overwrite", action="store_true")
+    oras_p.add_argument("--raw-only", action="store_true", help="Skip Zarr conversion.")
+    oras_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
     oras_p.set_defaults(func=cmd_download_oras)
 
     all_p = sub.add_parser("download-all", help="Run the full download plan.")
@@ -314,6 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
     all_p.add_argument("--include-cds", action="store_true", help="Include ERA5 and ORAS.")
     all_p.add_argument("--execute", action="store_true", help="Actually download/submit requests.")
     all_p.add_argument("--overwrite", action="store_true")
+    all_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw CDS files.")
     all_p.set_defaults(func=cmd_download_all)
 
     return parser

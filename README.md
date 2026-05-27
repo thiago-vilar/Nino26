@@ -150,6 +150,7 @@ python scripts/data_pipeline.py download-oisst --start-year 1981 --end-year 1981
 python scripts/data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1
 python scripts/data_pipeline.py download-oras --start-year 1981 --end-year 1981 --month 1
 python scripts/data_pipeline.py download-all --start-year 1981 --end-year 1981
+python scripts/data_pipeline.py audit
 ```
 
 O primeiro bloco real baixa e extrai shapefiles oficiais do IBGE em:
@@ -159,7 +160,7 @@ data/raw/ibge/
 data/interim/ibge/
 ```
 
-Por padrão, os comandos de bases climáticas rodam em modo `dry-run`. Para baixar de verdade, adicione:
+Por padrão, os comandos de bases climáticas rodam em modo `dry-run`. Para executar de verdade, adicione:
 
 ```text
 --execute
@@ -170,6 +171,22 @@ Para incluir ERA5 e ORAS no `download-all`, adicione:
 ```text
 --include-cds
 ```
+
+Para ERA5 e ORAS, o pipeline não para no download bruto. O fluxo padrão é:
+
+```text
+tarefa mensal
+|
+download bruto em data/raw/
+|
+validação de abertura
+|
+conversão para Zarr em data/processed/zarr/
+|
+registro em data/audit/ledger.jsonl
+```
+
+Se uma tarefa falhar, rode o mesmo comando novamente. Arquivos Zarr válidos são pulados automaticamente, e tarefas pendentes continuam do ponto em que a base parou.
 
 ## 9. Estrutura e execução na IDE
 
