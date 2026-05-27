@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from nino_brasil.config import load_config, project_path
+from nino_brasil.data.credentials import cds_credentials_status
 from nino_brasil.data.download_ibge import download_ibge
 
 
@@ -72,6 +73,19 @@ def cmd_plan(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_check_cds(_: argparse.Namespace) -> int:
+    status = cds_credentials_status()
+    print("Copernicus CDS credentials:")
+    print(f"- CDS_API_URL: {status['CDS_API_URL']}")
+    print(f"- CDS_API_KEY: {status['CDS_API_KEY']}")
+    print(f"- ready: {status['ready']}")
+    if status["ready"] != "yes":
+        print()
+        print("Set CDS_API_KEY in your shell or in a local .env file.")
+        return 1
+    return 0
+
+
 def cmd_download_ibge(args: argparse.Namespace) -> int:
     raw_dir = project_path("data/raw/ibge")
     interim_dir = project_path("data/interim/ibge")
@@ -99,6 +113,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     plan_p = sub.add_parser("plan", help="Show the recommended data pipeline order.")
     plan_p.set_defaults(func=cmd_plan)
+
+    cds_p = sub.add_parser("check-cds", help="Check Copernicus CDS credentials.")
+    cds_p.set_defaults(func=cmd_check_cds)
 
     ibge_p = sub.add_parser("download-ibge", help="Download official IBGE shapefiles.")
     ibge_p.add_argument(

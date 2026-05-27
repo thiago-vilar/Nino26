@@ -18,4 +18,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 .venv-wsl/
+.env
+.env.*
+!.env.example
 *.pyc
