@@ -171,3 +171,9 @@ O teste confirma que a estrutura Python está funcional e gera um primeiro mapa 
 ```text
 docs/assets/maps/smoke_precip_anomaly.png
 ```
+
+Para uso com placa de vídeo no VSCode via WSL, siga:
+
+```text
+WSL_GPU_SETUP.md
+```
