@@ -86,7 +86,7 @@ Lags iniciais: 0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
 - evento seco abaixo de `P10`.
 - chuva acima do normal acima de `P90`.
 
-## 6. Fluxo do projeto
+## 6. Fluxo e produto final
 
 ```text
 download dos dados brutos
@@ -104,7 +104,19 @@ geração de mapas pixel-a-pixel e coropléticos
 publicação no GitHub Pages
 ```
 
-## 7. Estrutura de pastas
+Produto final no GitHub Pages:
+
+- anomalia prevista de precipitação.
+- probabilidade de seca.
+- probabilidade de chuva acima do normal.
+- lag dominante.
+- peso oceanográfico.
+- peso atmosférico.
+- variável dominante.
+- erro histórico.
+- confiança da previsão.
+
+## 7. Estrutura e execução na IDE
 
 ```text
 NINO26/
@@ -129,8 +141,6 @@ NINO26/
   scripts/
   docs/
 ```
-
-## 8. Como rodar na IDE
 
 Abra a pasta do projeto:
 
@@ -161,17 +171,3 @@ O teste confirma que a estrutura Python está funcional e gera um primeiro mapa 
 ```text
 docs/assets/maps/smoke_precip_anomaly.png
 ```
-
-## 9. Produto final
-
-O produto final será uma página estática no GitHub Pages com mapas de previsão e diagnóstico:
-
-- anomalia prevista de precipitação.
-- probabilidade de seca.
-- probabilidade de chuva acima do normal.
-- lag dominante.
-- peso oceanográfico.
-- peso atmosférico.
-- variável dominante.
-- erro histórico.
-- confiança da previsão.
