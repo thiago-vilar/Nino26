@@ -50,6 +50,10 @@ Evite treinar modelos pesados diretamente em:
 
 O caminho `/mnt/c/DEV/NINO26` funciona, mas costuma ser mais lento para muitos arquivos pequenos e grandes volumes de dados.
 
+Importante: não reutilize o ambiente `.venv` criado no Windows. Ele não serve como ambiente Linux dentro do WSL.
+
+Se você rodar o projeto a partir de `/mnt/c/DEV/NINO26`, crie um ambiente separado chamado `.venv-wsl`.
+
 ## 4. Clonar o projeto no WSL
 
 No terminal do Ubuntu/WSL:
@@ -92,6 +96,28 @@ Se o clone por SSH ainda não estiver configurado dentro do WSL, use HTTPS:
 
 ```bash
 git clone https://github.com/thiago-vilar/Nino26.git
+```
+
+Se você estiver usando a pasta já existente em `C:\DEV\NINO26`, faça assim no terminal WSL:
+
+```bash
+cd /mnt/c/DEV/NINO26
+python3 -m venv .venv-wsl
+source .venv-wsl/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+No VSCode, selecione esse interpretador:
+
+```text
+Ctrl+Shift+P -> Python: Select Interpreter -> .venv-wsl/bin/python
+```
+
+Para notebooks, selecione o kernel:
+
+```text
+Ctrl+Shift+P -> Notebook: Select Notebook Kernel -> .venv-wsl
 ```
 
 ## 6. Verificar PyTorch e CUDA

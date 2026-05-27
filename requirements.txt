@@ -10,6 +10,7 @@ dask
 folium
 geopandas
 h5netcdf
+ipykernel
 joblib
 lightgbm
 matplotlib
