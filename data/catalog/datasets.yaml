@@ -1,0 +1,111 @@
+era5_single_levels:
+  name: "ERA5 single levels"
+  institution: "Copernicus Climate Change Service / ECMWF"
+  source_url: "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels"
+  license: "Copernicus license; confirm at download time"
+  version: null
+  variables:
+    - sea_level_pressure
+    - surface_latent_heat_flux
+    - surface_sensible_heat_flux
+    - surface_net_solar_radiation
+    - surface_net_thermal_radiation
+    - 10m_u_component_of_wind
+    - 10m_v_component_of_wind
+    - total_column_water_vapour
+  temporal_resolution: "hourly, aggregate to daily"
+  spatial_resolution: "0.25 degree"
+  period_start: "1980-01-01"
+  period_end: "present"
+  raw_path: "data/raw/era5"
+  processed_path: "data/processed/zarr/era5_single_levels.zarr"
+  notes: "Use daily aggregation for the first MVP."
+
+era5_pressure_levels:
+  name: "ERA5 pressure levels"
+  institution: "Copernicus Climate Change Service / ECMWF"
+  source_url: "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels"
+  license: "Copernicus license; confirm at download time"
+  version: null
+  variables:
+    - u_component_of_wind
+    - v_component_of_wind
+    - specific_humidity
+    - geopotential
+    - vertical_velocity
+    - divergence
+  pressure_levels_hpa: [850, 500, 200]
+  temporal_resolution: "hourly, aggregate to daily"
+  spatial_resolution: "0.25 degree"
+  period_start: "1980-01-01"
+  period_end: "present"
+  raw_path: "data/raw/era5"
+  processed_path: "data/processed/zarr/era5_pressure_levels.zarr"
+  notes: "Variables are used for the Pacific-Brazil atmospheric bridge."
+
+oras5:
+  name: "ORAS5 ocean reanalysis"
+  institution: "ECMWF / Copernicus"
+  source_url: "https://cds.climate.copernicus.eu/datasets/reanalysis-oras5"
+  license: "Copernicus license; confirm at download time"
+  version: null
+  variables:
+    - potential_temperature
+    - salinity
+    - zonal_current
+    - meridional_current
+  temporal_resolution: "monthly or daily depending on product availability"
+  spatial_resolution: "native ORAS5 grid"
+  period_start: "1980-01-01"
+  period_end: "present"
+  raw_path: "data/raw/oras"
+  processed_path: "data/processed/zarr/oras5.zarr"
+  notes: "Use T(z) and S(z) to calculate density, D20, thermocline, MLD and OHC."
+
+noaa_oisst:
+  name: "NOAA Optimum Interpolation SST v2.1"
+  institution: "NOAA/NCEI"
+  source_url: "https://www.ncei.noaa.gov/products/optimum-interpolation-sst"
+  license: "NOAA public data; cite product page"
+  version: "v2.1"
+  variables:
+    - sst
+  temporal_resolution: "daily"
+  spatial_resolution: "0.25 degree"
+  period_start: "1981-09-01"
+  period_end: "present"
+  raw_path: "data/raw/cpc_noaa/oisst"
+  processed_path: "data/processed/zarr/noaa_oisst.zarr"
+  notes: "Record 1980-1981 gap or use documented alternative."
+
+noaa_olr:
+  name: "NOAA interpolated OLR"
+  institution: "NOAA Physical Sciences Laboratory"
+  source_url: "https://psl.noaa.gov/data/gridded/data.interp_OLR.html"
+  license: "NOAA public data; cite product page"
+  version: null
+  variables:
+    - olr
+  temporal_resolution: "daily"
+  spatial_resolution: "2.5 degree"
+  period_start: "1974-06-01"
+  period_end: "present"
+  raw_path: "data/raw/cpc_noaa/olr"
+  processed_path: "data/processed/zarr/noaa_olr.zarr"
+  notes: "Can be replaced by ERA5 radiation field for consistency tests."
+
+cpc_precipitation:
+  name: "CPC daily precipitation"
+  institution: "NOAA/CPC"
+  source_url: "https://beta.cpc.noaa.gov/observations/global-precipitation"
+  license: "NOAA public data; cite product page"
+  version: null
+  variables:
+    - precipitation
+  temporal_resolution: "daily"
+  spatial_resolution: "product dependent"
+  period_start: null
+  period_end: null
+  raw_path: "data/raw/cpc_noaa/precipitation"
+  processed_path: "data/processed/zarr/cpc_precipitation_brazil.zarr"
+  notes: "Confirm product coverage before operational use."

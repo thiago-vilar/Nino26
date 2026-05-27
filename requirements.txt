@@ -1,0 +1,36 @@
+# Projeto de previsão climática El NINO e seus impactos no Brasil
+# Programa de Pós Graduação em Oceanografia UFPE
+# Oceanografia Física
+# Thiago Vilar
+
+aiohttp
+cartopy
+cdsapi
+dask
+folium
+geopandas
+h5netcdf
+joblib
+lightgbm
+matplotlib
+netCDF4
+numpy
+pandas
+plotly
+pyarrow
+PyYAML
+pytorch-lightning
+rasterio
+regionmask
+requests
+rioxarray
+scikit-learn
+scipy
+seaborn
+shap
+torch
+tqdm
+xarray
+xesmf
+xgboost
+zarr
