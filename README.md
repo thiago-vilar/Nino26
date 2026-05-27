@@ -129,7 +129,32 @@ Produto final no GitHub Pages:
 - erro histórico.
 - confiança da previsão.
 
-## 8. Estrutura e execução na IDE
+## 8. Entrada principal de dados
+
+O pipeline de dados começa pelo script:
+
+```text
+scripts/data_pipeline.py
+```
+
+Comandos disponíveis:
+
+```text
+python scripts/data_pipeline.py status
+python scripts/data_pipeline.py init
+python scripts/data_pipeline.py plan
+python scripts/data_pipeline.py download-ibge --product uf
+python scripts/data_pipeline.py download-ibge --product municipios
+```
+
+O primeiro bloco real baixa e extrai shapefiles oficiais do IBGE em:
+
+```text
+data/raw/ibge/
+data/interim/ibge/
+```
+
+## 9. Estrutura e execução na IDE
 
 ```text
 NINO26/
