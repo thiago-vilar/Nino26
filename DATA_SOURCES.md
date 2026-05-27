@@ -6,209 +6,134 @@
 
 ## DATA SOURCES
 
-### Princípio de rastreabilidade
+Este arquivo registra a origem dos dados, a área de download, o uso no projeto e a justificativa científica de cada fonte.
 
-Toda variável usada no projeto deve registrar:
+Todo dataset deve registrar:
 
-- nome da fonte;
-- instituição;
-- link oficial;
-- variável;
-- período disponível;
-- resolução temporal;
-- resolução espacial;
-- data de download;
-- versão do produto;
-- licença ou termos de uso;
-- caminho local bruto;
-- caminho local processado.
+- instituição.
+- link oficial.
+- variável.
+- período disponível.
+- resolução temporal.
+- resolução espacial.
+- data de download.
+- versão do produto.
+- licença ou termos de uso.
+- caminho bruto.
+- caminho processado.
 
-O período-alvo é 1980 até a data presente, mas cada dataset deve declarar sua cobertura real.
+## 1. ORAS/ORAS5
 
----
-
-## 1. ERA5
-
-Uso no projeto:
-
-- SLP: pressão ao nível do mar.
-- tau_x: tensão de vento zonal na superfície.
-- tau_y: tensão de vento meridional na superfície.
-- u10 e v10: vento zonal e meridional a 10 m.
-- u850, v850, q850.
-- u500, v500, q500, z500, omega500.
-- u200, v200, z200, div200.
-- TCWV: vapor d'água total integrado.
-- fluxos de calor: líquido, latente, sensível, onda curta e onda longa.
-- OLR, se for necessário manter consistência com a mesma reanálise.
-
-Instituição:
-
-- Copernicus Climate Change Service / ECMWF.
-
-Links oficiais:
-
-- ERA5 single levels: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels
-- ERA5 pressure levels: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels
-- Portal CDS: https://cds.climate.copernicus.eu/
-
-Cobertura:
-
-- ERA5 cobre o período necessário para 1980-presente.
-
-Formato esperado:
-
-- NetCDF ou GRIB bruto.
-- Zarr processado.
-
-Termos de uso:
-
-- Licença Copernicus. Registrar aceite e versão da licença no catálogo local.
-
----
-
-## 2. ORAS/ORAS5
+**Instituição:** ECMWF / Copernicus.  
+**Download:** https://cds.climate.copernicus.eu/datasets/reanalysis-oras5  
+**Referência:** https://www.ecmwf.int/en/forecasts/dataset/ocean-reanalysis-system-5  
+**Pasta bruta:** `data/raw/oras/`  
+**Pasta processada:** `data/processed/zarr/oras/`  
 
 Uso no projeto:
 
-- temperatura por profundidade;
-- salinidade por profundidade;
-- densidade potencial calculada;
-- D20 calculado;
-- profundidade da termoclina calculada;
-- camada de mistura calculada;
-- conteúdo de calor oceânico 0-300 m;
-- conteúdo de calor oceânico 0-700 m;
-- correntes oceânicas u e v, quando disponíveis.
+- temperatura por profundidade.
+- salinidade por profundidade.
+- correntes oceânicas zonal e meridional, quando disponíveis.
+- cálculo de densidade potencial.
+- cálculo de `D20`, termoclina, camada de mistura e conteúdo de calor oceânico.
 
-Instituição:
+Justificativa:
 
-- ECMWF / Copernicus.
+ORAS/ORAS5 fornece uma representação griddada e contínua do oceano, necessária para acompanhar a memória térmica do Pacífico e a estrutura vertical do aquecimento. É a base principal para variáveis subsuperficiais, especialmente `OHC 0-300 m`, `OHC 0-700 m`, `D20`, termoclina e camada de mistura.
 
-Links oficiais:
+## 2. CTD NOAA / World Ocean Database
 
-- ORAS5 CDS: https://cds.climate.copernicus.eu/datasets/reanalysis-oras5
-- ECMWF ORAS5: https://www.ecmwf.int/en/forecasts/dataset/ocean-reanalysis-system-5
-
-Cobertura:
-
-- ORAS5 possui série histórica longa e será recortado para 1980-presente.
-
-Formato esperado:
-
-- NetCDF bruto.
-- Zarr processado.
-
-Termos de uso:
-
-- Licença Copernicus. Registrar termos no catálogo.
-
----
-
-## 3. CPC/NOAA
+**Instituição:** NOAA / National Centers for Environmental Information.  
+**Download:** https://www.ncei.noaa.gov/products/world-ocean-database  
+**Pasta bruta:** `data/raw/ctd_noaa/`  
+**Pasta processada:** `data/processed/parquet/ctd_noaa/`  
 
 Uso no projeto:
 
-- SST/SSTA do Pacífico.
-- OLR observacional.
-- precipitação diária para o Brasil, quando usada fonte CPC/NOAA.
-- produtos oceanográficos NOAA/NCEI complementares.
+- `T(z)`: temperatura observada por profundidade.
+- `S(z)`: salinidade observada por profundidade.
+- validação da estrutura vertical do ORAS.
+- comparação e correção de viés em perfis oceânicos.
 
-Instituição:
+Justificativa:
 
-- NOAA / Climate Prediction Center.
-- NOAA / National Centers for Environmental Information.
+CTD é dado observacional in situ. Ele não substitui o ORAS como campo espacial contínuo, mas é essencial para conferir se a estrutura vertical reanalisada é fisicamente coerente. O projeto usa CTD para avaliar temperatura, salinidade, densidade potencial, termoclina, camada de mistura e conteúdo de calor calculados a partir do ORAS.
 
-Links oficiais:
+## 3. ERA5
 
-- NOAA OISST: https://www.ncei.noaa.gov/products/optimum-interpolation-sst
-- NOAA Physical Sciences Laboratory OLR: https://psl.noaa.gov/data/gridded/data.interp_OLR.html
-- CPC Global Precipitation: https://beta.cpc.noaa.gov/observations/global-precipitation
-- CPC Precipitation Monitoring: https://www.cpc.ncep.noaa.gov/products/Precip_Monitoring/gl_obs.shtml
-
-Cobertura:
-
-- OISST v2.1 inicia em 1981-09-01. A lacuna 1980-1981 deve ser registrada ou preenchida com fonte alternativa documentada.
-- Produtos CPC/NOAA variam por produto. Registrar cobertura real no catálogo.
-
-Formato esperado:
-
-- NetCDF, GRIB, ASCII ou binário conforme produto.
-- Converter para NetCDF/Zarr padronizado.
-
-Termos de uso:
-
-- Produtos NOAA são, em geral, públicos, mas a página de cada produto deve ser citada e registrada.
-
----
-
-## 4. CTD / World Ocean Database
+**Instituição:** Copernicus Climate Change Service / ECMWF.  
+**ERA5 single levels:** https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels  
+**ERA5 pressure levels:** https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels  
+**Portal CDS:** https://cds.climate.copernicus.eu/  
+**Pasta bruta:** `data/raw/era5/`  
+**Pasta processada:** `data/processed/zarr/era5/`  
 
 Uso no projeto:
 
-- T(z): temperatura por profundidade.
-- S(z): salinidade por profundidade.
-- validação da estrutura vertical;
-- comparação com ORAS/ORAS5.
+- `SLP`: pressão ao nível do mar.
+- `tau_x/tau_y`: tensão de vento zonal e meridional.
+- `u10/v10`: vento zonal e meridional a 10 m.
+- `u850/v850/q850`: vento e umidade em baixos níveis.
+- `u500/v500/q500/z500/omega500`: circulação, umidade, geopotencial e movimento vertical em níveis médios.
+- `u200/v200/z200/div200`: circulação, geopotencial e divergência em altos níveis.
+- `TCWV`: vapor d'água total integrado.
+- fluxos de calor líquido, latente, sensível, onda curta e onda longa.
 
-Instituição:
+Justificativa:
 
-- NOAA / National Centers for Environmental Information.
+ERA5 é a fonte principal para descrever a ponte atmosférica entre o Pacífico aquecido e o Brasil. As variáveis de pressão, vento, umidade, geopotencial, movimento vertical e divergência permitem avaliar o transporte e a reorganização da circulação que podem favorecer seca, chuva abaixo do normal ou chuva acima do normal.
 
-Link oficial:
+## 4. CPC/NOAA
 
-- https://www.ncei.noaa.gov/products/world-ocean-database
+**Instituição:** NOAA / Climate Prediction Center e NOAA/NCEI.  
+**NOAA OISST:** https://www.ncei.noaa.gov/products/optimum-interpolation-sst  
+**NOAA OLR:** https://psl.noaa.gov/data/gridded/data.interp_OLR.html  
+**CPC Global Precipitation:** https://beta.cpc.noaa.gov/observations/global-precipitation  
+**CPC Precipitation Monitoring:** https://www.cpc.ncep.noaa.gov/products/Precip_Monitoring/gl_obs.shtml  
+**Pasta bruta:** `data/raw/cpc_noaa/`  
+**Pasta processada:** `data/processed/zarr/cpc_noaa/`  
 
-Cobertura:
+Uso no projeto:
 
-- Histórica, variável por campanha e região.
-
-Formato esperado:
-
-- NetCDF, CSV ou formato WOD.
-- Converter para tabela padronizada.
-
-Termos de uso:
-
-- Registrar citação e termos indicados pelo NOAA/NCEI.
-
----
-
-## 5. Fontes complementares de precipitação
-
-### CHIRPS
-
-Link:
-
-- https://www.chc.ucsb.edu/data/chirps
-
-Uso:
-
+- `SST`: temperatura da superfície do mar.
+- `SSTA`: anomalia da temperatura da superfície do mar.
+- `OLR`: radiação de onda longa emitida.
 - precipitação diária em grade.
 
-### MERGE/INPE
+Justificativa:
 
-Link:
+CPC/NOAA fornece produtos observacionais fundamentais para o estado superficial do oceano, convecção tropical e precipitação. A precipitação é a variável-alvo do projeto, enquanto SST/SSTA e OLR ajudam a caracterizar o aquecimento superficial e a convecção associada.
 
-- https://ftp.cptec.inpe.br/modelos/tempo/MERGE/
+## 5. IBGE
 
-Uso:
+**Instituição:** Instituto Brasileiro de Geografia e Estatística.  
+**Geociências / malhas territoriais:** https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html  
+**Pasta bruta:** `data/raw/ibge/`  
+**Pasta processada:** `data/processed/geotiff/ibge/`  
 
-- precipitação diária nacional.
+Uso no projeto:
 
-### GPM IMERG
+- limite nacional do Brasil.
+- limites estaduais.
+- limites regionais.
+- recortes territoriais auxiliares.
+- máscaras espaciais.
+- mapas coropléticos.
 
-Link:
+Justificativa:
 
-- https://gpm.nasa.gov/data/imerg
+IBGE é a fonte oficial para limites territoriais brasileiros. Esses dados não entram como preditores climáticos, mas são necessários para recortar o Brasil, mascarar pixels fora do território nacional, agregar resultados por unidades territoriais e publicar mapas interpretáveis.
 
-Uso:
+## 6. Fontes complementares de precipitação
 
-- precipitação subdiária/diária para eventos recentes e extremos.
+Estas fontes podem ser usadas para validação cruzada ou comparação de sensibilidade:
 
----
+- CHIRPS: https://www.chc.ucsb.edu/data/chirps
+- MERGE/INPE: https://ftp.cptec.inpe.br/modelos/tempo/MERGE/
+- GPM IMERG: https://gpm.nasa.gov/data/imerg
 
-## 6. Catálogo local esperado
+## 7. Catálogo local
 
 Arquivo:
 
@@ -236,4 +161,3 @@ dataset_id:
   processed_path:
   notes:
 ```
-

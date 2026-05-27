@@ -6,481 +6,216 @@
 
 ## Plano Diretor do Projeto NINO-BRASIL
 
-### Relação entre aquecimento do Pacífico e anomalias de precipitação no Brasil
-
-**Período de estudo:** 1980 até a data presente  
-**Fontes principais:** ERA5, ORAS/ORAS5, CPC/NOAA  
-**Arquitetura:** Python  
-
----
+**Tema:** quantificação dos pesos oceanográficos e atmosféricos associados ao aquecimento do Pacífico e seus impactos na precipitação do Brasil.  
+**Período:** 1980 até a data presente.  
+**Arquitetura:** Python.  
 
 ## 1. Pergunta de pesquisa
 
-Como o aquecimento diário do Pacífico, observado por satélite, CTD e reanálises oceânicas, se relaciona com anomalias de precipitação no Brasil entre 1980 e a data presente?
+Qual é o impacto, em termos de peso relativo, das variáveis oceanográficas e atmosféricas associadas ao aquecimento do Pacífico sobre as anomalias de precipitação no Brasil, considerando sua distribuição espacial e temporal entre 1980 e a data presente?
 
-Perguntas derivadas:
+O projeto deve responder quais variáveis, profundidades, níveis atmosféricos, regiões do Pacífico e lags temporais têm maior poder explicativo sobre cada pixel do Brasil.
 
-- Quais sinais do Pacífico antecedem seca ou chuva abaixo do normal no Nordeste?
-- Quais sinais do Pacífico antecedem chuva acima do normal ou chuva extrema no Sul?
-- Como a relação Pacífico -> Brasil se distribui espacialmente em pixels?
-- Quais variáveis, profundidades e defasagens apresentam maior poder explicativo?
-
----
-
-## 2. Escopo físico e temporal
-
-### 2.1 Período
+## 2. Escopo
 
 ```text
-1980 até presente data
+Pacífico: 35S a 30N / 120E a 70W
+Brasil: território nacional em grade pixel-a-pixel
+Frequência: diária sempre que disponível
+Lags: 0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
 ```
 
-Cada fonte deve registrar a cobertura temporal real. Quando uma variável não cobrir todo o período, o pipeline deve usar apenas a interseção temporal válida ou marcar a lacuna explicitamente.
+As análises regionais devem incluir Brasil inteiro, Nordeste, Semiárido, Sul, Norte, Centro-Oeste e Sudeste, sem substituir a análise principal pixel-a-pixel.
 
-### 2.2 Domínio do Pacífico
+## 3. Etapa 1 - Download, armazenamento, tratamento e disponibilização
+
+### 3.1 Download e armazenamento local
+
+| Dado | Fonte | Pasta bruta | Justificativa |
+|---|---|---|---|
+| Oceano reanalisado | ORAS/ORAS5 | `data/raw/oras/` | Campo contínuo de temperatura e salinidade por profundidade para representar a memória térmica do oceano. |
+| Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/` | Perfis in situ para validar e corrigir temperatura, salinidade, densidade, termoclina, camada de mistura e conteúdo de calor. |
+| Atmosfera | ERA5 | `data/raw/era5/` | Variáveis atmosféricas necessárias para representar o transporte do sinal do Pacífico em direção ao Brasil. |
+| Precipitação | CPC/NOAA | `data/raw/cpc_noaa/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
+| Limites territoriais | IBGE | `data/raw/ibge/` | Máscara oficial do Brasil e limites para mapas coropléticos por UF, região e recortes territoriais. |
+
+### 3.2 Tratamento mínimo
+
+1. Validar arquivos, datas, unidades e cobertura temporal.
+2. Padronizar nomes de variáveis e coordenadas.
+3. Corrigir longitude, calendário e grade.
+4. Recortar Pacífico e Brasil.
+5. Calcular climatologia diária.
+6. Calcular anomalias diárias.
+7. Criar acumulados de precipitação.
+8. Criar eventos secos e chuva acima do normal por percentis locais.
+9. Gerar datasets com lags temporais.
+10. Registrar tudo em `data/catalog/datasets.yaml`.
+
+## 4. Etapa 2 - Disponibilização dos dados
+
+### 4.1 Aquecimento do Pacífico: satélite, ORAS e CTD
+
+Variáveis principais:
+
+- `SST`: temperatura da superfície do mar.
+- `SSTA`: anomalia da temperatura da superfície do mar.
+- `SSHA`: anomalia da altura da superfície do mar.
+- `T(z)`: temperatura por profundidade.
+- `S(z)`: salinidade por profundidade.
+- `D20`: profundidade da isoterma de 20 graus Celsius.
+- `MLD`: profundidade da camada de mistura.
+- `OHC 0-300 m`: conteúdo de calor oceânico até 300 m.
+- `OHC 0-700 m`: conteúdo de calor oceânico até 700 m.
+- `u/v oceânico`: correntes zonal e meridional.
+- `clorofila-a`: variável auxiliar superficial.
+
+### 4.2 Atmosfera Pacífico -> Brasil
+
+Variáveis principais:
+
+- `SLP`: pressão ao nível do mar.
+- `tau_x/tau_y`: tensão de vento zonal e meridional.
+- `u10/v10`: vento zonal e meridional a 10 m.
+- `u850/v850/q850`: vento e umidade em baixos níveis.
+- `u500/v500/q500/z500/omega500`: circulação, umidade, geopotencial e movimento vertical em níveis médios.
+- `u200/v200/z200/div200`: circulação, geopotencial e divergência em altos níveis.
+- `OLR`: radiação de onda longa emitida.
+- `TCWV`: vapor d'água total integrado na coluna atmosférica.
+
+### 4.3 Precipitação Brasil
+
+Variáveis principais:
+
+- precipitação diária.
+- anomalia diária.
+- acumulados de 3, 5, 7, 15 e 30 dias.
+- evento seco abaixo de `P10`.
+- chuva acima do normal acima de `P90`.
+
+### 4.4 Mapa do Brasil
+
+O dado do IBGE será usado para:
+
+- recortar a área continental brasileira.
+- criar máscara territorial.
+- agregar resultados por UF, região, bacia, bioma e Semiárido.
+- gerar mapas coropléticos no produto web.
+
+## 5. Etapa 3 - Machine Learning, validação, mapas e XAI
+
+### 5.1 Formulação
 
 ```text
-35S a 30N
-120E a 70W
-frequência diária sempre que disponível
+X[t] = variáveis oceanográficas + variáveis atmosféricas
+Y[t + lag] = anomalia de precipitação no Brasil
 ```
 
-### 2.3 Domínio de impacto
+Saídas:
 
-```text
-Brasil inteiro
-grade pixel-a-pixel
-agregação por estado, região, bacia, semiárido e bioma
-```
+- anomalia prevista de precipitação.
+- probabilidade de seca.
+- probabilidade de chuva acima do normal.
+- peso relativo das variáveis oceanográficas.
+- peso relativo das variáveis atmosféricas.
 
----
+### 5.2 Modelos
 
-## 3. Etapa 1 - Download, armazenamento local, tratamento e disponibilização de dados
+Baselines:
 
-### 3.1 Objetivo
+- climatologia.
+- persistência.
+- correlação defasada.
+- regressão regularizada.
+- Random Forest.
+- XGBoost.
 
-Criar uma base local, rastreável e reprodutível com dados do Pacífico, dados atmosféricos do corredor Pacífico -> Brasil e precipitação no Brasil.
+Modelos posteriores:
 
-### 3.2 Estrutura local
-
-```text
-NINO26/
-  data/
-    raw/
-      era5/
-      oras/
-      cpc_noaa/
-      auxiliary/
-    interim/
-      pacific_warming/
-      atmosphere_bridge/
-      brazil_precipitation/
-    processed/
-      zarr/
-      parquet/
-      geotiff/
-    catalog/
-      datasets.yaml
-  src/
-    data/
-      download_era5.py
-      download_oras.py
-      download_cpc_noaa.py
-      standardize.py
-      quality_control.py
-      anomalies.py
-      build_lagged_dataset.py
-    features/
-      ocean_heat.py
-      thermocline.py
-      atmospheric_bridge.py
-      precipitation_events.py
-    models/
-      baselines.py
-      train.py
-      validate.py
-      explain.py
-    maps/
-      plot_pixel_maps.py
-      plot_choropleths.py
-    web/
-      build_site.py
-```
-
-### 3.3 Formatos
-
-- **NetCDF:** arquivos originais em grade.
-- **Zarr:** cubos processados para leitura rápida com `xarray`.
-- **Parquet:** tabelas de treino, amostras, métricas e resultados.
-- **GeoTIFF:** rasters georreferenciados para mapas.
-- **YAML:** catálogo de dados com fonte, variável, unidade, período e caminho local.
-
-### 3.4 Tratamento mínimo
-
-1. Baixar dados brutos.
-2. Validar arquivos, datas e variáveis.
-3. Padronizar nomes e unidades.
-4. Recortar domínio do Pacífico.
-5. Recortar domínio do Brasil.
-6. Corrigir longitude, calendário e grade.
-7. Registrar cobertura temporal real por variável.
-8. Calcular climatologia diária.
-9. Calcular anomalias diárias.
-10. Criar acumulados de precipitação.
-11. Criar eventos por percentis locais.
-12. Criar datasets com defasagens temporais.
-
-### 3.5 Defasagens iniciais
-
-```text
-0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
-```
-
-Pergunta operacional:
-
-```text
-O estado do Pacífico no dia t ajuda a explicar ou prever a precipitação no Brasil em t + lag?
-```
-
----
-
-## 4. Etapa 2 - Disponibilização de dados
-
-Os dados devem ser organizados em três blocos.
-
----
-
-### 4.1 Bloco A - Aquecimento do Pacífico: satélite + CTD + ORAS
-
-Objetivo: representar o aquecimento superficial, subsuperficial e a propagação do calor no Pacífico.
-
-#### 4.1.1 Variáveis de satélite e CPC/NOAA
-
-- **SST:** temperatura da superfície do mar.
-- **SSTA:** anomalia da temperatura da superfície do mar.
-- **SSHA:** anomalia da altura da superfície do mar, quando disponível.
-- **Temperatura de brilho:** se canais radiométricos forem usados diretamente.
-- **Clorofila-a:** variável auxiliar para ressurgência, mistura e resposta biológica no Pacífico Leste.
-
-#### 4.1.2 Variáveis CTD e ORAS/ORAS5
-
-Variáveis observadas por CTD:
-
-- **T(z):** temperatura em função da profundidade.
-- **S(z):** salinidade em função da profundidade.
-
-Variáveis calculadas e padronizadas a partir de `T(z)` e `S(z)`:
-
-- densidade potencial;
-- **D20:** profundidade da isoterma de 20 graus Celsius;
-- profundidade da termoclina;
-- profundidade da camada de mistura;
-- temperatura média 0-300 m;
-- temperatura média 0-700 m;
-- conteúdo de calor oceânico 0-300 m;
-- conteúdo de calor oceânico 0-700 m;
-- gradiente vertical de temperatura.
-
-#### 4.1.3 Dinâmica oceânica
-
-Adicionar a partir de ORAS/ORAS5 quando disponível:
-
-- corrente zonal oceânica `u`;
-- corrente meridional oceânica `v`;
-- velocidade vertical ou proxy de ressurgência;
-- ondas de Kelvin oceânicas;
-- ondas de Rossby oceânicas;
-- rajadas de vento de oeste;
-- gradiente zonal de temperatura;
-- gradiente meridional de temperatura;
-- propagação longitudinal via diagrama Hovmoller.
-
-#### 4.1.4 Fluxos de calor oceano-atmosfera
-
-Adicionar a partir de ERA5 quando disponível:
-
-- fluxo líquido de calor na superfície;
-- fluxo de calor latente;
-- fluxo de calor sensível;
-- radiação de onda curta;
-- radiação de onda longa.
-
----
-
-### 4.2 Bloco B - Dados atmosféricos Pacífico -> Brasil
-
-Objetivo: representar a ponte atmosférica entre o Pacífico aquecido e a resposta de chuva no Brasil.
-
-#### 4.2.1 Núcleo mínimo
-
-- **SLP:** pressão ao nível do mar.
-- **tau_x:** tensão de vento zonal na superfície.
-- **tau_y:** tensão de vento meridional na superfície.
-- **u10:** vento zonal a 10 m.
-- **v10:** vento meridional a 10 m.
-- **OLR:** radiação de onda longa emitida.
-- **TCWV:** vapor d'água total integrado na coluna atmosférica.
-
-#### 4.2.2 Estrutura vertical da atmosfera
-
-Baixos níveis:
-
-- **u850:** vento zonal em 850 hPa.
-- **v850:** vento meridional em 850 hPa.
-- **q850:** umidade específica em 850 hPa.
-
-Níveis médios:
-
-- **u500:** vento zonal em 500 hPa.
-- **v500:** vento meridional em 500 hPa.
-- **q500:** umidade específica em 500 hPa.
-- **z500:** geopotencial em 500 hPa.
-- **omega500:** movimento vertical em 500 hPa.
-
-Altos níveis:
-
-- **u200:** vento zonal em 200 hPa.
-- **v200:** vento meridional em 200 hPa.
-- **z200:** geopotencial em 200 hPa.
-- **div200:** divergência em 200 hPa.
-
-Essas variáveis representam circulação de grande escala, transporte de umidade, subsidência/ascensão, convecção tropical e teleconexão entre Pacífico e Brasil.
-
----
-
-### 4.3 Bloco C - Dados de precipitação Brasil
-
-Objetivo: representar a resposta observada no território brasileiro.
-
-Fontes:
-
-- CPC/NOAA Daily Precipitation.
-- CHIRPS diário, como fonte complementar.
-- MERGE/INPE diário, como fonte nacional complementar.
-- GPM IMERG diário, para extremos recentes.
-
-Variáveis:
-
-- precipitação diária;
-- anomalia diária;
-- acumulado de 3, 5, 7, 15 e 30 dias;
-- evento seco: abaixo do P10 local;
-- chuva alta: acima do P90 local;
-- chuva extrema: acima do P95 ou P99 local.
-
----
-
-## 5. Etapa 3 - Arquitetura Machine Learning, validação, mapas, XAI e correção recorrente
-
-### 5.1 Arquitetura em Python
-
-Bibliotecas principais:
-
-- `xarray`, `numpy`, `pandas`, `zarr`, `netCDF4`;
-- `geopandas`, `rasterio`, `rioxarray`;
-- `scikit-learn`, `xgboost`, `lightgbm`;
-- `torch`, `pytorch-lightning`;
-- `matplotlib`, `plotly`, `folium`;
-- `shap` para explicabilidade.
-
-### 5.2 Problema de modelagem
-
-Entrada:
-
-```text
-variáveis do Pacífico + variáveis atmosféricas em t
-```
-
-Saída:
-
-```text
-anomalia de precipitação no Brasil em t + lag
-probabilidade de seca
-probabilidade de chuva extrema
-```
-
-### 5.3 Baselines obrigatórios
-
-- climatologia diária local;
-- persistência;
-- correlação defasada pixel-a-pixel;
-- regressão regularizada;
-- Random Forest;
-- XGBoost;
-- Pacífico embaralhado no tempo;
-- lag invertido.
-
-### 5.4 Modelos
-
-Primeira fase:
-
-- regressão regularizada;
-- Random Forest;
-- XGBoost;
-- LightGBM.
-
-Segunda fase:
-
-- CNN;
-- ConvLSTM;
-- U-Net;
+- CNN.
+- ConvLSTM.
+- U-Net.
 - Transformer espaço-temporal.
 
-### 5.5 Validação
+### 5.3 Dimensionamento de pesos
 
-Regras:
+Experimentos mínimos:
 
-- não usar split aleatório;
-- usar treino, validação e teste por blocos temporais;
-- usar walk-forward validation;
-- avaliar por lag;
-- avaliar por região;
-- avaliar por estação do ano;
-- avaliar por período El Nino, La Nina e neutro apenas como análise auxiliar.
-
-Regiões:
-
-- Brasil inteiro;
-- Nordeste;
-- Semiárido;
-- Sul;
-- Norte;
-- Centro-Oeste;
-- Sudeste.
-
-### 5.6 Métricas
-
-Regressão:
-
-- correlação;
-- MAE;
-- RMSE;
-- bias;
-- erro por pixel;
-- erro por região;
-- erro por lag.
-
-Eventos:
-
-- Brier Score;
-- ROC-AUC;
-- precision;
-- recall;
-- hit rate;
-- false alarm rate;
-- F1-score.
-
-Mapas:
-
-- correlação espacial;
-- área de acerto;
-- área de falso alarme;
-- FSS quando aplicável.
-
-### 5.7 XAI
-
-Perguntas:
-
-- qual região do Pacífico foi mais importante?
-- qual variável foi mais importante?
-- qual profundidade CTD foi mais importante?
-- qual lag foi mais importante?
-- a resposta é diferente no Nordeste e no Sul?
-- o sinal é fisicamente coerente?
+```text
+Modelo A: apenas variáveis oceanográficas
+Modelo B: apenas variáveis atmosféricas
+Modelo C: variáveis oceanográficas + atmosféricas
+Modelo D: sem subsuperfície oceânica
+Modelo E: sem altos níveis atmosféricos
+Modelo F: sem umidade atmosférica
+```
 
 Técnicas:
 
-- mapas de correlação defasada;
-- permutation importance;
-- SHAP;
-- occlusion maps;
-- saliency maps;
-- attention maps;
+- importância por permutação.
+- SHAP.
 - ablation study.
+- mapas de atenção.
+- diferença de skill entre modelos.
 
-### 5.8 Plotagem dos mapas
+### 5.4 Validação
 
-Mapas:
+Regras:
 
-- anomalia prevista de precipitação;
-- probabilidade de seca;
-- probabilidade de chuva extrema;
-- erro histórico;
-- confiança;
-- lag dominante;
-- importância das variáveis;
-- diferença Nordeste-Sul.
+- não usar split aleatório.
+- usar blocos temporais.
+- aplicar walk-forward validation.
+- avaliar por lag, região, estação do ano e fonte de precipitação.
 
-### 5.9 Correção recorrente automatizada
+Métricas:
 
-A cada nova rodada:
+- correlação.
+- MAE.
+- RMSE.
+- bias.
+- Brier Score.
+- ROC-AUC.
+- precision.
+- recall.
+- hit rate.
+- false alarm rate.
+- F1-score.
 
-1. Comparar previsto vs observado.
-2. Atualizar métricas por pixel, região e lag.
-3. Detectar drift.
-4. Recalibrar probabilidades quando necessário.
-5. Atualizar mapas de confiança.
-6. Gerar relatório automático.
+### 5.5 Mapas
 
----
+Mapas obrigatórios:
 
-## 6. Etapa 4 - Deploy dos mapas coropléticos na web com GitHub Pages
+- anomalia prevista de precipitação.
+- probabilidade de seca.
+- probabilidade de chuva acima do normal.
+- lag dominante.
+- peso oceanográfico.
+- peso atmosférico.
+- variável dominante.
+- erro histórico.
+- confiança.
 
-### 6.1 Objetivo
+## 6. Etapa 4 - Deploy no GitHub Pages
 
-Publicar mapas e métricas em página estática no GitHub Pages.
-
-### 6.2 Fluxo
+O deploy será feito em `docs/`, usando GitHub Pages.
 
 ```text
 pipeline Python
 |
-gera NetCDF/Zarr/GeoTIFF/Parquet
+gera dados processados
 |
-gera mapas HTML e PNG
+gera mapas PNG/HTML
 |
-atualiza pasta docs/ ou site/
+salva em docs/
 |
 GitHub Pages publica
 ```
-
-### 6.3 Mapas
-
-Coropléticos:
-
-- risco médio por estado;
-- risco médio por região;
-- risco médio por bacia;
-- risco médio no semiárido;
-- risco médio por bioma.
-
-Pixel-a-pixel:
-
-- anomalia prevista;
-- seca;
-- chuva extrema;
-- confiança;
-- erro histórico;
-- importância do Pacífico.
-
-### 6.4 Stack
-
-- Python;
-- GeoPandas;
-- Xarray;
-- Rasterio;
-- Plotly;
-- Folium;
-- GitHub Actions;
-- GitHub Pages.
-
----
 
 ## 7. Entregáveis
 
 1. Base local 1980-presente.
 2. Catálogo de fontes.
-3. Cubos Zarr processados.
+3. Cubos processados.
 4. Datasets com lags.
 5. Modelos baseline.
 6. Modelos ML validados.
@@ -490,4 +225,3 @@ Pixel-a-pixel:
 10. Relatório XAI.
 11. Rotina de correção recorrente.
 12. Deploy no GitHub Pages.
-

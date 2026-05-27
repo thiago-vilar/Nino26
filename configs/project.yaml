@@ -40,4 +40,3 @@ targets:
   precipitation_windows_days: [1, 3, 5, 7, 15, 30]
   dry_percentile: 10
   wet_percentile: 90
-  extreme_percentiles: [95, 99]

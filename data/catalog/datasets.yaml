@@ -62,6 +62,23 @@ oras5:
   processed_path: "data/processed/zarr/oras5.zarr"
   notes: "Use T(z) and S(z) to calculate density, D20, thermocline, MLD and OHC."
 
+noaa_wod_ctd:
+  name: "NOAA World Ocean Database CTD profiles"
+  institution: "NOAA/NCEI"
+  source_url: "https://www.ncei.noaa.gov/products/world-ocean-database"
+  license: "NOAA public data; cite product page"
+  version: null
+  variables:
+    - temperature_profile
+    - salinity_profile
+  temporal_resolution: "profile based"
+  spatial_resolution: "station/profile based"
+  period_start: null
+  period_end: null
+  raw_path: "data/raw/ctd_noaa"
+  processed_path: "data/processed/parquet/ctd_noaa"
+  notes: "Use in situ profiles to validate ORAS/ORAS5 vertical structure and derived ocean heat metrics."
+
 noaa_oisst:
   name: "NOAA Optimum Interpolation SST v2.1"
   institution: "NOAA/NCEI"
@@ -109,3 +126,21 @@ cpc_precipitation:
   raw_path: "data/raw/cpc_noaa/precipitation"
   processed_path: "data/processed/zarr/cpc_precipitation_brazil.zarr"
   notes: "Confirm product coverage before operational use."
+
+ibge_boundaries:
+  name: "IBGE territorial boundaries"
+  institution: "Instituto Brasileiro de Geografia e Estatistica"
+  source_url: "https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais.html"
+  license: "Confirm terms on IBGE download page"
+  version: null
+  variables:
+    - national_boundary
+    - state_boundaries
+    - regional_boundaries
+  temporal_resolution: "static"
+  spatial_resolution: "cartographic vector"
+  period_start: null
+  period_end: null
+  raw_path: "data/raw/ibge"
+  processed_path: "data/processed/geotiff/ibge"
+  notes: "Use for Brazil mask, regional aggregation and choropleth maps; not a climate predictor."
