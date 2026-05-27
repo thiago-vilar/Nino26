@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import shutil
-import urllib.request
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+
+from nino_brasil.data.download_http import download_url
 
 
 IBGE_MUNICIPAL_2024_BASE_URL = (
@@ -34,24 +34,6 @@ IBGE_PRODUCTS: dict[str, IbgeProduct] = {
         description="Municipios do Brasil, malha municipal 2024.",
     ),
 }
-
-
-def _download_url(url: str, output_path: Path, overwrite: bool = False) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if output_path.exists() and not overwrite:
-        print(f"exists: {output_path}")
-        return
-
-    temp_path = output_path.with_suffix(output_path.suffix + ".part")
-    if temp_path.exists():
-        temp_path.unlink()
-
-    with urllib.request.urlopen(url, timeout=60) as response, temp_path.open("wb") as fh:
-        shutil.copyfileobj(response, fh)
-
-    temp_path.replace(output_path)
-    print(f"downloaded: {output_path}")
 
 
 def _write_metadata(
@@ -82,6 +64,7 @@ def download_ibge(
     interim_dir: Path | None = None,
     extract: bool = True,
     overwrite: bool = False,
+    dry_run: bool = False,
 ) -> Path:
     if product_id not in IBGE_PRODUCTS:
         valid = ", ".join(sorted(IBGE_PRODUCTS))
@@ -91,7 +74,11 @@ def download_ibge(
     url = f"{IBGE_MUNICIPAL_2024_BASE_URL}/{product.filename}"
     raw_path = raw_dir / product.filename
 
-    _download_url(url, raw_path, overwrite=overwrite)
+    if dry_run:
+        print(f"DRY RUN ibge {product_id}: {url} -> {raw_path}")
+        return raw_path
+
+    download_url(url, raw_path, overwrite=overwrite)
 
     extracted_path: Path | None = None
     if extract:

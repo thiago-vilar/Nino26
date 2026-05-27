@@ -14,6 +14,7 @@ data/processed/**
 *.tif
 *.tiff
 *.parquet
+*.part
 __pycache__/
 .pytest_cache/
 .venv/

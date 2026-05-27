@@ -145,6 +145,11 @@ python scripts/data_pipeline.py init
 python scripts/data_pipeline.py plan
 python scripts/data_pipeline.py download-ibge --product uf
 python scripts/data_pipeline.py download-ibge --product municipios
+python scripts/data_pipeline.py download-chirps --start-year 1981 --end-year 1981
+python scripts/data_pipeline.py download-oisst --start-year 1981 --end-year 1981
+python scripts/data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1
+python scripts/data_pipeline.py download-oras --start-year 1981 --end-year 1981 --month 1
+python scripts/data_pipeline.py download-all --start-year 1981 --end-year 1981
 ```
 
 O primeiro bloco real baixa e extrai shapefiles oficiais do IBGE em:
@@ -152,6 +157,18 @@ O primeiro bloco real baixa e extrai shapefiles oficiais do IBGE em:
 ```text
 data/raw/ibge/
 data/interim/ibge/
+```
+
+Por padrão, os comandos de bases climáticas rodam em modo `dry-run`. Para baixar de verdade, adicione:
+
+```text
+--execute
+```
+
+Para incluir ERA5 e ORAS no `download-all`, adicione:
+
+```text
+--include-cds
 ```
 
 ## 9. Estrutura e execução na IDE
