@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 import xarray as xr
 
 
@@ -20,6 +21,9 @@ def align_predictor_target(
     common_time = predictors.indexes[time_name].intersection(shifted_target.indexes[time_name])
     aligned_x = predictors.sel({time_name: common_time})
     aligned_y = shifted_target.sel({time_name: common_time})
+    target_time = pd.DatetimeIndex(common_time) + pd.to_timedelta(lag_days, unit="D")
+    aligned_x = aligned_x.assign_coords(target_time=(time_name, target_time))
+    aligned_y = aligned_y.assign_coords(target_time=(time_name, target_time))
 
     spatial_dims = [dim for dim in aligned_y.dims if dim != time_name]
     valid_time = aligned_y.notnull().any(dim=spatial_dims) if spatial_dims else aligned_y.notnull()

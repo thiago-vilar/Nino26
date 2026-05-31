@@ -7,12 +7,12 @@
 ## Plano Diretor do Projeto NINO-BRASIL
 
 **Tema:** quantificação dos pesos oceanográficos e atmosféricos associados ao aquecimento do Pacífico e seus impactos na precipitação do Brasil.  
-**Período:** 1980 até a data presente.  
+**Período:** 1981-01-01 até o último dado disponível por fonte.  
 **Arquitetura:** Python.  
 
 ## 1. Pergunta de pesquisa
 
-Qual é o impacto, em termos de peso relativo, das variáveis oceanográficas e atmosféricas associadas ao aquecimento do Pacífico sobre as anomalias de precipitação no Brasil, considerando sua distribuição espacial e temporal entre 1980 e a data presente?
+Qual é o impacto, em termos de peso relativo, das variáveis oceanográficas e atmosféricas associadas ao aquecimento do Pacífico sobre as anomalias diárias de precipitação no Brasil, considerando sua distribuição espacial e temporal entre 1981 e o último dado disponível por fonte?
 
 O projeto deve responder quais variáveis, profundidades, níveis atmosféricos, regiões do Pacífico e lags temporais têm maior poder explicativo sobre cada pixel do Brasil.
 
@@ -22,10 +22,19 @@ O projeto deve responder quais variáveis, profundidades, níveis atmosféricos,
 Pacífico: 35S a 30N / 120E a 70W
 Brasil: território nacional em grade pixel-a-pixel
 Frequência: diária sempre que disponível
-Lags: 0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
+Período: 1981-01-01 até o último dado disponível por fonte
+Lags: 0, 30, 60, 90, 120, 150 e 180 dias
 ```
 
 As análises regionais devem incluir Brasil inteiro, Nordeste, Semiárido, Sul, Norte, Centro-Oeste e Sudeste, sem substituir a análise principal pixel-a-pixel.
+
+## 2.1 Fases de execução
+
+Fase 1 fecha o ciclo ponta-a-ponta com dados diários OISST, CHIRPS 0.25° e IBGE, modelos Ridge, Random Forest e XGBoost, cabeças de regressão e classificação, ablations A/B/C, permutation importance e SHAP.
+
+Fase 2 incorpora ERA5 completo e ORAS5 subsuperficial, executa ablations D/E/F e escala a modelagem para CHIRPS 0.05° pixel-a-pixel.
+
+Fase 3 adiciona CNN, ConvLSTM, U-Net, Transformer espaço-temporal, XAI avançado e operação recorrente com comparação previsão-observado, drift, recalibração, mapas de confiança e relatório automático.
 
 ## 3. Etapa 1 - Download, armazenamento, tratamento e disponibilização
 
@@ -34,9 +43,9 @@ As análises regionais devem incluir Brasil inteiro, Nordeste, Semiárido, Sul, 
 | Dado | Fonte | Pasta bruta | Justificativa |
 |---|---|---|---|
 | Oceano reanalisado | ORAS/ORAS5 | `data/raw/oras/` | Campo contínuo de temperatura e salinidade por profundidade para representar a memória térmica do oceano. |
-| Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/` | Perfis in situ para validar e corrigir temperatura, salinidade, densidade, termoclina, camada de mistura e conteúdo de calor. |
+| Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/wod/` e `data/processed/zarr/ctd_noaa/wod/` | Perfis in situ com QC WOD e TEOS-10 para validar temperatura, salinidade, densidade, termoclina, haloclina, picnoclina e conteúdo de calor. |
 | Atmosfera | ERA5 | `data/raw/era5/` | Variáveis atmosféricas necessárias para representar o transporte do sinal do Pacífico em direção ao Brasil. |
-| Precipitação | CPC/NOAA | `data/raw/cpc_noaa/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
+| Precipitação | CHIRPS 0.25° diário na Fase 1; CHIRPS 0.05° na Fase 2 | `data/raw/chirps/p25/` e `data/raw/chirps/p05/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
 | Limites territoriais | IBGE | `data/raw/ibge/` | Máscara oficial do Brasil e limites para mapas coropléticos por UF, região e recortes territoriais. |
 
 ### 3.2 Tratamento mínimo
@@ -51,6 +60,9 @@ As análises regionais devem incluir Brasil inteiro, Nordeste, Semiárido, Sul, 
 8. Criar eventos secos e chuva acima do normal por percentis locais.
 9. Gerar datasets com lags temporais.
 10. Registrar tudo em `data/catalog/datasets.yaml`.
+11. Salvar perfis CTD processados em `.zarr` anual depois de QC, TEOS-10 e calculo de estratificacao.
+12. Estimar climatologia, desvio padrão e percentis somente dentro do bloco de treino de cada fold walk-forward.
+13. Regridar Pacífico, Brasil e ponte atmosférica para a grade comum declarada em `configs/project.yaml` antes da matriz de modelagem.
 
 ## 4. Etapa 2 - Disponibilização dos dados
 
@@ -158,6 +170,14 @@ Técnicas:
 - mapas de atenção.
 - diferença de skill entre modelos.
 
+Artefatos mínimos da Fase 1:
+
+- `walk_forward_metrics.parquet`.
+- `walk_forward_predictions.parquet`.
+- `walk_forward_importances.parquet`.
+- `walk_forward_group_weights.parquet`.
+- `distribution_diagnostics.parquet` quando houver diagnóstico de cauda.
+
 ### 5.4 Validação
 
 Regras:
@@ -213,7 +233,7 @@ GitHub Pages publica
 
 ## 7. Entregáveis
 
-1. Base local 1980-presente.
+1. Base local diária 1981-latest_available.
 2. Catálogo de fontes.
 3. Cubos processados.
 4. Datasets com lags.

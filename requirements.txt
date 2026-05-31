@@ -9,6 +9,7 @@ cdsapi
 dask
 folium
 geopandas
+gsw
 h5netcdf
 ipykernel
 joblib

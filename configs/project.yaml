@@ -6,8 +6,8 @@ project:
   responsible: Thiago Vilar
 
 period:
-  start: "1980-01-01"
-  end: "present"
+  start: "1981-01-01"
+  end: "latest_available"
 
 domains:
   pacific:
@@ -33,8 +33,34 @@ domains:
 
 time:
   base_frequency: "daily"
-  lag_days: [0, 7, 15, 30, 45, 60, 90, 120, 180]
+  master_calendar: "daily_1981_latest_available"
+  source_gaps_policy: "record_missing_without_silent_fill"
+  monthly_ocean_policy: "align_as_memory_features_with_explicit_lags"
+  lag_days: [0, 30, 60, 90, 120, 150, 180]
   climatology_window_days: 15
+
+modeling:
+  phase: 1
+  temporal_resolution: "daily"
+  sst_primary_source: "noaa_oisst"
+  oras_role: "subsurface_memory_features_only"
+  chirps_resolution: "p25"
+  grid:
+    name: "common_0p25_pacific_brazil"
+    resolution_degrees: 0.25
+    latitude_min: -35.0
+    latitude_max: 30.0
+    longitude_min: 120.0
+    longitude_max: 330.0
+    longitude_convention: "0_360"
+    regrid_method: "bilinear"
+
+source_latency_days:
+  chirps: 45
+  noaa_oisst: 7
+  era5: 7
+  oras5: 45
+  noaa_wod_ctd: 365
 
 storage:
   raw: "data/raw"

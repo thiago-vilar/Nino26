@@ -172,7 +172,6 @@ def download_oras_month(
         "variable": [
             "potential_temperature",
             "salinity",
-            "sea_surface_temperature",
             "ocean_heat_content_for_the_upper_300m",
             "ocean_heat_content_for_the_upper_700m",
         ],
@@ -280,7 +279,6 @@ def _oras_request(year: int, month: int) -> dict[str, object]:
         "variable": [
             "potential_temperature",
             "salinity",
-            "sea_surface_temperature",
             "ocean_heat_content_for_the_upper_300m",
             "ocean_heat_content_for_the_upper_700m",
         ],

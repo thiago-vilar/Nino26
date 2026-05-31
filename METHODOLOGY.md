@@ -10,14 +10,18 @@ O objetivo metodológico é medir, modelar e dimensionar o peso relativo das var
 
 ## 1. Padronização temporal
 
-A frequência operacional será diária sempre que a fonte permitir.
+A janela temporal mestre do projeto é diária, de `1981-01-01` até o último dado disponível por fonte.
 
 Regras:
 
 - não usar informação futura em simulação operacional.
-- registrar a cobertura temporal real de cada variável.
-- manter apenas a interseção temporal válida quando necessário.
+- todo produto de modelagem deve estar alinhado ao eixo diário 1981-latest_available.
+- registrar a cobertura temporal real de cada variável antes do alinhamento.
+- registrar lacunas de fonte sem preenchimento silencioso.
+- converter ERA5 subdiário para estatísticas diárias.
+- alinhar ORAS5 mensal como variável de memória oceânica com regra explícita de lag.
 - documentar qualquer reamostragem temporal.
+- registrar a latência de cada fonte no ledger de auditoria.
 
 ## 2. Climatologia e anomalia
 
@@ -37,6 +41,12 @@ Anomalia padronizada:
 
 ```text
 anomalia_padronizada = (valor - média_climatológica) / desvio_padrão_climatológico
+```
+
+Regra anti-vazamento:
+
+```text
+climatologia, desvio padrão climatológico, P10 e P90 são estimados apenas no bloco de treino de cada fold walk-forward e reaplicados à validação/teste.
 ```
 
 ## 3. Eventos de precipitação
@@ -91,6 +101,38 @@ Conteúdo de calor oceânico:
 OHC_0-H = integral[0,H] rho * cp * T(z) dz
 ```
 
+## 4.1 CTD NOAA WOD e TEOS-10
+
+Os perfis CTD do WOD entram como observacao vertical irregular, nao como grade diaria continua.
+
+Fluxo computacional:
+
+```text
+1. baixar wod_ctd_<ano>.nc do NOAA WOD;
+2. filtrar perfis no Pacifico 35S-30N / 120E-70W;
+3. aceitar somente flags WOD aprovadas;
+4. interpolar temperatura e salinidade para 0-700 m com passo de 5 m;
+5. calcular pressao a partir de profundidade e latitude;
+6. aplicar TEOS-10;
+7. salvar Zarr anual.
+```
+
+Variaveis TEOS-10:
+
+```text
+SA = Salinidade Absoluta
+CT = Temperatura Conservativa
+sigma0 = anomalia de densidade potencial referida a 0 dbar
+```
+
+Estratificacao:
+
+```text
+termoclina = profundidade do maior gradiente vertical de CT
+haloclina = profundidade do maior gradiente vertical de SA
+picnoclina = profundidade do maior gradiente vertical de sigma0
+```
+
 ## 5. Variáveis atmosféricas
 
 Grupos:
@@ -117,8 +159,10 @@ Y[t + lag] = anomalia de precipitação no Brasil
 Lags iniciais:
 
 ```text
-0, 7, 15, 30, 45, 60, 90, 120, 180 dias
+0, 30, 60, 90, 120, 150, 180 dias
 ```
+
+As grades do Pacífico, Brasil e ponte atmosférica são reconciliadas antes da montagem da matriz de modelagem. A Fase 1 usa grade comum `0.25°` em longitude `0_360`; a Fase 2 escala para `0.05°` pixel-a-pixel.
 
 Saídas:
 
@@ -214,6 +258,27 @@ Técnicas:
 - saliency maps.
 - attention maps.
 - ablation study.
+
+Saídas operacionais da Fase 1:
+
+```text
+walk_forward_importances.parquet
+walk_forward_group_weights.parquet
+```
+
+Esses arquivos alimentam os mapas de peso oceanográfico, peso atmosférico e variável dominante.
+
+## 9.1 Diagnóstico distribucional
+
+Algumas variáveis físicas podem ter caudas pesadas. O diagnóstico de cauda é separado do treino e serve para QC/EDA:
+
+```text
+variáveis prioritárias: chuva diária, extremos >= P90, OHC, SSTA
+ajustes: power law, lognormal, exponencial
+critérios: alpha, xmin, KS, razão de log-verossimilhança
+```
+
+A comparação contra lognormal e exponencial é obrigatória; uma cauda com aparência de lei de potência não deve ser assumida sem teste comparativo.
 
 ## 10. Correção recorrente automatizada
 

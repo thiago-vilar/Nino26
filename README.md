@@ -1,251 +1,264 @@
-# Projeto de previsão climática El NINO e seus impactos no Brasil
+# NINO-BRASIL
 
-**Programa de Pós Graduação em Oceanografia UFPE**  
-**Área:** Oceanografia Física  
-**Responsável:** Thiago Vilar  
+Projeto Python para medir o peso relativo de variaveis oceanograficas e atmosfericas associadas ao aquecimento do Pacifico sobre anomalias diarias de precipitacao no Brasil.
 
-## NINO-BRASIL
+O fluxo oficial preserva a janela historica completa: `1981-01-01` ate o ultimo dado disponivel por fonte. O fim do periodo e dinamico porque CHIRPS, OISST, ERA5, ORAS5 e CTD/WOD tem latencias diferentes.
 
-O **NINO-BRASIL** é um projeto em Python para investigar como variáveis oceanográficas e atmosféricas associadas ao aquecimento do Pacífico se relacionam, no espaço e no tempo, com anomalias de precipitação no Brasil.
+## Decisoes metodologicas fixas
 
-O foco não é usar apenas um índice climático agregado. O foco é medir o peso relativo das variáveis oceânicas e atmosféricas, identificar onde esses pesos aparecem no território brasileiro e avaliar em quais defasagens temporais eles têm maior poder explicativo.
+- Frequencia de modelagem: sempre diaria.
+- Lags: `0, 30, 60, 90, 120, 150, 180` dias.
+- Validacao: somente blocos temporais e walk-forward; nao usar split aleatorio.
+- Anti-vazamento: climatologia diaria, desvio padrao, P10 e P90 sao estimados no bloco de treino de cada fold e reaplicados a validacao/teste.
+- Grade comum da Fase 1: `0.25` grau, longitude `0_360`, declarada em `configs/project.yaml`.
+- CHIRPS da Fase 1: `p25`, coerente com a grade comum e com o arquivo local ja baixado.
+- CHIRPS `p05`: reservado para Fase 2, quando o custo pixel-a-pixel for validado.
+- SST/SSTA principal: NOAA OISST diario.
+- ORAS5: reservado para memoria oceanica subsuperficial, nao para duplicar SST mensal.
 
-## 1. Pergunta de pesquisa
+## Estado local dos dados
 
-Qual é o impacto, em termos de peso relativo, das variáveis oceanográficas e atmosféricas associadas ao aquecimento do Pacífico sobre as anomalias de precipitação no Brasil, considerando sua distribuição espacial e temporal entre 1980 e a data presente?
+Atualmente ha IBGE e um arquivo CHIRPS `p25` de 1981 em `data/raw/chirps/p25/`. Esse arquivo nao e erro: ele esta alinhado com a escolha oficial da Fase 1. Nao apague `p25` salvo se o arquivo estiver corrompido.
 
-De forma operacional, o projeto pergunta:
+Dados que ainda precisam ser ingeridos para rodar ponta a ponta:
 
-```text
-Quais variáveis do Pacífico e da ponte atmosférica no dia t explicam melhor
-as anomalias de precipitação no Brasil em t + lag?
-```
+- NOAA OISST historico diario.
+- CHIRPS `p25` historico diario.
+- ERA5 single e pressure levels.
+- ORAS5 subsuperficial.
+- CTD/WOD para validacao vertical.
+- Cubos Zarr regridados em `data/processed/zarr/regridded/`.
 
-## 2. Hipótese física
+Arquivos grandes em `data/raw/`, `data/interim/` e `data/processed/` nao devem ser commitados. Versione codigo, configs, catalogo, docs e testes.
 
-O aquecimento do Pacífico altera a estrutura oceânica superficial e subsuperficial. Essa alteração afeta o acoplamento oceano-atmosfera, modifica vento, pressão, umidade, movimento vertical e convecção, e esse sinal pode se propagar até o Brasil por teleconexões atmosféricas.
+## Instalacao
 
-O projeto avalia essa cadeia física em três blocos:
-
-```text
-Aquecimento do Pacífico -> Ponte atmosférica -> Precipitação no Brasil
-```
-
-## 3. Domínios espaciais do projeto
-
-O projeto trabalha com três áreas espaciais, cada uma com uma função física e computacional diferente.
-
-| Domínio | Fonte principal | Recorte | Função |
-|---|---|---|---|
-| Pacífico oceânico | ORAS/ORAS5 + CPC/NOAA | 35S a 30N / 120E a 70W | Caracterizar o aquecimento associado ao El NINO por variáveis oceânicas superficiais e subsuperficiais. |
-| Brasil | IBGE + precipitação em grade | 35S a 7N / 75W a 30W | Representar o território brasileiro, aplicar máscara espacial, agregar por recortes oficiais e avaliar anomalias de precipitação. |
-| Ponte atmosférica | ERA5 | área abrangendo Pacífico oceânico e Brasil | Medir como vento, pressão, umidade, geopotencial, movimento vertical e divergência conectam o Pacífico aquecido à resposta de chuva no Brasil. |
-
-O `IBGE` fornece os shapefiles, limites oficiais e máscaras territoriais. A série pluviométrica 1980-presente deve vir de uma base climática em grade, como `CPC/NOAA`, `CHIRPS`, `MERGE/INPE` ou outra fonte definida no catálogo.
-
-## 4. Escopo espacial e temporal
-
-```text
-Período: 1980 até a data presente
-Pacífico: 35S a 30N / 120E a 70W
-Brasil: território nacional em grade pixel-a-pixel
-Atmosfera: domínio amplo cobrindo Pacífico oceânico e Brasil
-Frequência preferencial: diária
-Lags iniciais: 0, 7, 15, 30, 45, 60, 90, 120 e 180 dias
-```
-
-## 5. Dados e justificativa
-
-| Bloco | Fonte principal | Download local | Justificativa |
-|---|---|---|---|
-| Oceano Pacífico | ORAS/ORAS5 + CPC/NOAA | `data/raw/oras/` e `data/raw/cpc_noaa/` | Fornece temperatura, salinidade, SST/SSTA e variáveis derivadas para caracterizar o aquecimento do Pacífico. |
-| Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/` | Fornece perfis observacionais de temperatura e salinidade para validar, comparar e corrigir a estrutura vertical representada pelo ORAS. |
-| Atmosfera | ERA5 | `data/raw/era5/` | Representa a ponte atmosférica Pacífico -> Brasil por vento, pressão, umidade, geopotencial, movimento vertical, divergência e fluxos de calor. |
-| Mapa do Brasil | IBGE | `data/raw/ibge/` | Fornece limites oficiais para recorte, máscara territorial, agregação regional e mapas coropléticos. |
-| Precipitação Brasil | CPC/NOAA, CHIRPS, MERGE/INPE ou fonte definida | `data/raw/cpc_noaa/` ou pasta específica | Fornece a resposta observada de chuva usada para calcular anomalias, eventos secos e chuva acima do normal no Brasil. |
-
-## 6. Variáveis centrais
-
-### Oceanográficas
-
-- `SST`: temperatura da superfície do mar.
-- `SSTA`: anomalia da temperatura da superfície do mar.
-- `SSHA`: anomalia da altura da superfície do mar.
-- `T(z)`: temperatura por profundidade.
-- `S(z)`: salinidade por profundidade.
-- `D20`: profundidade da isoterma de 20 graus Celsius.
-- `MLD`: profundidade da camada de mistura.
-- `OHC 0-300 m`: conteúdo de calor oceânico entre a superfície e 300 m.
-- `OHC 0-700 m`: conteúdo de calor oceânico entre a superfície e 700 m.
-- `u/v oceânico`: correntes oceânicas zonal e meridional.
-- `clorofila-a`: variável auxiliar de resposta biogeoquímica superficial.
-
-### Atmosféricas
-
-- `SLP`: pressão ao nível do mar.
-- `tau_x/tau_y`: tensão de vento zonal e meridional.
-- `u10/v10`: vento zonal e meridional a 10 m.
-- `u850/v850/q850`: vento e umidade em baixos níveis.
-- `u500/v500/q500/z500/omega500`: circulação, umidade, geopotencial e movimento vertical em níveis médios.
-- `u200/v200/z200/div200`: circulação, geopotencial e divergência em altos níveis.
-- `OLR`: radiação de onda longa emitida.
-- `TCWV`: vapor d'água total integrado na coluna atmosférica.
-
-### Precipitação no Brasil
-
-- precipitação diária.
-- anomalia diária.
-- acumulados de 3, 5, 7, 15 e 30 dias.
-- evento seco abaixo de `P10`.
-- chuva acima do normal acima de `P90`.
-
-## 7. Fluxo e produto final
-
-```text
-download dos dados brutos
-|
-padronização, recorte espacial e controle de qualidade
-|
-cálculo de anomalias, variáveis derivadas e lags temporais
-|
-treinamento e validação dos modelos
-|
-dimensionamento dos pesos oceânicos e atmosféricos
-|
-geração de mapas pixel-a-pixel e coropléticos
-|
-publicação no GitHub Pages
-```
-
-Produto final no GitHub Pages:
-
-- anomalia prevista de precipitação.
-- probabilidade de seca.
-- probabilidade de chuva acima do normal.
-- lag dominante.
-- peso oceanográfico.
-- peso atmosférico.
-- variável dominante.
-- erro histórico.
-- confiança da previsão.
-
-## 8. Entrada principal de dados
-
-O pipeline de dados começa pelo script:
-
-```text
-scripts/data_pipeline.py
-```
-
-Comandos disponíveis:
-
-```text
-python scripts/data_pipeline.py status
-python scripts/data_pipeline.py init
-python scripts/data_pipeline.py plan
-python scripts/data_pipeline.py download-ibge --product uf
-python scripts/data_pipeline.py download-ibge --product municipios
-python scripts/data_pipeline.py download-chirps --start-year 1981 --end-year 1981
-python scripts/data_pipeline.py download-oisst --start-year 1981 --end-year 1981
-python scripts/data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1
-python scripts/data_pipeline.py download-oras --start-year 1981 --end-year 1981 --month 1
-python scripts/data_pipeline.py download-all --start-year 1981 --end-year 1981
-python scripts/data_pipeline.py audit
-```
-
-O primeiro bloco real baixa e extrai shapefiles oficiais do IBGE em:
-
-```text
-data/raw/ibge/
-data/interim/ibge/
-```
-
-Por padrão, os comandos de bases climáticas rodam em modo `dry-run`. Para executar de verdade, adicione:
-
-```text
---execute
-```
-
-Para incluir ERA5 e ORAS no `download-all`, adicione:
-
-```text
---include-cds
-```
-
-Para ERA5 e ORAS, o pipeline não para no download bruto. O fluxo padrão é:
-
-```text
-tarefa mensal
-|
-download bruto em data/raw/
-|
-validação de abertura
-|
-conversão para Zarr em data/processed/zarr/
-|
-registro em data/audit/ledger.jsonl
-```
-
-Se uma tarefa falhar, rode o mesmo comando novamente. Arquivos Zarr válidos são pulados automaticamente, e tarefas pendentes continuam do ponto em que a base parou.
-
-## 9. Estrutura e execução na IDE
-
-```text
-NINO26/
-  configs/
-  data/
-    raw/
-      era5/
-      oras/
-      ctd_noaa/
-      cpc_noaa/
-      ibge/
-    interim/
-    processed/
-    catalog/
-  src/
-    nino_brasil/
-      data/
-      features/
-      models/
-      maps/
-      web/
-  scripts/
-  docs/
-```
-
-Abra a pasta do projeto:
-
-```text
-C:\DEV\NINO26
-```
-
-Crie o ambiente virtual:
+No Windows PowerShell:
 
 ```powershell
 python -m venv .venv
-```
-
-Instale as dependências:
-
-```powershell
+.\.venv\Scripts\python -m pip install --upgrade pip
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Execute o teste inicial:
+Teste rapido:
 
 ```powershell
 .\.venv\Scripts\python .\scripts\smoke_test.py
+python -m unittest discover -s tests -v
 ```
 
-O teste confirma que a estrutura Python está funcional e gera um primeiro mapa sintético em:
+## Ordem do pipeline
 
-```text
-docs/assets/maps/smoke_precip_anomaly.png
+Use `plan` antes de executar downloads longos:
+
+```powershell
+python scripts\data_pipeline.py plan
+python scripts\data_pipeline.py status
 ```
 
-Para uso com placa de vídeo no VSCode via WSL, siga:
+### 1. Estrutura local
 
-```text
-WSL_GPU_SETUP.md
+```powershell
+python scripts\data_pipeline.py init
 ```
+
+### 2. IBGE
+
+```powershell
+python scripts\data_pipeline.py download-ibge --product uf
+python scripts\data_pipeline.py download-ibge --product municipios
+```
+
+Saidas esperadas:
+
+- `data/raw/ibge/*.zip`
+- `data/interim/ibge/BR_UF_2024/`
+- `data/interim/ibge/BR_Municipios_2024/`
+
+### 3. CHIRPS Fase 1
+
+Dry-run:
+
+```powershell
+python scripts\data_pipeline.py download-chirps --start-year 1981 --resolution p25
+```
+
+Execucao real ate o ultimo ano disponivel pela regra de latencia:
+
+```powershell
+python scripts\data_pipeline.py download-chirps --start-year 1981 --resolution p25 --execute
+```
+
+Para rodar ano a ano:
+
+```powershell
+for ($y = 1981; $y -le (Get-Date).Year; $y++) {
+  python scripts\data_pipeline.py download-chirps --start-year $y --end-year $y --resolution p25 --execute
+  python scripts\data_pipeline.py audit
+}
+```
+
+### 4. OISST
+
+```powershell
+python scripts\data_pipeline.py download-oisst --start-year 1981 --execute
+```
+
+OISST e a fonte oficial de SST/SSTA diaria. Depois do download, o cubo precisa ser padronizado e regridado antes da modelagem.
+
+### 5. ERA5 e ORAS5
+
+Verifique credenciais CDS:
+
+```powershell
+python scripts\data_pipeline.py check-cds
+```
+
+ERA5:
+
+```powershell
+python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --execute
+```
+
+ORAS5:
+
+```powershell
+python scripts\data_pipeline.py download-oras --start-year 1981 --execute
+```
+
+Os comandos CDS geram Zarr mensal quando executados sem `--raw-only`.
+
+### 6. CTD/WOD
+
+```powershell
+python scripts\data_pipeline.py download-ctd --start-year 1981 --execute
+```
+
+Para baixar bruto primeiro:
+
+```powershell
+python scripts\data_pipeline.py download-ctd --start-year 1981 --raw-only --execute
+python scripts\data_pipeline.py etl-ctd --start-year 1981 --execute
+```
+
+### 7. Regridding para a grade comum
+
+Todo cubo que entrar em `model_pipeline.py` deve estar reconciliado para a grade de `configs/project.yaml`.
+
+Exemplo:
+
+```powershell
+python scripts\data_pipeline.py regrid-zarr `
+  --input data/processed/zarr/noaa_oisst.zarr `
+  --output data/processed/zarr/regridded/noaa_oisst.zarr `
+  --dataset noaa_oisst `
+  --dry-run
+```
+
+Remova `--dry-run` quando o caminho de entrada existir e estiver validado.
+
+### 8. Diagnostico de distribuicoes
+
+Use em recortes ou cubos manejaveis para caracterizar caudas de chuva, extremos, OHC e SSTA:
+
+```powershell
+python scripts\data_pipeline.py diagnose-distributions `
+  --input data/processed/zarr/regridded/brazil_precipitation.zarr `
+  --dataset chirps_precipitation_p25 `
+  --variable precip `
+  --tail upper
+```
+
+Saida:
+
+- `data/processed/parquet/distributions/distribution_diagnostics.parquet`
+- evento correspondente em `data/audit/ledger.jsonl`
+
+O diagnostico estima `alpha`, `xmin`, distancia KS e compara power law contra lognormal/exponencial. A comparacao e obrigatoria porque chuva e OHC podem preferir lognormal.
+
+### 9. Modelagem walk-forward
+
+Dry-run:
+
+```powershell
+python scripts\model_pipeline.py `
+  --predictor-zarr data/processed/zarr/regridded/noaa_oisst.zarr `
+  --target-zarr data/processed/zarr/regridded/brazil_precipitation.zarr `
+  --target-var precip `
+  --dry-run
+```
+
+Execucao Fase 1 agregada:
+
+```powershell
+python scripts\model_pipeline.py `
+  --predictor-zarr data/processed/zarr/regridded/noaa_oisst.zarr `
+  --target-zarr data/processed/zarr/regridded/brazil_precipitation.zarr `
+  --target-var precip `
+  --predictor-strategy mean `
+  --target-strategy mean
+```
+
+Saidas:
+
+- `data/processed/parquet/modeling/walk_forward_metrics.parquet`
+- `data/processed/parquet/modeling/walk_forward_predictions.parquet`
+- `data/processed/parquet/modeling/walk_forward_importances.parquet`
+- `data/processed/parquet/modeling/walk_forward_group_weights.parquet`
+
+Para SHAP em modelos de arvore:
+
+```powershell
+python scripts\model_pipeline.py ... --shap --shap-max-rows 1000
+```
+
+### 10. Validacao pixel-a-pixel
+
+`flatten` e Fase 2. Antes de escalar para todo o Brasil, rode em recorte pequeno:
+
+```powershell
+python scripts\model_pipeline.py `
+  --predictor-zarr data/processed/zarr/regridded/noaa_oisst_small.zarr `
+  --target-zarr data/processed/zarr/regridded/brazil_precipitation_small.zarr `
+  --target-var precip `
+  --predictor-strategy flatten `
+  --target-strategy flatten `
+  --regression-model ridge `
+  --classification-model logistic `
+  --importance-repeats 2
+```
+
+Registre tempo, memoria, numero de features, numero de pixels e tamanho dos Parquets antes de expandir.
+
+## Auditoria e limpeza segura
+
+Resumo do ledger:
+
+```powershell
+python scripts\data_pipeline.py audit
+```
+
+Pode apagar:
+
+- arquivos `.part` comprovadamente interrompidos, se o mesmo comando sera reexecutado;
+- Zarr de saida corrompido, usando depois o mesmo comando com `--overwrite`;
+- dados que nao correspondam a `configs/project.yaml`, apos confirmar que ha copia ou fonte para baixar novamente.
+
+Nao apagar:
+
+- `data/raw/chirps/p25/chirps-v2.0.1981.days_p25.nc`, pois e valido na Fase 1;
+- shapefiles IBGE ja extraidos;
+- `.gitkeep`, pois mantem a estrutura versionada.
+
+## Versionamento recomendado
+
+Antes de commit:
+
+```powershell
+python -m unittest discover -s tests -v
+python -m compileall src scripts tests
+git status --short
+```
+
+Commitar codigo, testes, configs e documentacao. Nao commitar dados brutos/intermediarios/processados grandes.

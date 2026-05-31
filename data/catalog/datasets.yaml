@@ -15,10 +15,11 @@ era5_single_levels:
     - total_column_water_vapour
   temporal_resolution: "hourly, aggregate to daily"
   spatial_resolution: "0.25 degree"
-  period_start: "1980-01-01"
-  period_end: "present"
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 7
   raw_path: "data/raw/era5"
-  processed_path: "data/processed/zarr/era5_single_levels.zarr"
+  processed_path: "data/processed/zarr/era5/single_levels/<year>/era5_single_<region>_<yyyymm>.zarr"
   notes: "Use daily aggregation for the first MVP."
 
 era5_pressure_levels:
@@ -37,10 +38,11 @@ era5_pressure_levels:
   pressure_levels_hpa: [850, 500, 200]
   temporal_resolution: "hourly, aggregate to daily"
   spatial_resolution: "0.25 degree"
-  period_start: "1980-01-01"
-  period_end: "present"
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 7
   raw_path: "data/raw/era5"
-  processed_path: "data/processed/zarr/era5_pressure_levels.zarr"
+  processed_path: "data/processed/zarr/era5/pressure_levels/<year>/era5_pressure_<region>_<yyyymm>.zarr"
   notes: "Variables are used for the Pacific-Brazil atmospheric bridge."
 
 oras5:
@@ -52,32 +54,56 @@ oras5:
   variables:
     - potential_temperature
     - salinity
-    - zonal_current
-    - meridional_current
-  temporal_resolution: "monthly or daily depending on product availability"
+    - ocean_heat_content_for_the_upper_300m
+    - ocean_heat_content_for_the_upper_700m
+  temporal_resolution: "monthly source; align to daily model calendar as ocean memory features"
   spatial_resolution: "native ORAS5 grid"
-  period_start: "1980-01-01"
-  period_end: "present"
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 45
   raw_path: "data/raw/oras"
-  processed_path: "data/processed/zarr/oras5.zarr"
-  notes: "Use T(z) and S(z) to calculate density, D20, thermocline, MLD and OHC."
+  processed_path: "data/processed/zarr/oras/<year>/oras5_<yyyymm>.zarr"
+  notes: "Use ORAS5 for subsurface memory features. Daily OISST is the primary SST/SSTA source."
 
 noaa_wod_ctd:
   name: "NOAA World Ocean Database CTD profiles"
   institution: "NOAA/NCEI"
-  source_url: "https://www.ncei.noaa.gov/products/world-ocean-database"
+  source_url: "https://www.ncei.noaa.gov/thredds-ocean/catalog/ncei/wod/catalog.html"
   license: "NOAA public data; cite product page"
   version: null
   variables:
-    - temperature_profile
-    - salinity_profile
+    - lat
+    - lon
+    - time
+    - date
+    - wod_unique_cast
+    - z
+    - z_row_size
+    - z_WODflag
+    - Temperature
+    - Temperature_row_size
+    - Temperature_WODflag
+    - Temperature_WODprofileflag
+    - Salinity
+    - Salinity_row_size
+    - Salinity_WODflag
+    - Salinity_WODprofileflag
+  derived_variables:
+    - pressure
+    - absolute_salinity
+    - conservative_temperature
+    - sigma0
+    - thermocline_depth
+    - halocline_depth
+    - pycnocline_depth
   temporal_resolution: "profile based"
   spatial_resolution: "station/profile based"
-  period_start: null
-  period_end: null
-  raw_path: "data/raw/ctd_noaa"
-  processed_path: "data/processed/parquet/ctd_noaa"
-  notes: "Use in situ profiles to validate ORAS/ORAS5 vertical structure and derived ocean heat metrics."
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 365
+  raw_path: "data/raw/ctd_noaa/wod"
+  processed_path: "data/processed/zarr/ctd_noaa/wod"
+  notes: "Annual WOD CTD NetCDF files are filtered to Pacific 35S-30N / 120E-70W, QC flag 0, interpolated to 0-700 m every 5 m, processed with TEOS-10 and saved as annual Zarr."
 
 noaa_oisst:
   name: "NOAA Optimum Interpolation SST v2.1"
@@ -89,11 +115,12 @@ noaa_oisst:
     - sst
   temporal_resolution: "daily"
   spatial_resolution: "0.25 degree"
-  period_start: "1981-09-01"
-  period_end: "present"
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 7
   raw_path: "data/raw/cpc_noaa/oisst"
   processed_path: "data/processed/zarr/noaa_oisst.zarr"
-  notes: "Record 1980-1981 gap or use documented alternative."
+  notes: "Primary daily SST/SSTA source. Project master period is 1981-latest available by source; record internal source gaps without silent filling."
 
 noaa_olr:
   name: "NOAA interpolated OLR"
@@ -106,26 +133,45 @@ noaa_olr:
   temporal_resolution: "daily"
   spatial_resolution: "2.5 degree"
   period_start: "1974-06-01"
-  period_end: "present"
+  period_end: "latest_available"
+  latency_days: 7
   raw_path: "data/raw/cpc_noaa/olr"
   processed_path: "data/processed/zarr/noaa_olr.zarr"
   notes: "Can be replaced by ERA5 radiation field for consistency tests."
 
-cpc_precipitation:
-  name: "CPC daily precipitation"
-  institution: "NOAA/CPC"
-  source_url: "https://beta.cpc.noaa.gov/observations/global-precipitation"
-  license: "NOAA public data; cite product page"
-  version: null
+chirps_precipitation_p25:
+  name: "CHIRPS daily precipitation 0.25 degree"
+  institution: "Climate Hazards Center / UC Santa Barbara"
+  source_url: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/"
+  license: "CHIRPS terms; cite product page"
+  version: "2.0"
   variables:
-    - precipitation
+    - precip
   temporal_resolution: "daily"
-  spatial_resolution: "product dependent"
-  period_start: null
-  period_end: null
-  raw_path: "data/raw/cpc_noaa/precipitation"
-  processed_path: "data/processed/zarr/cpc_precipitation_brazil.zarr"
-  notes: "Confirm product coverage before operational use."
+  spatial_resolution: "0.25 degree"
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 45
+  raw_path: "data/raw/chirps/p25"
+  processed_path: "data/processed/zarr/brazil_precipitation"
+  notes: "Phase 1 precipitation target aligned to the 0.25 degree modeling grid; crop to IBGE Brazil mask during ETL."
+
+chirps_precipitation_p05_phase2:
+  name: "CHIRPS daily precipitation 0.05 degree"
+  institution: "Climate Hazards Center / UC Santa Barbara"
+  source_url: "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p05/"
+  license: "CHIRPS terms; cite product page"
+  version: "2.0"
+  variables:
+    - precip
+  temporal_resolution: "daily"
+  spatial_resolution: "0.05 degree"
+  period_start: "1981-01-01"
+  period_end: "latest_available"
+  latency_days: 45
+  raw_path: "data/raw/chirps/p05"
+  processed_path: "data/processed/zarr/brazil_precipitation_p05"
+  notes: "Phase 2 high-resolution target for pixel-level final products after MVP validation."
 
 ibge_boundaries:
   name: "IBGE territorial boundaries"
