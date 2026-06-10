@@ -19,7 +19,6 @@ netCDF4
 numpy
 pandas
 plotly
-pyarrow
 PyYAML
 pytorch-lightning
 rasterio

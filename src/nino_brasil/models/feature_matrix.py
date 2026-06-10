@@ -122,7 +122,13 @@ def add_nino34_feature(
     time_name: str = "time",
     window_days: int = 15,
 ) -> xr.Dataset:
-    """Add Niño 3.4 daily SSTA as a physical baseline feature when SST is available."""
+    """Add Niño 3.4 daily SSTA as a physical baseline feature when SST is available.
+
+    The climatology here uses the FULL supplied sample, so this helper is only
+    suitable for exploratory use. Walk-forward evaluation must pass a fold-safe
+    `nino34_ssta` precomputed with a train-only climatology and call
+    `build_feature_matrix(..., include_nino34=False)`.
+    """
     if sst_variable not in predictors:
         return predictors
     try:

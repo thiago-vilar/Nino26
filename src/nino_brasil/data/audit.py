@@ -71,7 +71,10 @@ class AuditLog:
             for line in fh:
                 line = line.strip()
                 if line:
-                    rows.append(json.loads(line))
+                    try:
+                        rows.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
         return rows
 
     def latest_by_task(self) -> dict[str, dict[str, Any]]:

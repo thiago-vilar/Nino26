@@ -63,12 +63,20 @@ def regrid_dataset(
     weights: str | Path | None = None,
 ) -> xr.Dataset:
     """Regrid a dataset with xesmf to the configured common modeling grid."""
+    target = target_grid if target_grid is not None else target_grid_from_config()
     try:
         import xesmf as xe
     except ImportError as exc:  # pragma: no cover - depends on optional native stack
-        raise ImportError("Install xesmf and ESMF/ESMPy to use regrid_dataset.") from exc
+        if method not in {"bilinear", "nearest_s2d"}:
+            raise ImportError("Install xesmf and ESMF/ESMPy to use conservative regridding.") from exc
+        interp_method = "nearest" if method == "nearest_s2d" else "linear"
+        out = ds.interp(lat=target["lat"], lon=target["lon"], method=interp_method)
+        out.attrs.update(ds.attrs)
+        out.attrs["regrid_method"] = f"xarray_{interp_method}"
+        out.attrs["regrid_target"] = "project_common_grid"
+        out.attrs["regrid_fallback"] = "xesmf_unavailable"
+        return out
 
-    target = target_grid if target_grid is not None else target_grid_from_config()
     regridder = xe.Regridder(
         ds,
         target,

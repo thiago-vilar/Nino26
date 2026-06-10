@@ -19,8 +19,8 @@ era5_single_levels:
   period_end: "latest_available"
   latency_days: 7
   raw_path: "data/raw/era5"
-  processed_path: "data/processed/zarr/era5/single_levels/<year>/era5_single_<region>_<yyyymm>.zarr"
-  notes: "Use daily aggregation for the first MVP."
+  processed_path: "data/processed/zarr/era5/single_levels/<year>/<variable>/era5_single_<region>_<variable>_<yyyymm>_daily.zarr"
+  notes: "Cache raw NetCDF by year/month/region/variable, then aggregate subdaily values to daily Zarr."
 
 era5_pressure_levels:
   name: "ERA5 pressure levels"
@@ -42,8 +42,8 @@ era5_pressure_levels:
   period_end: "latest_available"
   latency_days: 7
   raw_path: "data/raw/era5"
-  processed_path: "data/processed/zarr/era5/pressure_levels/<year>/era5_pressure_<region>_<yyyymm>.zarr"
-  notes: "Variables are used for the Pacific-Brazil atmospheric bridge."
+  processed_path: "data/processed/zarr/era5/pressure_levels/<year>/<variable>/era5_pressure_<region>_<variable>_<yyyymm>_daily.zarr"
+  notes: "Cache raw NetCDF by year/month/region/variable, then aggregate subdaily values to daily Zarr. Variables are used for the Pacific-Brazil atmospheric bridge."
 
 oras5:
   name: "ORAS5 ocean reanalysis"
@@ -62,8 +62,8 @@ oras5:
   period_end: "latest_available"
   latency_days: 45
   raw_path: "data/raw/oras"
-  processed_path: "data/processed/zarr/oras/<year>/oras5_<yyyymm>.zarr"
-  notes: "Use ORAS5 for subsurface memory features. Daily OISST is the primary SST/SSTA source."
+  processed_path: "data/processed/zarr/oras/<year>/<variable>/oras5_<variable>_<yyyymm>_daily.zarr"
+  notes: "Cache raw monthly ZIP by year/month/variable, then align each monthly field to the daily model calendar as explicit ocean-memory features. Daily OISST is the primary SST/SSTA source."
 
 noaa_wod_ctd:
   name: "NOAA World Ocean Database CTD profiles"

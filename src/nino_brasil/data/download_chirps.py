@@ -10,7 +10,10 @@ CHIRPS_BASE_URL = "https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/ne
 
 def chirps_url(year: int, resolution: str) -> str:
     if resolution not in {"p25", "p05"}:
-        raise ValueError("CHIRPS resolution must be 'p25' for Phase 1 or 'p05' for Phase 2.")
+        raise ValueError(
+            "CHIRPS resolution must be 'p25' for the official 0.25-degree workflow "
+            "or 'p05' for future high-resolution experiments."
+        )
     return f"{CHIRPS_BASE_URL}/{resolution}/chirps-v2.0.{year}.days_{resolution}.nc"
 
 

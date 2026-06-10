@@ -18,7 +18,7 @@ O dado so esta pronto para modelagem quando:
 data/
   raw/        arquivos exatamente como vieram da fonte
   interim/    extracoes e padronizacoes intermediarias
-  processed/  Zarr, Parquet e GeoTIFF prontos para analise
+  processed/  Zarr e GeoTIFF prontos para analise
   catalog/    metadados declarativos
   audit/      ledger jsonl de execucao
   state/      estado auxiliar de pipeline
@@ -31,7 +31,7 @@ data/
 - `raw/chirps/p25/chirps-v2.0.1981.days_p25.nc`: valido para a Fase 1.
 - Demais pastas climaticas ainda estao vazias ou so com `.gitkeep`.
 
-O arquivo CHIRPS `p25` nao deve ser removido. A Fase 1 usa grade `0.25` grau; `p05` fica para Fase 2.
+O arquivo CHIRPS `p25` nao deve ser removido. As Fases 1, 2, 3 e 4 usam grade `0.25` grau; `p05` fica para experimento futuro de alta resolucao.
 
 ## raw/
 
@@ -39,8 +39,8 @@ Use `raw/` para dados baixados sem modificacao.
 
 Subpastas esperadas:
 
-- `raw/chirps/p25/`: CHIRPS diario 0.25 grau da Fase 1.
-- `raw/chirps/p05/`: CHIRPS diario 0.05 grau da Fase 2.
+- `raw/chirps/p25/`: CHIRPS diario 0.25 grau das Fases 1, 2, 3 e 4.
+- `raw/chirps/p05/`: CHIRPS diario 0.05 grau reservado para experimento futuro de alta resolucao.
 - `raw/cpc_noaa/oisst/`: NOAA OISST diario.
 - `raw/era5/`: ERA5 single e pressure levels.
 - `raw/oras/`: ORAS5 mensal.
@@ -68,8 +68,8 @@ Use `processed/` para artefatos prontos para analise:
 
 - `processed/zarr/`: cubos multidimensionais.
 - `processed/zarr/regridded/`: cubos na grade comum de modelagem.
-- `processed/parquet/modeling/`: metricas, previsoes, importancias e pesos por grupo.
-- `processed/parquet/distributions/`: diagnosticos de cauda.
+- `processed/zarr/modeling/`: metricas, previsoes, importancias e pesos por grupo.
+- `processed/zarr/distributions/`: diagnosticos de cauda.
 - `processed/geotiff/`: mascaras e rasters auxiliares.
 
 `model_pipeline.py` deve consumir preferencialmente `processed/zarr/regridded/`.
@@ -137,6 +137,46 @@ python scripts\data_pipeline.py download-chirps --start-year 1981 --resolution p
 python scripts\data_pipeline.py download-oisst --start-year 1981 --execute
 ```
 
+Para curadoria e retomada automatica do ponto pendente:
+
+```powershell
+python scripts\curate_and_resume_downloads.py
+python scripts\curate_and_resume_downloads.py --source oisst --stage raw --execute
+```
+
+O primeiro comando apenas enumera o que esta OK e o que esta pendente. O segundo executa a proxima pendencia de download do OISST conforme o estado real da maquina consultada.
+
+Para rodar o pipeline completo em piloto automatico, seguindo a ordem das fontes, retomando do ponto valido e gerando relatorio final:
+
+```powershell
+python scripts\run_full_download_pipeline.py --execute
+```
+
+Este e o comando recomendado quando a intencao for dar apenas um play e deixar o computador baixando de `1981` ate o ultimo dado disponivel por fonte. Ele pula arquivos ja validos, retoma pendencias, muda de fonte na ordem do pipeline e grava log/relatorio em `data/state/pipeline_reports/`.
+
+A ordem operacional agora e ano a ano, com prioridade temporal:
+
+1. fontes diarias ou subdiarias convertidas para diario: CHIRPS, OISST e ERA5;
+2. fontes semanais, quando forem adicionadas ao catalogo;
+3. fontes mensais convertidas para calendario diario: ORAS5;
+4. fontes observacionais irregulares fora da serie diaria regular: CTD/WOD.
+
+ERA5 e ORAS5 sao processados variavel por variavel. O bruto fica em cache em `data/raw/` e o produto pronto fica em `data/processed/zarr/` como Zarr diario por variavel. Assim, se uma variavel falhar, a proxima execucao retoma exatamente o ano/mes/variavel pendente.
+
+Para ver o plano sem executar:
+
+```powershell
+python scripts\run_full_download_pipeline.py
+```
+
+Para testar uma janela pequena antes de deixar a maquina trabalhando por horas:
+
+```powershell
+python scripts\run_full_download_pipeline.py --end-year 1981 --month 1
+```
+
+O pipeline completo roda IBGE, CHIRPS, OISST, ERA5, ORAS5, CTD/WOD, conversao diaria para Zarr, regrid e atualizacao do painel. Por padrao, ele continua depois de falhas individuais e registra o que falhou no relatorio final. Use `--skip-cds` ou `--skip-ctd` se quiser pular temporariamente ERA5/ORAS5 ou CTD.
+
 5. Baixar ERA5/ORAS5/CTD quando houver credenciais e espaco:
 
 ```powershell
@@ -145,6 +185,15 @@ python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --ex
 python scripts\data_pipeline.py download-oras --start-year 1981 --execute
 python scripts\data_pipeline.py download-ctd --start-year 1981 --execute
 ```
+
+Para testar uma unica variavel CDS sem iniciar tudo:
+
+```powershell
+python scripts\data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1 --kind single --region west_pacific --variable mean_sea_level_pressure
+python scripts\data_pipeline.py download-oras --start-year 1981 --end-year 1981 --month 1 --variable salinity
+```
+
+Sem `--execute`, esses comandos apenas mostram o cache bruto e o Zarr diario que seriam gerados.
 
 6. Regridar cubos para modelagem:
 
@@ -178,12 +227,12 @@ Nao limpar:
 - CHIRPS `p25` existente;
 - IBGE bruto ou extraido;
 - `.gitkeep`;
-- Parquets de metricas/importancias sem antes registrar qual rodada eles representam.
+- Stores Zarr de metricas/importancias sem antes registrar qual rodada eles representam.
 
 ## Checklist antes de modelar
 
 - `configs/project.yaml` esta em `period.end: latest_available`.
-- `modeling.chirps_resolution` esta em `p25` para Fase 1.
+- `modeling.chirps_resolution` esta em `p25` para as Fases 1, 2, 3 e 4.
 - OISST foi tratado como SST/SSTA principal.
 - ORAS5 nao esta duplicando SST mensal.
 - Todos os Zarr de entrada estao regridados.

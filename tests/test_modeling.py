@@ -15,7 +15,12 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from nino_brasil.models.feature_matrix import build_feature_matrix
-from nino_brasil.models.walk_forward import make_walk_forward_folds, run_walk_forward
+from nino_brasil.models.walk_forward import (
+    _nino34_for_fold,
+    _train_times,
+    make_walk_forward_folds,
+    run_walk_forward,
+)
 
 
 def synthetic_daily_fields() -> tuple[xr.Dataset, xr.DataArray]:
@@ -55,6 +60,39 @@ class ModelingTests(unittest.TestCase):
         self.assertEqual(matrix.lag_days, 30)
         self.assertEqual(matrix.target_time.iloc[0], matrix.X.index[0] + pd.Timedelta(days=30))
 
+    def test_nino34_fold_feature_ignores_post_train_values(self) -> None:
+        predictors, _ = synthetic_daily_fields()
+        train_end = pd.Timestamp("2003-12-31")
+        base = _nino34_for_fold(
+            predictors,
+            _train_times(predictors["time"], train_end),
+            sst_variable="sst",
+            time_name="time",
+            window_days=15,
+        )
+
+        perturbed = predictors.copy(deep=True)
+        perturbed["sst"].loc[{"time": slice("2004-01-01", None)}] += 5.0
+        shifted = _nino34_for_fold(
+            perturbed,
+            _train_times(perturbed["time"], train_end),
+            sst_variable="sst",
+            time_name="time",
+            window_days=15,
+        )
+
+        # Train-only climatology: perturbing validation/test SST must not move
+        # the feature inside the training block (leakage regression guard).
+        np.testing.assert_allclose(
+            base.sel(time=slice(None, train_end)).values,
+            shifted.sel(time=slice(None, train_end)).values,
+        )
+        # Post-train values must reflect the +5 perturbation. Day-of-year 366 is
+        # absent from the 2001-2003 train climatology and yields NaN, so drop it.
+        diff = (shifted - base).sel(time=slice("2004-01-01", None)).dropna("time")
+        self.assertGreater(diff.sizes["time"], 0)
+        self.assertTrue(bool((diff > 4.0).all().item()))
+
     def test_walk_forward_outputs_regression_and_classification_metrics(self) -> None:
         predictors, target = synthetic_daily_fields()
         folds = make_walk_forward_folds(
@@ -78,6 +116,7 @@ class ModelingTests(unittest.TestCase):
         self.assertFalse(output.importances.empty)
         self.assertIn("regression", set(output.metrics["task"]))
         self.assertIn("classification", set(output.metrics["task"]))
+        self.assertTrue({"below_p25", "above_p75"}.issubset(set(output.metrics["event"].dropna())))
         self.assertIn("rmse", output.metrics.columns)
         self.assertIn("brier", output.metrics.columns)
         self.assertIn("importance_value", output.importances.columns)

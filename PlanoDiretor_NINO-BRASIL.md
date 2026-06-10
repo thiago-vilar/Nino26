@@ -23,18 +23,26 @@ Pacífico: 35S a 30N / 120E a 70W
 Brasil: território nacional em grade pixel-a-pixel
 Frequência: diária sempre que disponível
 Período: 1981-01-01 até o último dado disponível por fonte
-Lags: 0, 30, 60, 90, 120, 150 e 180 dias
+Horizontes: previsão semanal de 1 a 24 semanas, equivalentes a 7-168 dias
 ```
 
 As análises regionais devem incluir Brasil inteiro, Nordeste, Semiárido, Sul, Norte, Centro-Oeste e Sudeste, sem substituir a análise principal pixel-a-pixel.
 
+Hipótese física prioritária: El Nino alto tende a aumentar o risco de seca no Nordeste/Semiárido e de chuva acima do normal no Sul do Brasil. O projeto deve quantificar esse sinal por pixel, região, estação e horizonte semanal.
+
 ## 2.1 Fases de execução
 
-Fase 1 fecha o ciclo ponta-a-ponta com dados diários OISST, CHIRPS 0.25° e IBGE, modelos Ridge, Random Forest e XGBoost, cabeças de regressão e classificação, ablations A/B/C, permutation importance e SHAP.
+Fase 1 consolida a fundação local do projeto: estrutura Git, documentação metodológica, catálogo, scripts de ingestão, IBGE, CHIRPS 0.25° inicial, OISST diário e base reprodutível para os demais downloads.
 
-Fase 2 incorpora ERA5 completo e ORAS5 subsuperficial, executa ablations D/E/F e escala a modelagem para CHIRPS 0.05° pixel-a-pixel.
+Fase 2 calibra e padroniza os dados na grade comum de 0.25°: controle de qualidade, anomalias, climatologia sem vazamento, acumulados, percentis P10/P25/P75/P90, horizontes semanais, ERA5, ORAS5, CTD/WOD e Zarrs regridados.
 
-Fase 3 adiciona CNN, ConvLSTM, U-Net, Transformer espaço-temporal, XAI avançado e operação recorrente com comparação previsão-observado, drift, recalibração, mapas de confiança e relatório automático.
+Fase 3 executa machine learning clássico e XAI: Ridge, Random Forest, XGBoost, cabeças de regressão e classificação, ablations A/B/C/D/E/F, walk-forward, permutation importance, SHAP, pesos por grupo e mapas analíticos.
+
+Fase 4 executa Redes Neurais + XAI: CNN, ConvLSTM, U-Net, Transformer espaço-temporal, saliency maps, occlusion maps, attention maps, comparação com a Fase 3 e avaliação física dos padrões aprendidos.
+
+Fase 5 testa a técnica de test-time memorization do Google Research (Memory Caching, arXiv:2602.24281): RNNs com memória crescente via cache de estados de memória, nas variantes Residual Memory, Gated Residual Memory, Memory Soup e Sparse Selective Caching, aplicadas às sequências diárias espaço-temporais e comparadas sob o mesmo protocolo walk-forward contra os modelos das Fases 3 e 4, buscando o melhor equilíbrio entre skill preditivo e eficiência computacional (interpolação O(L) a O(L²)).
+
+Fase 6 publica e operacionaliza o produto: GitHub Pages em `docs/`, comparação previsão-observado, drift, recalibração, mapas de confiança, relatório automático, rotina recorrente e experimentos CHIRPS 0.05°.
 
 ## 3. Etapa 1 - Download, armazenamento, tratamento e disponibilização
 
@@ -45,7 +53,7 @@ Fase 3 adiciona CNN, ConvLSTM, U-Net, Transformer espaço-temporal, XAI avançad
 | Oceano reanalisado | ORAS/ORAS5 | `data/raw/oras/` | Campo contínuo de temperatura e salinidade por profundidade para representar a memória térmica do oceano. |
 | Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/wod/` e `data/processed/zarr/ctd_noaa/wod/` | Perfis in situ com QC WOD e TEOS-10 para validar temperatura, salinidade, densidade, termoclina, haloclina, picnoclina e conteúdo de calor. |
 | Atmosfera | ERA5 | `data/raw/era5/` | Variáveis atmosféricas necessárias para representar o transporte do sinal do Pacífico em direção ao Brasil. |
-| Precipitação | CHIRPS 0.25° diário na Fase 1; CHIRPS 0.05° na Fase 2 | `data/raw/chirps/p25/` e `data/raw/chirps/p05/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
+| Precipitação | CHIRPS 0.25° diário nas Fases 1, 2, 3 e 4; CHIRPS 0.05° reservado para experimento futuro de alta resolução | `data/raw/chirps/p25/` e `data/raw/chirps/p05/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
 | Limites territoriais | IBGE | `data/raw/ibge/` | Máscara oficial do Brasil e limites para mapas coropléticos por UF, região e recortes territoriais. |
 
 ### 3.2 Tratamento mínimo
@@ -57,8 +65,8 @@ Fase 3 adiciona CNN, ConvLSTM, U-Net, Transformer espaço-temporal, XAI avançad
 5. Calcular climatologia diária.
 6. Calcular anomalias diárias.
 7. Criar acumulados de precipitação.
-8. Criar eventos secos e chuva acima do normal por percentis locais.
-9. Gerar datasets com lags temporais.
+8. Criar gradientes de precipitação por percentis locais P10/P25/P75/P90.
+9. Gerar datasets com horizontes semanais de 1 a 24 semanas.
 10. Registrar tudo em `data/catalog/datasets.yaml`.
 11. Salvar perfis CTD processados em `.zarr` anual depois de QC, TEOS-10 e calculo de estratificacao.
 12. Estimar climatologia, desvio padrão e percentis somente dentro do bloco de treino de cada fold walk-forward.
@@ -102,8 +110,11 @@ Variáveis principais:
 - precipitação diária.
 - anomalia diária.
 - acumulados de 3, 5, 7, 15 e 30 dias.
-- evento seco abaixo de `P10`.
-- chuva acima do normal acima de `P90`.
+- seco extremo abaixo de `P10`.
+- abaixo do quartil inferior `P25`.
+- acima do quartil superior `P75`.
+- chuva extrema acima de `P90`.
+- faixa interquartil `P25-P75` apenas como referência estatística, não como classe "normal".
 
 ### 4.4 Mapa do Brasil
 
@@ -142,7 +153,7 @@ Baselines:
 - Random Forest.
 - XGBoost.
 
-Modelos posteriores:
+Modelos da Fase 4, Redes Neurais + XAI:
 
 - CNN.
 - ConvLSTM.
@@ -170,13 +181,20 @@ Técnicas:
 - mapas de atenção.
 - diferença de skill entre modelos.
 
-Artefatos mínimos da Fase 1:
+Artefatos mínimos da Fase 3:
 
-- `walk_forward_metrics.parquet`.
-- `walk_forward_predictions.parquet`.
-- `walk_forward_importances.parquet`.
-- `walk_forward_group_weights.parquet`.
-- `distribution_diagnostics.parquet` quando houver diagnóstico de cauda.
+- `walk_forward_metrics.zarr`.
+- `walk_forward_predictions.zarr`.
+- `walk_forward_importances.zarr`.
+- `walk_forward_group_weights.zarr`.
+- `distribution_diagnostics.zarr` quando houver diagnóstico de cauda.
+
+Artefatos mínimos da Fase 4:
+
+- `neural_training_runs.zarr`.
+- `neural_predictions.zarr`.
+- `neural_xai_maps.zarr`.
+- `neural_skill_comparison.zarr`.
 
 ### 5.4 Validação
 
@@ -215,7 +233,28 @@ Mapas obrigatórios:
 - erro histórico.
 - confiança.
 
-## 6. Etapa 4 - Deploy no GitHub Pages
+## 6. Fase 5 - Teste com Memory Caching (Google Research)
+
+Avaliação da técnica de test-time memorization publicada pelo Google Research em "Memory Caching: RNNs with Growing Memory" (Behrouz et al., arXiv:2602.24281), como camada experimental entre as redes neurais da Fase 4 e a operação.
+
+Motivação: RNNs comprimem o passado em memória de tamanho fixo (custo O(L)), enquanto Transformers mantêm memória crescente (custo O(L²)). Memory Caching guarda checkpoints do estado de memória por segmento da sequência e os consulta na recuperação, interpolando entre os dois regimes com custo O(NL) — alinhado ao objetivo do projeto de experimentar diferentes modelos buscando o melhor equilíbrio entre skill e eficiência.
+
+Escopo experimental:
+
+1. Segmentar as sequências diárias (1981-presente) em blocos e cachear os estados de memória por segmento.
+2. Implementar as quatro variantes de agregação do artigo: Residual Memory, Gated Residual Memory (gating dependente do contexto), Memory Soup (interpolação de parâmetros das memórias) e Sparse Selective Caching (roteador top-k estilo Mixture-of-Experts).
+3. Aplicar sobre backbones recorrentes (linear attention e memórias profundas) para os mesmos alvos das Fases 3 e 4: anomalia de precipitação e eventos P10/P25/P75/P90.
+4. Manter o protocolo metodológico inegociável: frequência diária, walk-forward em blocos temporais, climatologia/percentis apenas no treino de cada fold, grade comum 0.25°.
+5. Medir o trade-off skill × custo: métricas das Fases 3/4 mais throughput de treino, memória de pico e custo de inferência por horizonte (1-24 semanas), variando número de segmentos N entre os regimes O(L) e O(L²).
+6. Comparar contra os campeões das Fases 3 e 4 e registrar a recomendação de modelo operacional.
+
+Artefatos mínimos da Fase 5:
+
+- `memory_caching_runs.zarr`.
+- `memory_caching_skill_comparison.zarr`.
+- `memory_caching_efficiency.zarr`.
+
+## 7. Fase 6 - Operação e deploy no GitHub Pages
 
 O deploy será feito em `docs/`, usando GitHub Pages.
 
@@ -231,7 +270,7 @@ salva em docs/
 GitHub Pages publica
 ```
 
-## 7. Entregáveis
+## 8. Entregáveis
 
 1. Base local diária 1981-latest_available.
 2. Catálogo de fontes.
@@ -243,5 +282,6 @@ GitHub Pages publica
 8. Mapas coropléticos.
 9. Relatório de métricas.
 10. Relatório XAI.
-11. Rotina de correção recorrente.
-12. Deploy no GitHub Pages.
+11. Relatório do experimento Memory Caching (skill × eficiência).
+12. Rotina de correção recorrente.
+13. Deploy no GitHub Pages.

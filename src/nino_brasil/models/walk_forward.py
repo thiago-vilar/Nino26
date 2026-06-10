@@ -12,7 +12,13 @@ from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from nino_brasil.data.anomalies import daily_anomaly, fit_daily_standardization, standardized_anomaly
+from nino_brasil.data.anomalies import (
+    daily_anomaly,
+    fit_daily_climatology,
+    fit_daily_standardization,
+    standardized_anomaly,
+)
+from nino_brasil.features.nino import nino34_sst_index
 from nino_brasil.features.precipitation_events import event_mask, local_percentile_threshold
 from nino_brasil.models.baselines import classification_metrics, regression_metrics
 from nino_brasil.models.feature_matrix import FeatureMatrix, SpatialStrategy, build_feature_matrix
@@ -130,7 +136,7 @@ def _make_regressor(name: str, random_state: int) -> Pipeline:
 
 def _make_classifier(name: str, random_state: int) -> Pipeline:
     if name in {"logistic", "ridge"}:
-        estimator = LogisticRegression(max_iter=1000, class_weight="balanced")
+        estimator = LogisticRegression(max_iter=1000, class_weight="balanced", random_state=random_state)
         return Pipeline(
             [
                 ("imputer", SimpleImputer(strategy="median")),
@@ -321,33 +327,34 @@ def _fit_evaluate_matrix(
     prediction_frames: list[pd.DataFrame] = []
     importance_frames: list[pd.DataFrame] = []
     train_mask = _split_mask(matrix.target_time, fold, "train")
+    eval_masks = {split: _split_mask(matrix.target_time, fold, split) for split in ("validation", "test")}
 
-    for split in ["validation", "test"]:
-        split_mask = _split_mask(matrix.target_time, fold, split)
-        if split_mask.sum() == 0:
+    for target_column in matrix.y.columns:
+        y_train = matrix.y.loc[train_mask, target_column].dropna()
+        if y_train.empty:
             continue
-        for target_column in matrix.y.columns:
-            y_train = matrix.y.loc[train_mask, target_column].dropna()
-            if y_train.empty:
+        if task == "classification":
+            y_train = y_train.astype(int)
+            if np.unique(y_train).size < 2:
                 continue
-            train_index = y_train.index
-            X_train = matrix.X.loc[train_index]
-            y_eval = matrix.y.loc[split_mask, target_column].dropna()
-            if y_eval.empty:
-                continue
-            eval_index = y_eval.index
-            X_eval = matrix.X.loc[eval_index]
+        X_train = matrix.X.loc[y_train.index]
 
-            if task == "classification" and np.unique(y_train.astype(int)).size < 2:
-                continue
+        for model_name in model_names:
+            model = (
+                _make_regressor(model_name, random_state)
+                if task == "regression"
+                else _make_classifier(model_name, random_state)
+            )
+            # The train block is identical for validation and test, so fit once
+            # and reuse the same model for both evaluation splits.
+            model.fit(X_train, y_train)
 
-            for model_name in model_names:
-                model = (
-                    _make_regressor(model_name, random_state)
-                    if task == "regression"
-                    else _make_classifier(model_name, random_state)
-                )
-                model.fit(X_train, y_train.astype(int) if task == "classification" else y_train)
+            for split, split_mask in eval_masks.items():
+                y_eval = matrix.y.loc[split_mask, target_column].dropna()
+                if y_eval.empty:
+                    continue
+                eval_index = y_eval.index
+                X_eval = matrix.X.loc[eval_index]
                 y_pred = (
                     model.predict(X_eval)
                     if task == "regression"
@@ -403,15 +410,18 @@ def _fit_evaluate_matrix(
     return WalkForwardOutput(metrics=metrics, predictions=predictions, importances=importances)
 
 
+def _train_times(times: xr.DataArray, train_end: pd.Timestamp) -> xr.DataArray:
+    return times.where(times <= np.datetime64(train_end), drop=True)
+
+
 def _standardize_predictors_for_fold(
     predictors: xr.Dataset,
-    fold: WalkForwardFold,
+    train_times: xr.DataArray,
     *,
     time_name: str,
     window_days: int,
 ) -> xr.Dataset:
-    transformed = {}
-    train_times = predictors[time_name].where(predictors[time_name] <= np.datetime64(fold.train_end), drop=True)
+    transformed: dict[str, xr.DataArray] = {}
     for variable in predictors.data_vars:
         da = predictors[variable]
         if time_name not in da.dims:
@@ -433,6 +443,35 @@ def _standardize_predictors_for_fold(
     return xr.Dataset(transformed, coords=predictors.coords, attrs=predictors.attrs)
 
 
+def _nino34_for_fold(
+    predictors: xr.Dataset,
+    train_times: xr.DataArray,
+    *,
+    sst_variable: str,
+    time_name: str,
+    window_days: int,
+) -> xr.DataArray | None:
+    """Nino 3.4 SSTA from raw SST with a train-only climatology (leakage-safe)."""
+    if sst_variable not in predictors:
+        return None
+    try:
+        index = nino34_sst_index(predictors[sst_variable])
+    except (KeyError, ValueError, IndexError):
+        return None
+    clim = fit_daily_climatology(
+        index,
+        train_times=train_times,
+        window_days=window_days,
+        time_name=time_name,
+    )
+    return daily_anomaly(
+        index,
+        climatology=clim,
+        window_days=window_days,
+        time_name=time_name,
+    ).rename("nino34_ssta")
+
+
 def run_walk_forward(
     predictors: xr.Dataset,
     target: xr.DataArray,
@@ -442,6 +481,8 @@ def run_walk_forward(
     regression_models: Sequence[str] = ("ridge", "rf", "xgboost"),
     classification_models: Sequence[str] = ("logistic", "rf", "xgboost"),
     dry_percentile: float = 10.0,
+    lower_percentile: float | None = 25.0,
+    upper_percentile: float | None = 75.0,
     wet_percentile: float = 90.0,
     time_name: str = "time",
     climatology_window_days: int = 15,
@@ -457,6 +498,12 @@ def run_walk_forward(
     """Run leakage-safe walk-forward regression and event classification."""
     time_index = pd.DatetimeIndex(target[time_name].values)
     fold_list = list(folds) if folds is not None else make_walk_forward_folds(time_index)
+    event_specs: list[tuple[str, str, float]] = [("dry_extreme", "dry", dry_percentile)]
+    if lower_percentile is not None:
+        event_specs.append(("below_p25", "dry", lower_percentile))
+    if upper_percentile is not None:
+        event_specs.append(("above_p75", "wet", upper_percentile))
+    event_specs.append(("wet_extreme", "wet", wet_percentile))
 
     all_metrics: list[pd.DataFrame] = []
     all_predictions: list[pd.DataFrame] = []
@@ -467,6 +514,7 @@ def run_walk_forward(
             & (target[time_name] <= np.datetime64(fold.train_end)),
             drop=True,
         )
+        predictor_train_times = _train_times(predictors[time_name], fold.train_end)
         target_clim, _ = fit_daily_standardization(
             target,
             train_times=target_train_times,
@@ -479,43 +527,48 @@ def run_walk_forward(
             window_days=climatology_window_days,
             time_name=time_name,
         )
-        dry_threshold = local_percentile_threshold(
-            target,
-            dry_percentile,
-            train_times=target_train_times,
-            time_name=time_name,
-        )
-        wet_threshold = local_percentile_threshold(
-            target,
-            wet_percentile,
-            train_times=target_train_times,
-            time_name=time_name,
-        )
-        dry_target = event_mask(
-            target,
-            dry_percentile,
-            "dry",
-            threshold=dry_threshold,
-            time_name=time_name,
-        )
-        wet_target = event_mask(
-            target,
-            wet_percentile,
-            "wet",
-            threshold=wet_threshold,
-            time_name=time_name,
-        )
+        event_targets = []
+        for event_name, event_kind, percentile in event_specs:
+            threshold = local_percentile_threshold(
+                target,
+                percentile,
+                train_times=target_train_times,
+                time_name=time_name,
+            )
+            event_targets.append(
+                (
+                    event_name,
+                    event_mask(
+                        target,
+                        percentile,
+                        event_kind,
+                        threshold=threshold,
+                        time_name=time_name,
+                    ),
+                )
+            )
 
         fold_predictors = (
             _standardize_predictors_for_fold(
                 predictors,
-                fold,
+                predictor_train_times,
                 time_name=time_name,
                 window_days=climatology_window_days,
             )
             if standardize_predictors
             else predictors
         )
+        # Nino 3.4 comes from RAW SST with a train-only climatology, computed
+        # once per fold instead of once per feature-matrix build.
+        nino34 = _nino34_for_fold(
+            predictors,
+            predictor_train_times,
+            sst_variable="sst",
+            time_name=time_name,
+            window_days=climatology_window_days,
+        )
+        if nino34 is not None:
+            fold_predictors = fold_predictors.assign(nino34_ssta=nino34)
 
         for lag in lags_days:
             regression_matrix = build_feature_matrix(
@@ -526,6 +579,8 @@ def run_walk_forward(
                 predictor_strategy=predictor_strategy,
                 target_strategy=target_strategy,
                 climatology_window_days=climatology_window_days,
+                include_nino34=False,
+                feature_groups={"nino34_ssta": "ocean"},
             )
             regression_output = _fit_evaluate_matrix(
                 regression_matrix,
@@ -542,7 +597,7 @@ def run_walk_forward(
             all_predictions.append(regression_output.predictions)
             all_importances.append(regression_output.importances)
 
-            for event_name, event_target in [("dry", dry_target), ("wet", wet_target)]:
+            for event_name, event_target in event_targets:
                 class_matrix = build_feature_matrix(
                     fold_predictors,
                     event_target.astype(int).rename(event_name),
@@ -551,6 +606,8 @@ def run_walk_forward(
                     predictor_strategy=predictor_strategy,
                     target_strategy=target_strategy,
                     climatology_window_days=climatology_window_days,
+                    include_nino34=False,
+                    feature_groups={"nino34_ssta": "ocean"},
                 )
                 class_output = _fit_evaluate_matrix(
                     class_matrix,

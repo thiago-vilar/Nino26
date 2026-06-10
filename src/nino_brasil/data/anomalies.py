@@ -10,10 +10,10 @@ def _smooth_dayofyear_stat(stat: xr.DataArray, window_days: int) -> xr.DataArray
         return stat
 
     half = window_days // 2
+    # Pad circularly BEFORE smoothing so the Dec/Jan seam and the interior get
+    # the exact same effective window in a single pass.
     return (
-        stat.rolling(dayofyear=window_days, center=True, min_periods=1)
-        .mean()
-        .pad(dayofyear=(half, half), mode="wrap")
+        stat.pad(dayofyear=(half, half), mode="wrap")
         .rolling(dayofyear=window_days, center=True, min_periods=1)
         .mean()
         .isel(dayofyear=slice(half, -half))

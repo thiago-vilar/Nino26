@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -14,14 +15,33 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from nino_brasil.config import load_config, project_path
+from nino_brasil.data.zarr_store import dataframe_to_zarr
 from nino_brasil.models.walk_forward import make_walk_forward_folds, run_walk_forward
+
+
+COMMON_RESOLUTION_DEG = 0.25
+
+
+def _assert_common_resolution(ds: xr.Dataset, path: str, expected: float = COMMON_RESOLUTION_DEG) -> None:
+    for axis in ("lat", "lon"):
+        if axis in ds.coords and ds.sizes.get(axis, 0) > 1:
+            step = float(np.abs(np.diff(ds[axis].values)).mean())
+            if not np.isclose(step, expected, atol=1e-3):
+                raise ValueError(
+                    f"{path}: {axis} step {step:.4f} deg differs from the common "
+                    f"{expected} deg grid; run regrid-zarr on it first."
+                )
 
 
 def _open_predictors(paths: list[str]) -> xr.Dataset:
     datasets = [xr.open_zarr(path) for path in paths]
     try:
-        return xr.merge(datasets, compat="override")
-    except BaseException:
+        for ds, path in zip(datasets, paths):
+            _assert_common_resolution(ds, path)
+        # no_conflicts: fail loudly on overlapping variables/coords instead of
+        # silently keeping the first dataset's values.
+        return xr.merge(datasets, compat="no_conflicts")
+    except Exception:
         for ds in datasets:
             ds.close()
         raise
@@ -48,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--predictor-zarr", action="append", required=True, help="Regridded predictor Zarr path.")
     parser.add_argument("--target-zarr", required=True, help="Regridded CHIRPS target Zarr path.")
     parser.add_argument("--target-var", required=True, help="Target precipitation variable name.")
-    parser.add_argument("--lag-days", type=int, action="append", help="Lag in days; defaults to project monthly lags.")
+    parser.add_argument("--lag-days", type=int, action="append", help="Lag in days; defaults to project weekly horizons.")
     parser.add_argument("--initial-train-years", type=int, default=20)
     parser.add_argument("--validation-years", type=int, default=2)
     parser.add_argument("--test-years", type=int, default=1)
@@ -61,7 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--importance-repeats", type=int, default=5)
     parser.add_argument("--shap", action="store_true", help="Calculate SHAP importances for tree models.")
     parser.add_argument("--shap-max-rows", type=int, default=1000)
-    parser.add_argument("--output-dir", default="data/processed/parquet/modeling")
+    parser.add_argument("--random-state", type=int, default=42, help="Seed for models, importances and SHAP sampling.")
+    parser.add_argument("--output-dir", default="data/processed/zarr/modeling")
     parser.add_argument("--dry-run", action="store_true", help="Open data and print planned folds without fitting models.")
     return parser
 
@@ -102,24 +123,31 @@ def main(argv: list[str] | None = None) -> int:
             target_strategy=args.target_strategy,
             climatology_window_days=cfg["time"].get("climatology_window_days", 15),
             dry_percentile=cfg["targets"].get("dry_percentile", 10),
+            lower_percentile=cfg["targets"].get("lower_percentile", 25),
+            upper_percentile=cfg["targets"].get("upper_percentile", 75),
             wet_percentile=cfg["targets"].get("wet_percentile", 90),
             compute_importance=not args.no_importance,
             compute_shap=args.shap,
             importance_n_repeats=args.importance_repeats,
             shap_max_rows=args.shap_max_rows,
+            random_state=args.random_state,
         )
 
         output_dir = project_path(args.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        output.metrics.to_parquet(output_dir / "walk_forward_metrics.parquet", index=False)
-        output.predictions.to_parquet(output_dir / "walk_forward_predictions.parquet", index=False)
-        output.importances.to_parquet(output_dir / "walk_forward_importances.parquet", index=False)
+        metrics_path = output_dir / "walk_forward_metrics.zarr"
+        predictions_path = output_dir / "walk_forward_predictions.zarr"
+        importances_path = output_dir / "walk_forward_importances.zarr"
+        group_weights_path = output_dir / "walk_forward_group_weights.zarr"
+        dataframe_to_zarr(output.metrics, metrics_path, overwrite=True, attrs={"artifact": "walk_forward_metrics"})
+        dataframe_to_zarr(output.predictions, predictions_path, overwrite=True, attrs={"artifact": "walk_forward_predictions"})
+        dataframe_to_zarr(output.importances, importances_path, overwrite=True, attrs={"artifact": "walk_forward_importances"})
         group_weights = _group_weights(output.importances)
-        group_weights.to_parquet(output_dir / "walk_forward_group_weights.parquet", index=False)
-        print(f"metrics: {output_dir / 'walk_forward_metrics.parquet'}")
-        print(f"predictions: {output_dir / 'walk_forward_predictions.parquet'}")
-        print(f"importances: {output_dir / 'walk_forward_importances.parquet'}")
-        print(f"group weights: {output_dir / 'walk_forward_group_weights.parquet'}")
+        dataframe_to_zarr(group_weights, group_weights_path, overwrite=True, attrs={"artifact": "walk_forward_group_weights"})
+        print(f"metrics: {metrics_path}")
+        print(f"predictions: {predictions_path}")
+        print(f"importances: {importances_path}")
+        print(f"group weights: {group_weights_path}")
         return 0
     finally:
         predictors.close()

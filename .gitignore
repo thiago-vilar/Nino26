@@ -27,4 +27,7 @@ __pycache__/
 .venv-wsl/
 .env
 .env.*
+!.env.example
+painel_executivo.md
 *.pyc
+2602.24281v1.pdf

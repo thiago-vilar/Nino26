@@ -16,7 +16,7 @@ Este documento define, de forma operacional, quais bases serao baixadas, quais v
 - Todo dado bruto fica em `data/raw/`.
 - Todo dado temporario ou extraido fica em `data/interim/`.
 - Todo dado tratado para modelagem fica em `data/processed/`.
-- Saidas tabulares de modelagem e diagnostico ficam em `data/processed/parquet/`.
+- Saidas tabulares de modelagem e diagnostico ficam em stores `.zarr` sob `data/processed/zarr/`.
 - Todo produto multidimensional tratado deve ser salvo em `.zarr`.
 - Toda etapa critica deve registrar evento em `data/audit/ledger.jsonl`.
 - A latencia de cada fonte deve ser registrada no ledger; `--end-year` e opcional e e limitado por `latest_available`.
@@ -411,7 +411,7 @@ data/processed/zarr/era5/pressure_levels/<ano>/era5_pressure_<regiao>_<ano><mes>
 ### 4.6 CHIRPS precipitacao diaria
 
 Fonte: Climate Hazards Center / UC Santa Barbara.  
-Produto: CHIRPS v2.0 global daily 0.25 degree na Fase 1; 0.05 degree na Fase 2.  
+Produto: CHIRPS v2.0 global daily 0.25 degree nas Fases 1, 2, 3 e 4; 0.05 degree reservado para experimento futuro de alta resolucao.
 Link: https://www.chc.ucsb.edu/data/chirps  
 Download usado pelo script na Fase 1: https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/  
 Uso: resposta observada de chuva no Brasil.
@@ -433,7 +433,7 @@ Frequencia e formato:
 ```text
 fonte: diaria
 download: anual
-resolucao: 0.25 grau na Fase 1; 0.05 grau na Fase 2
+resolucao: 0.25 grau nas Fases 1, 2, 3 e 4; 0.05 grau em experimento futuro
 bruto: NetCDF anual
 processado: Zarr depois do recorte pelo Brasil
 ```
@@ -455,6 +455,8 @@ acumulado de 7 dias
 acumulado de 15 dias
 acumulado de 30 dias
 evento seco por percentil local
+chuva abaixo do quartil inferior por P25 local
+chuva acima do quartil superior por P75 local
 chuva acima do normal por percentil local
 ```
 
@@ -615,7 +617,7 @@ Uma base so deve ser considerada pronta quando:
 ## 8. Periodo por fonte
 
 ```text
-CHIRPS: 1981-latest_available, diario, 0.25 grau na Fase 1 e 0.05 grau na Fase 2
+CHIRPS: 1981-latest_available, diario, 0.25 grau nas Fases 1, 2, 3 e 4; 0.05 grau reservado para experimento futuro de alta resolucao
 NOAA OISST: 1981-latest_available, diario, 0.25 grau, SST/SSTA principal
 CTD NOAA WOD: 1981-latest_available, perfis irregulares, filtrados no Pacifico
 ERA5: 1981-latest_available, subdiario baixado em 4 horarios e agregado depois para diario

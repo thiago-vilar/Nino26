@@ -9,7 +9,7 @@ import cdsapi
 
 from nino_brasil.data.audit import AuditLog, dataset_summary, file_info
 from nino_brasil.data.credentials import DEFAULT_CDS_API_URL, load_local_env
-from nino_brasil.data.zarr_store import netcdf_to_zarr, zip_netcdf_to_zarr
+from nino_brasil.data.zarr_store import netcdf_to_daily_zarr, zip_netcdf_to_daily_zarr
 import os
 
 
@@ -35,6 +35,40 @@ ERA5_PRESSURE_VARIABLES = [
 
 ERA5_PRESSURE_LEVELS = ["200", "500", "850"]
 
+ORAS5_VARIABLES = [
+    "potential_temperature",
+    "salinity",
+    "ocean_heat_content_for_the_upper_300m",
+    "ocean_heat_content_for_the_upper_700m",
+]
+
+ERA5_SINGLE_VARIABLE_ALIASES = {
+    "mean_sea_level_pressure": ["msl"],
+    "10m_u_component_of_wind": ["u10"],
+    "10m_v_component_of_wind": ["v10"],
+    "total_column_water_vapour": ["tcwv"],
+    "surface_latent_heat_flux": ["slhf"],
+    "surface_sensible_heat_flux": ["sshf"],
+    "surface_net_solar_radiation": ["ssr"],
+    "surface_net_thermal_radiation": ["str"],
+}
+
+ERA5_PRESSURE_VARIABLE_ALIASES = {
+    "u_component_of_wind": ["u"],
+    "v_component_of_wind": ["v"],
+    "specific_humidity": ["q"],
+    "geopotential": ["z"],
+    "vertical_velocity": ["w"],
+    "divergence": ["d"],
+}
+
+ORAS5_VARIABLE_ALIASES = {
+    "potential_temperature": ["thetao", "temperature"],
+    "salinity": ["so"],
+    "ocean_heat_content_for_the_upper_300m": ["ohc_0_300m", "ohc300"],
+    "ocean_heat_content_for_the_upper_700m": ["ohc_0_700m", "ohc700"],
+}
+
 ATMOSPHERE_AREAS = {
     "west_pacific": [30, 120, -35, 180],
     "east_pacific_brazil": [30, -180, -35, -30],
@@ -48,6 +82,25 @@ def _days(year: int, month: int) -> list[str]:
 
 def _month(month: int) -> str:
     return f"{month:02d}"
+
+
+def _month_bounds(year: int, month: int) -> tuple[str, str]:
+    last_day = calendar.monthrange(year, month)[1]
+    return f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day:02d}"
+
+
+def _safe_name(value: str) -> str:
+    return "".join(char if char.isalnum() else "_" for char in value).strip("_").lower()
+
+
+def _resolve_variables(variables: list[str] | None, default: list[str]) -> list[str]:
+    return list(variables) if variables else list(default)
+
+
+def _variable_slug(variables: list[str] | None) -> str | None:
+    if not variables:
+        return None
+    return "__".join(_safe_name(variable) for variable in variables)
 
 
 def _client() -> cdsapi.Client:
@@ -100,22 +153,16 @@ def download_era5_single_month(
     month: int,
     region: str,
     raw_dir: Path,
+    variables: list[str] | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
 ) -> Path:
-    area = ATMOSPHERE_AREAS[region]
-    request = {
-        "product_type": "reanalysis",
-        "variable": ERA5_SINGLE_VARIABLES,
-        "year": str(year),
-        "month": _month(month),
-        "day": _days(year, month),
-        "time": ["00:00", "06:00", "12:00", "18:00"],
-        "data_format": "netcdf",
-        "download_format": "unarchived",
-        "area": area,
-    }
-    output_path = raw_dir / "single_levels" / str(year) / f"era5_single_{region}_{year}{month:02d}.nc"
+    request = _era5_single_request(year, month, region, variables=variables)
+    slug = _variable_slug(variables)
+    if slug:
+        output_path = raw_dir / "single_levels" / str(year) / slug / f"era5_single_{region}_{slug}_{year}{month:02d}.nc"
+    else:
+        output_path = raw_dir / "single_levels" / str(year) / f"era5_single_{region}_{year}{month:02d}.nc"
     return retrieve_cds(
         dataset="reanalysis-era5-single-levels",
         request=request,
@@ -131,23 +178,16 @@ def download_era5_pressure_month(
     month: int,
     region: str,
     raw_dir: Path,
+    variables: list[str] | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
 ) -> Path:
-    area = ATMOSPHERE_AREAS[region]
-    request = {
-        "product_type": "reanalysis",
-        "variable": ERA5_PRESSURE_VARIABLES,
-        "pressure_level": ERA5_PRESSURE_LEVELS,
-        "year": str(year),
-        "month": _month(month),
-        "day": _days(year, month),
-        "time": ["00:00", "06:00", "12:00", "18:00"],
-        "data_format": "netcdf",
-        "download_format": "unarchived",
-        "area": area,
-    }
-    output_path = raw_dir / "pressure_levels" / str(year) / f"era5_pressure_{region}_{year}{month:02d}.nc"
+    request = _era5_pressure_request(year, month, region, variables=variables)
+    slug = _variable_slug(variables)
+    if slug:
+        output_path = raw_dir / "pressure_levels" / str(year) / slug / f"era5_pressure_{region}_{slug}_{year}{month:02d}.nc"
+    else:
+        output_path = raw_dir / "pressure_levels" / str(year) / f"era5_pressure_{region}_{year}{month:02d}.nc"
     return retrieve_cds(
         dataset="reanalysis-era5-pressure-levels",
         request=request,
@@ -162,24 +202,16 @@ def download_oras_month(
     year: int,
     month: int,
     raw_dir: Path,
+    variables: list[str] | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
 ) -> Path:
-    product_type = "consolidated" if year <= 2014 else "operational"
-    request = {
-        "product_type": product_type,
-        "vertical_resolution": "all_levels",
-        "variable": [
-            "potential_temperature",
-            "salinity",
-            "ocean_heat_content_for_the_upper_300m",
-            "ocean_heat_content_for_the_upper_700m",
-        ],
-        "year": str(year),
-        "month": _month(month),
-        "data_format": "netcdf",
-    }
-    output_path = raw_dir / str(year) / f"oras5_{year}{month:02d}.zip"
+    request = _oras_request(year, month, variables=variables)
+    slug = _variable_slug(variables)
+    if slug:
+        output_path = raw_dir / str(year) / slug / f"oras5_{slug}_{year}{month:02d}.zip"
+    else:
+        output_path = raw_dir / str(year) / f"oras5_{year}{month:02d}.zip"
     return retrieve_cds(
         dataset="reanalysis-oras5",
         request=request,
@@ -242,10 +274,10 @@ def _record_error(
     )
 
 
-def _era5_single_request(year: int, month: int, region: str) -> dict[str, object]:
+def _era5_single_request(year: int, month: int, region: str, *, variables: list[str] | None = None) -> dict[str, object]:
     return {
         "product_type": "reanalysis",
-        "variable": ERA5_SINGLE_VARIABLES,
+        "variable": _resolve_variables(variables, ERA5_SINGLE_VARIABLES),
         "year": str(year),
         "month": _month(month),
         "day": _days(year, month),
@@ -256,10 +288,10 @@ def _era5_single_request(year: int, month: int, region: str) -> dict[str, object
     }
 
 
-def _era5_pressure_request(year: int, month: int, region: str) -> dict[str, object]:
+def _era5_pressure_request(year: int, month: int, region: str, *, variables: list[str] | None = None) -> dict[str, object]:
     return {
         "product_type": "reanalysis",
-        "variable": ERA5_PRESSURE_VARIABLES,
+        "variable": _resolve_variables(variables, ERA5_PRESSURE_VARIABLES),
         "pressure_level": ERA5_PRESSURE_LEVELS,
         "year": str(year),
         "month": _month(month),
@@ -271,17 +303,12 @@ def _era5_pressure_request(year: int, month: int, region: str) -> dict[str, obje
     }
 
 
-def _oras_request(year: int, month: int) -> dict[str, object]:
+def _oras_request(year: int, month: int, *, variables: list[str] | None = None) -> dict[str, object]:
     product_type = "consolidated" if year <= 2014 else "operational"
     return {
         "product_type": product_type,
         "vertical_resolution": "all_levels",
-        "variable": [
-            "potential_temperature",
-            "salinity",
-            "ocean_heat_content_for_the_upper_300m",
-            "ocean_heat_content_for_the_upper_700m",
-        ],
+        "variable": _resolve_variables(variables, ORAS5_VARIABLES),
         "year": str(year),
         "month": _month(month),
         "data_format": "netcdf",
@@ -295,16 +322,23 @@ def ingest_era5_single_month(
     region: str,
     raw_dir: Path,
     zarr_root: Path,
+    variables: list[str] | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
     include_hash: bool = False,
     audit: AuditLog | None = None,
 ) -> Path:
     audit = audit or AuditLog()
-    task_id = f"era5_single_{region}_{year}{month:02d}"
-    request = _era5_single_request(year, month, region)
-    raw_path = raw_dir / "single_levels" / str(year) / f"{task_id}.nc"
-    zarr_path = zarr_root / "era5" / "single_levels" / str(year) / f"{task_id}.zarr"
+    requested_variables = _resolve_variables(variables, ERA5_SINGLE_VARIABLES)
+    slug = _variable_slug(variables)
+    task_id = f"era5_single_{region}_{slug}_{year}{month:02d}" if slug else f"era5_single_{region}_{year}{month:02d}"
+    request = _era5_single_request(year, month, region, variables=variables)
+    if slug:
+        raw_path = raw_dir / "single_levels" / str(year) / slug / f"{task_id}.nc"
+        zarr_path = zarr_root / "era5" / "single_levels" / str(year) / slug / f"{task_id}_daily.zarr"
+    else:
+        raw_path = raw_dir / "single_levels" / str(year) / f"{task_id}.nc"
+        zarr_path = zarr_root / "era5" / "single_levels" / str(year) / f"{task_id}_daily.zarr"
 
     if dry_run:
         print(f"DRY RUN ingest {task_id}: raw={raw_path} zarr={zarr_path}")
@@ -323,7 +357,18 @@ def ingest_era5_single_month(
                 dry_run=False,
                 overwrite=overwrite,
             )
-            netcdf_to_zarr(raw_path, zarr_path, overwrite=overwrite)
+            start, end = _month_bounds(year, month)
+            netcdf_to_daily_zarr(
+                raw_path,
+                zarr_path,
+                variables=requested_variables,
+                variable_aliases=ERA5_SINGLE_VARIABLE_ALIASES,
+                source_frequency="subdaily",
+                aggregation="mean",
+                daily_start=start,
+                daily_end=end,
+                overwrite=overwrite,
+            )
         _record_ok(audit, task_id=task_id, dataset="era5_single", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
         return zarr_path
     except BaseException as exc:
@@ -338,16 +383,23 @@ def ingest_era5_pressure_month(
     region: str,
     raw_dir: Path,
     zarr_root: Path,
+    variables: list[str] | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
     include_hash: bool = False,
     audit: AuditLog | None = None,
 ) -> Path:
     audit = audit or AuditLog()
-    task_id = f"era5_pressure_{region}_{year}{month:02d}"
-    request = _era5_pressure_request(year, month, region)
-    raw_path = raw_dir / "pressure_levels" / str(year) / f"{task_id}.nc"
-    zarr_path = zarr_root / "era5" / "pressure_levels" / str(year) / f"{task_id}.zarr"
+    requested_variables = _resolve_variables(variables, ERA5_PRESSURE_VARIABLES)
+    slug = _variable_slug(variables)
+    task_id = f"era5_pressure_{region}_{slug}_{year}{month:02d}" if slug else f"era5_pressure_{region}_{year}{month:02d}"
+    request = _era5_pressure_request(year, month, region, variables=variables)
+    if slug:
+        raw_path = raw_dir / "pressure_levels" / str(year) / slug / f"{task_id}.nc"
+        zarr_path = zarr_root / "era5" / "pressure_levels" / str(year) / slug / f"{task_id}_daily.zarr"
+    else:
+        raw_path = raw_dir / "pressure_levels" / str(year) / f"{task_id}.nc"
+        zarr_path = zarr_root / "era5" / "pressure_levels" / str(year) / f"{task_id}_daily.zarr"
 
     if dry_run:
         print(f"DRY RUN ingest {task_id}: raw={raw_path} zarr={zarr_path}")
@@ -366,7 +418,18 @@ def ingest_era5_pressure_month(
                 dry_run=False,
                 overwrite=overwrite,
             )
-            netcdf_to_zarr(raw_path, zarr_path, overwrite=overwrite)
+            start, end = _month_bounds(year, month)
+            netcdf_to_daily_zarr(
+                raw_path,
+                zarr_path,
+                variables=requested_variables,
+                variable_aliases=ERA5_PRESSURE_VARIABLE_ALIASES,
+                source_frequency="subdaily",
+                aggregation="mean",
+                daily_start=start,
+                daily_end=end,
+                overwrite=overwrite,
+            )
         _record_ok(audit, task_id=task_id, dataset="era5_pressure", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
         return zarr_path
     except BaseException as exc:
@@ -381,17 +444,25 @@ def ingest_oras_month(
     raw_dir: Path,
     interim_dir: Path,
     zarr_root: Path,
+    variables: list[str] | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
     include_hash: bool = False,
     audit: AuditLog | None = None,
 ) -> Path:
     audit = audit or AuditLog()
-    task_id = f"oras5_{year}{month:02d}"
-    request = _oras_request(year, month)
-    raw_path = raw_dir / str(year) / f"{task_id}.zip"
-    extract_dir = interim_dir / str(year) / task_id
-    zarr_path = zarr_root / "oras" / str(year) / f"{task_id}.zarr"
+    requested_variables = _resolve_variables(variables, ORAS5_VARIABLES)
+    slug = _variable_slug(variables)
+    task_id = f"oras5_{slug}_{year}{month:02d}" if slug else f"oras5_{year}{month:02d}"
+    request = _oras_request(year, month, variables=variables)
+    if slug:
+        raw_path = raw_dir / str(year) / slug / f"{task_id}.zip"
+        extract_dir = interim_dir / str(year) / slug / task_id
+        zarr_path = zarr_root / "oras" / str(year) / slug / f"{task_id}_daily.zarr"
+    else:
+        raw_path = raw_dir / str(year) / f"{task_id}.zip"
+        extract_dir = interim_dir / str(year) / task_id
+        zarr_path = zarr_root / "oras" / str(year) / f"{task_id}_daily.zarr"
 
     if dry_run:
         print(f"DRY RUN ingest {task_id}: raw={raw_path} zarr={zarr_path}")
@@ -412,7 +483,18 @@ def ingest_oras_month(
             )
             if extract_dir.exists() and overwrite:
                 shutil.rmtree(extract_dir)
-            zip_netcdf_to_zarr(raw_path, extract_dir, zarr_path, overwrite=overwrite)
+            start, end = _month_bounds(year, month)
+            zip_netcdf_to_daily_zarr(
+                raw_path,
+                extract_dir,
+                zarr_path,
+                variables=requested_variables,
+                variable_aliases=ORAS5_VARIABLE_ALIASES,
+                source_frequency="monthly",
+                daily_start=start,
+                daily_end=end,
+                overwrite=overwrite,
+            )
         _record_ok(audit, task_id=task_id, dataset="oras5", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
         return zarr_path
     except BaseException as exc:

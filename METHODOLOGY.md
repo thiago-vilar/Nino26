@@ -20,6 +20,7 @@ Regras:
 - registrar lacunas de fonte sem preenchimento silencioso.
 - converter ERA5 subdiário para estatísticas diárias.
 - alinhar ORAS5 mensal como variável de memória oceânica com regra explícita de lag.
+- avaliar previsões em horizontes semanais de 1 a 24 semanas, equivalentes a 7-168 dias.
 - documentar qualquer reamostragem temporal.
 - registrar a latência de cada fonte no ledger de auditoria.
 
@@ -46,7 +47,7 @@ anomalia_padronizada = (valor - média_climatológica) / desvio_padrão_climatol
 Regra anti-vazamento:
 
 ```text
-climatologia, desvio padrão climatológico, P10 e P90 são estimados apenas no bloco de treino de cada fold walk-forward e reaplicados à validação/teste.
+climatologia, desvio padrão climatológico, P10, P25, P75 e P90 são estimados apenas no bloco de treino de cada fold walk-forward e reaplicados à validação/teste.
 ```
 
 ## 3. Eventos de precipitação
@@ -55,15 +56,22 @@ Para cada pixel do Brasil:
 
 ```text
 P10 = percentil 10 da chuva local
+P25 = percentil 25 da chuva local
+P75 = percentil 75 da chuva local
 P90 = percentil 90 da chuva local
 ```
 
 Classificação:
 
 ```text
-evento_seco = chuva <= P10
-chuva_acima_normal = chuva >= P90
+seco_extremo = chuva <= P10
+abaixo_quartil_inferior = chuva <= P25
+faixa_interquartil = P25 < chuva < P75
+acima_quartil_superior = chuva >= P75
+umido_extremo = chuva >= P90
 ```
+
+A faixa `P25-P75` é uma referência interquartil da distribuição local, não uma classe meteorológica chamada "normal".
 
 Acumulados:
 
@@ -159,18 +167,22 @@ Y[t + lag] = anomalia de precipitação no Brasil
 Lags iniciais:
 
 ```text
-0, 30, 60, 90, 120, 150, 180 dias
+1 a 24 semanas: 7, 14, 21, ..., 168 dias
 ```
 
-As grades do Pacífico, Brasil e ponte atmosférica são reconciliadas antes da montagem da matriz de modelagem. A Fase 1 usa grade comum `0.25°` em longitude `0_360`; a Fase 2 escala para `0.05°` pixel-a-pixel.
+As grades do Pacífico, Brasil e ponte atmosférica são reconciliadas antes da montagem da matriz de modelagem. As Fases 1, 2, 3 e 4 usam grade comum `0.25°` em longitude `0_360`; CHIRPS `0.05°` fica reservado para experimento futuro de alta resolução depois que o fluxo `0.25°` estiver validado.
 
 Saídas:
 
 ```text
 Y_regressao = anomalia de precipitação
-Y_seca = evento_seco
-Y_chuva_acima_normal = chuva_acima_normal
+Y_seca_extrema = chuva <= P10
+Y_abaixo_quartil = chuva <= P25
+Y_acima_quartil = chuva >= P75
+Y_chuva_extrema = chuva >= P90
 ```
+
+Hipótese regional prioritária: El Nino alto tende a aumentar a probabilidade de seca no Nordeste/Semiárido e a probabilidade de chuva acima do quartil superior/extremos úmidos no Sul do Brasil. Essa hipótese deve ser testada por lag semanal, estação do ano e pixel/região.
 
 ## 7. Modelagem e dimensionamento de pesos
 
@@ -197,7 +209,7 @@ Modelo E: sem altos níveis atmosféricos
 Modelo F: sem umidade atmosférica
 ```
 
-Modelos:
+Modelos da Fase 3:
 
 - climatologia.
 - persistência.
@@ -205,6 +217,9 @@ Modelos:
 - regressão regularizada.
 - Random Forest.
 - XGBoost.
+
+Modelos da Fase 4, Redes Neurais + XAI:
+
 - CNN.
 - ConvLSTM.
 - U-Net.
@@ -259,14 +274,27 @@ Técnicas:
 - attention maps.
 - ablation study.
 
-Saídas operacionais da Fase 1:
+Saídas operacionais da Fase 3:
 
 ```text
-walk_forward_importances.parquet
-walk_forward_group_weights.parquet
+walk_forward_metrics.zarr
+walk_forward_predictions.zarr
+walk_forward_importances.zarr
+walk_forward_group_weights.zarr
 ```
 
 Esses arquivos alimentam os mapas de peso oceanográfico, peso atmosférico e variável dominante.
+
+Saídas operacionais da Fase 4:
+
+```text
+neural_training_runs.zarr
+neural_predictions.zarr
+neural_xai_maps.zarr
+neural_skill_comparison.zarr
+```
+
+Esses stores Zarr alimentam a comparação entre redes neurais, ML clássico e XAI físico.
 
 ## 9.1 Diagnóstico distribucional
 

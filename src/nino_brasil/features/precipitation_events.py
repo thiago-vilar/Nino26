@@ -20,6 +20,9 @@ def local_percentile_threshold(
 ) -> xr.DataArray:
     """Calculate a local percentile threshold, optionally on a training block."""
     sample = precipitation.sel({time_name: train_times}) if train_times is not None else precipitation
+    if sample.chunks is not None:
+        # xarray quantile requires a single chunk along the reduced dimension.
+        sample = sample.chunk({time_name: -1})
     return sample.quantile(percentile / 100.0, dim=time_name)
 
 

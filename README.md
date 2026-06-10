@@ -7,20 +7,41 @@ O fluxo oficial preserva a janela historica completa: `1981-01-01` ate o ultimo 
 ## Decisoes metodologicas fixas
 
 - Frequencia de modelagem: sempre diaria.
-- Lags: `0, 30, 60, 90, 120, 150, 180` dias.
+- Horizontes de previsao: semanal, de 1 a 24 semanas (`7` a `168` dias).
 - Validacao: somente blocos temporais e walk-forward; nao usar split aleatorio.
-- Anti-vazamento: climatologia diaria, desvio padrao, P10 e P90 sao estimados no bloco de treino de cada fold e reaplicados a validacao/teste.
-- Grade comum da Fase 1: `0.25` grau, longitude `0_360`, declarada em `configs/project.yaml`.
-- CHIRPS da Fase 1: `p25`, coerente com a grade comum e com o arquivo local ja baixado.
-- CHIRPS `p05`: reservado para Fase 2, quando o custo pixel-a-pixel for validado.
+- Anti-vazamento: climatologia diaria, desvio padrao, P10, P25, P75 e P90 sao estimados no bloco de treino de cada fold e reaplicados a validacao/teste.
+- Grade comum das Fases 1, 2, 3 e 4: `0.25` grau, longitude `0_360`, declarada em `configs/project.yaml`.
+- CHIRPS oficial das Fases 1, 2, 3 e 4: `p25`, coerente com a grade comum e com o arquivo local ja baixado.
+- CHIRPS `p05`: reservado para experimento futuro de alta resolucao, depois que o fluxo `0.25` grau estiver validado.
 - SST/SSTA principal: NOAA OISST diario.
 - ORAS5: reservado para memoria oceanica subsuperficial, nao para duplicar SST mensal.
+
+Hipotese fisica regional a testar: El Nino alto tende a aumentar o risco de seca no Nordeste/Semiarido e chuva acima do normal no Sul do Brasil. O projeto deve medir a intensidade, o lag dominante e a confianca desse sinal por pixel, regiao e estacao.
+
+Classes de precipitacao por percentis locais:
+
+- `<= P10`: seco extremo.
+- `<= P25`: abaixo do quartil inferior, incluindo seca moderada.
+- `P25-P75`: faixa interquartil de referencia, sem ser rotulada como "normal".
+- `>= P75`: acima do quartil superior, incluindo chuva moderadamente elevada.
+- `>= P90`: umido extremo.
+
+## Painel de fases
+
+| Fase | Foco | Marco de conclusao |
+|---|---|---|
+| Fase 1 | Fundacao local, estrutura Git, catalogo, scripts de ingestao e base diaria inicial | Dados essenciais baixaveis/reprodutiveis e estrutura versionada |
+| Fase 2 | Calibracao, padronizacao, anomalias, lags e regridding para a grade comum `0.25` grau | Cubos Zarr reconciliados em `data/processed/zarr/regridded/` |
+| Fase 3 | Machine learning classico e XAI: Ridge, Random Forest, XGBoost, walk-forward, permutation importance, SHAP e pesos por grupo | Stores Zarr de metricas, previsoes, importancias, pesos por grupo e mapas analiticos |
+| Fase 4 | Redes neurais e XAI: CNN, ConvLSTM, U-Net, Transformer espaco-temporal, saliency, occlusion e attention maps | Stores Zarr de treino/inferencia neural, explicabilidade neural e comparacao contra a Fase 3 |
+| Fase 5 | Teste da tecnica Memory Caching do Google Research (arXiv:2602.24281): RNNs com memoria crescente via cache de estados, variantes Residual/Gated/Soup/SSC, sob o mesmo walk-forward | Stores Zarr de runs, comparacao de skill contra Fases 3/4 e relatorio skill x eficiencia |
+| Fase 6 | Publicacao, operacao recorrente, experimentos `p05` e relatorios automaticos | Produto em `docs/`, rotina recorrente e painel publico |
 
 ## Estado local dos dados
 
 Atualmente ha IBGE e um arquivo CHIRPS `p25` de 1981 em `data/raw/chirps/p25/`. Esse arquivo nao e erro: ele esta alinhado com a escolha oficial da Fase 1. Nao apague `p25` salvo se o arquivo estiver corrompido.
 
-Dados que ainda precisam ser ingeridos para rodar ponta a ponta:
+Dados que ainda precisam ser ingeridos para encerrar a base da Fase 1 e entrar com seguranca na Fase 2:
 
 - NOAA OISST historico diario.
 - CHIRPS `p25` historico diario.
@@ -30,6 +51,12 @@ Dados que ainda precisam ser ingeridos para rodar ponta a ponta:
 - Cubos Zarr regridados em `data/processed/zarr/regridded/`.
 
 Arquivos grandes em `data/raw/`, `data/interim/` e `data/processed/` nao devem ser commitados. Versione codigo, configs, catalogo, docs e testes.
+
+Para trabalhar em mais de uma maquina, use o GitHub como fonte do codigo: antes de iniciar, rode `git pull --ff-only origin main`; antes de trocar de maquina, rode os testes, faca commit e `git push origin main`. Dados grandes e `.env` ficam locais em cada maquina.
+
+## Checklist ECMWF resumido
+
+O projeto ja esta alinhado com ERA5/ORAS5/OISST, anomalias sem vazamento, walk-forward, RF/XGBoost, SHAP e permutation importance. Antes de declarar aderencia operacional meteorologica, faltam: `2m_temperature`, temperatura em niveis de pressao, bulbo umido ou proxy, correntes oceanicas U/V, dipolo do Atlantico, altura geopotencial derivada, calibracao probabilistica/reliability e analise de sensibilidade.
 
 ## Instalacao
 
@@ -127,7 +154,7 @@ ORAS5:
 python scripts\data_pipeline.py download-oras --start-year 1981 --execute
 ```
 
-Os comandos CDS geram Zarr mensal quando executados sem `--raw-only`.
+Os comandos CDS mantem o bruto em cache e geram Zarr diario por variavel quando executados sem `--raw-only`.
 
 ### 6. CTD/WOD
 
@@ -172,7 +199,7 @@ python scripts\data_pipeline.py diagnose-distributions `
 
 Saida:
 
-- `data/processed/parquet/distributions/distribution_diagnostics.parquet`
+- `data/processed/zarr/distributions/distribution_diagnostics.zarr`
 - evento correspondente em `data/audit/ledger.jsonl`
 
 O diagnostico estima `alpha`, `xmin`, distancia KS e compara power law contra lognormal/exponencial. A comparacao e obrigatoria porque chuva e OHC podem preferir lognormal.
@@ -189,7 +216,7 @@ python scripts\model_pipeline.py `
   --dry-run
 ```
 
-Execucao Fase 1 agregada:
+Execucao agregada da Fase 3:
 
 ```powershell
 python scripts\model_pipeline.py `
@@ -202,10 +229,10 @@ python scripts\model_pipeline.py `
 
 Saidas:
 
-- `data/processed/parquet/modeling/walk_forward_metrics.parquet`
-- `data/processed/parquet/modeling/walk_forward_predictions.parquet`
-- `data/processed/parquet/modeling/walk_forward_importances.parquet`
-- `data/processed/parquet/modeling/walk_forward_group_weights.parquet`
+- `data/processed/zarr/modeling/walk_forward_metrics.zarr`
+- `data/processed/zarr/modeling/walk_forward_predictions.zarr`
+- `data/processed/zarr/modeling/walk_forward_importances.zarr`
+- `data/processed/zarr/modeling/walk_forward_group_weights.zarr`
 
 Para SHAP em modelos de arvore:
 
@@ -213,9 +240,9 @@ Para SHAP em modelos de arvore:
 python scripts\model_pipeline.py ... --shap --shap-max-rows 1000
 ```
 
-### 10. Validacao pixel-a-pixel
+### 10. Validacao pixel-a-pixel em recorte
 
-`flatten` e Fase 2. Antes de escalar para todo o Brasil, rode em recorte pequeno:
+`flatten` e uma validacao controlada da Fase 3 em `0.25` grau. Antes de escalar para todo o Brasil, rode em recorte pequeno:
 
 ```powershell
 python scripts\model_pipeline.py `
@@ -229,7 +256,7 @@ python scripts\model_pipeline.py `
   --importance-repeats 2
 ```
 
-Registre tempo, memoria, numero de features, numero de pixels e tamanho dos Parquets antes de expandir.
+Registre tempo, memoria, numero de features, numero de pixels e tamanho dos stores Zarr antes de expandir.
 
 ## Auditoria e limpeza segura
 
