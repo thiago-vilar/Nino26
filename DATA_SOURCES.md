@@ -13,7 +13,7 @@ Este documento define, de forma operacional, quais bases serao baixadas, quais v
 - Periodo do projeto: `1981-01-01` ate o ultimo dado disponivel por fonte.
 - Frequencia mestre da modelagem: diaria.
 - Downloads grandes devem ser executados por ano ou por mes, nunca como bloco unico.
-- Todo dado bruto fica em `data/raw/`.
+- Todo dado bruto entra por `data/raw/`; ERA5/ORAS podem usar raw como cache temporario e apagar o arquivo pesado depois do Zarr validado.
 - Todo dado temporario ou extraido fica em `data/interim/`.
 - Todo dado tratado para modelagem fica em `data/processed/`.
 - Saidas tabulares de modelagem e diagnostico ficam em stores `.zarr` sob `data/processed/zarr/`.
@@ -78,21 +78,23 @@ data/
     ibge/
     oras/
   interim/
-    atmosphere_bridge/
     brazil_precipitation/
     ctd_noaa/
     ibge/
+    nino34/
     oras/
-    pacific_warming/
   processed/
     zarr/
-      atmosphere_bridge/
       brazil_precipitation/
       cpc_noaa/
       ctd_noaa/
+      distributions/
       era5/
+      features/
+      modeling/
       oras/
-      pacific_warming/
+      regridded/
+      statistics/
     geotiff/
       ibge/
   audit/
@@ -114,7 +116,6 @@ Variaveis solicitadas pelo script no CDS:
 ```text
 potential_temperature
 salinity
-sea_surface_temperature
 ocean_heat_content_for_the_upper_300m
 ocean_heat_content_for_the_upper_700m
 ```
@@ -124,7 +125,6 @@ Significado fisico:
 ```text
 potential_temperature: temperatura potencial do oceano por profundidade
 salinity: salinidade por profundidade
-sea_surface_temperature: temperatura da superficie do mar
 ocean_heat_content_for_the_upper_300m: conteudo de calor oceanico 0-300 m
 ocean_heat_content_for_the_upper_700m: conteudo de calor oceanico 0-700 m
 ```
@@ -133,17 +133,18 @@ Frequencia e formato:
 
 ```text
 fonte: mensal
-download: mensal
+download historico: anual por variavel
+fallback: mensal para ano em aberto ou se a requisicao anual falhar
 bruto: ZIP/NetCDF
-processado: Zarr mensal
+processado: Zarr diario anual por variavel
 ```
 
 Destino local:
 
 ```text
-data/raw/oras/<ano>/oras5_<ano><mes>.zip
-data/interim/oras/<ano>/oras5_<ano><mes>/
-data/processed/zarr/oras/<ano>/oras5_<ano><mes>.zarr
+data/raw/oras/<ano>/<variavel>/oras5_<variavel>_<ano>.zip
+data/interim/oras/<ano>/<variavel>/oras5_<variavel>_<ano>/
+data/processed/zarr/oras/<ano>/<variavel>/oras5_<variavel>_<ano>_daily.zarr
 ```
 
 Derivados calculados depois do download:
@@ -194,6 +195,8 @@ Salinity_WODflag
 Salinity_WODprofileflag
 ```
 
+No modo padrao focado em termoclina, temperatura e profundidade sao obrigatorias; salinidade e usada quando passa QC. Use `--require-salinity` para exigir perfis completos T/S.
+
 Significado fisico:
 
 ```text
@@ -214,7 +217,7 @@ Politica de controle de qualidade:
 ```text
 padrao atual: aceitar somente flag 0
 flag 0: accepted
-aplicacao: profundidade, temperatura, salinidade e perfil
+aplicacao: profundidade, temperatura e perfil de temperatura; salinidade quando disponivel
 ```
 
 ETL termodinamico TEOS-10:
@@ -226,10 +229,12 @@ conservative_temperature: Temperatura Conservativa, calculada por TEOS-10
 sigma0: anomalia de densidade potencial na referencia de 0 dbar
 ```
 
+TEOS-10 depende de salinidade valida; quando o perfil e apenas de temperatura, as variaveis termodinamicas ficam ausentes/NaN e a termoclina ainda e calculada pela temperatura in situ.
+
 Estratificacao calculada:
 
 ```text
-thermocline_depth: profundidade de maior gradiente vertical de temperatura conservativa
+thermocline_depth: profundidade de maior gradiente vertical de temperatura in situ
 halocline_depth: profundidade de maior gradiente vertical de salinidade absoluta
 pycnocline_depth: profundidade de maior gradiente vertical de sigma0
 ```
@@ -241,7 +246,7 @@ fonte: perfis irregulares por data e local
 download: anual
 bruto: NetCDF ragged-array
 processado: Zarr anual em grade vertical regular
-grade vertical do ETL: 0 a 700 m, passo de 5 m
+grade vertical do ETL: 0 a 300 m, passo de 5 m
 ```
 
 Destino local:
@@ -255,7 +260,63 @@ Observacao tecnica:
 
 CTD nao e grade diaria continua. Cada perfil tem data, posicao e profundidade propria. No projeto, CTD entra como observacao vertical para controle, validacao, comparacao com ORAS5 e possivel correcao de vies.
 
-### 4.3 NOAA OISST
+### 4.3 TAO/TRITON/Argo como validacao in situ
+
+Esta camada nao muda a direcao do projeto NINO26. Ela entra como validacao independente para testar, ao longo do desenvolvimento, se a subsuperficie do Pacifico Nino 3.4 acrescenta informacao aos modelos de chuva/seca no Brasil alem da SST/SSTA superficial.
+
+Fontes candidatas:
+
+```text
+TAO/TRITON/GTMBA: fundeios equatoriais do Pacifico tropical com temperatura subsuperficial e, em parte da rede/periodo, salinidade.
+Argo GDAC: perfis autonomos globais de temperatura, salinidade e pressao, mais forte a partir dos anos 2000.
+WOD/GTSPP: agregadores de perfis in situ que podem ajudar na auditoria, com cuidado para duplicatas.
+```
+
+Uso metodologico:
+
+```text
+1. Validar ORAS5 em pontos/periodos com observacao in situ.
+2. Verificar se D20, termoclina, OHC 0-300 m e temperatura media 0-300 m sao fisicamente consistentes.
+3. Marcar anos/periodos em que CTD/WOD esta vazio no Nino 3.4, sem preencher lacunas artificialmente.
+4. Comparar modelos com e sem subsuperficie, mantendo a pergunta em aberto.
+```
+
+Papel por fonte:
+
+```text
+OISST: referencia diaria de SST/SSTA superficial.
+ORAS5: campo continuo para memoria oceanica subsuperficial.
+CTD/WOD: perfis observados irregulares para controle vertical.
+TAO/TRITON: serie temporal de fundeios para validacao equatorial.
+Argo: perfis T/S independentes para validacao pos-2000.
+```
+
+Produtos baixados/preparados:
+
+```text
+data/raw/tao_triton/temperature/tao_triton_temperature_<ano>.csv
+data/raw/tao_triton/salinity/tao_triton_salinity_<ano>.csv
+data/raw/argo/argo_nino34_<ano>.csv
+data/processed/zarr/validation/tao_triton/
+data/processed/zarr/validation/argo/
+```
+
+Estado operacional atual:
+
+```text
+documentado como camada de validacao;
+download bruto implementado em scripts/data_pipeline.py download-validation;
+ETL Zarr de validacao ainda e etapa posterior;
+nao bloquear o fechamento do CTD/WOD, ERA5 ou ORAS5.
+```
+
+Comando Windows cmd:
+
+```cmd
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-validation --source all --start-year 1981 --max-depth 300 --execute --continue-on-error
+```
+
+### 4.4 NOAA OISST
 
 Fonte: NOAA.  
 Produto: Optimum Interpolation Sea Surface Temperature v2.1.  
@@ -299,7 +360,7 @@ media movel de SSTA
 campos defasados por lag
 ```
 
-### 4.4 ERA5 single levels
+### 4.5 ERA5 single levels
 
 Fonte: ECMWF / Copernicus Climate Data Store.  
 Produto: ERA5 single levels.  
@@ -337,20 +398,20 @@ Frequencia e formato:
 ```text
 fonte: horaria
 download do projeto: 00:00, 06:00, 12:00, 18:00
-download: mensal por regiao
-bruto: NetCDF mensal
-processado: Zarr mensal
-produto posterior: agregado diario
+download: anual por regiao e variavel no modo --annual-zarr
+bruto: NetCDF anual por regiao/variavel no modo --annual-zarr
+processado: Zarr diario anual por regiao/variavel
+fallback: NetCDF/Zarr mensal apenas com --request-mode monthly-kind ou sem --annual-zarr
 ```
 
 Destino local:
 
 ```text
-data/raw/era5/single_levels/<ano>/era5_single_<regiao>_<ano><mes>.nc
-data/processed/zarr/era5/single_levels/<ano>/era5_single_<regiao>_<ano><mes>.zarr
+data/raw/era5/single_levels/<ano>/<variavel>/era5_single_<regiao>_<variavel>_<ano>.nc
+data/processed/zarr/era5/single_levels/<ano>/<variavel>/era5_single_<regiao>_<variavel>_<ano>_daily.zarr
 ```
 
-### 4.5 ERA5 pressure levels
+### 4.6 ERA5 pressure levels
 
 Fonte: ECMWF / Copernicus Climate Data Store.  
 Produto: ERA5 pressure levels.  
@@ -395,23 +456,23 @@ Frequencia e formato:
 ```text
 fonte: horaria
 download do projeto: 00:00, 06:00, 12:00, 18:00
-download: mensal por regiao
-bruto: NetCDF mensal
-processado: Zarr mensal
-produto posterior: agregado diario
+download: anual por regiao e variavel no modo --annual-zarr
+bruto: NetCDF anual por regiao/variavel no modo --annual-zarr
+processado: Zarr diario anual por regiao/variavel
+fallback: NetCDF/Zarr mensal apenas com --request-mode monthly-kind ou sem --annual-zarr
 ```
 
 Destino local:
 
 ```text
-data/raw/era5/pressure_levels/<ano>/era5_pressure_<regiao>_<ano><mes>.nc
-data/processed/zarr/era5/pressure_levels/<ano>/era5_pressure_<regiao>_<ano><mes>.zarr
+data/raw/era5/pressure_levels/<ano>/<variavel>/era5_pressure_<regiao>_<variavel>_<ano>.nc
+data/processed/zarr/era5/pressure_levels/<ano>/<variavel>/era5_pressure_<regiao>_<variavel>_<ano>_daily.zarr
 ```
 
-### 4.6 CHIRPS precipitacao diaria
+### 4.7 CHIRPS precipitacao diaria
 
 Fonte: Climate Hazards Center / UC Santa Barbara.  
-Produto: CHIRPS v2.0 global daily 0.25 degree nas Fases 1, 2, 3 e 4; 0.05 degree reservado para experimento futuro de alta resolucao.
+Produto: CHIRPS v2.0 global daily 0.25 degree nas Fases 1 a 7; 0.05 degree reservado para experimento futuro de alta resolucao.
 Link: https://www.chc.ucsb.edu/data/chirps  
 Download usado pelo script na Fase 1: https://data.chc.ucsb.edu/products/CHIRPS-2.0/global_daily/netcdf/p25/  
 Uso: resposta observada de chuva no Brasil.
@@ -433,7 +494,7 @@ Frequencia e formato:
 ```text
 fonte: diaria
 download: anual
-resolucao: 0.25 grau nas Fases 1, 2, 3 e 4; 0.05 grau em experimento futuro
+resolucao: 0.25 grau nas Fases 1 a 7; 0.05 grau em experimento futuro
 bruto: NetCDF anual
 processado: Zarr depois do recorte pelo Brasil
 ```
@@ -460,7 +521,7 @@ chuva acima do quartil superior por P75 local
 chuva acima do normal por percentil local
 ```
 
-### 4.7 IBGE
+### 4.8 IBGE
 
 Fonte: Instituto Brasileiro de Geografia e Estatistica.  
 Produto: malhas territoriais oficiais.  
@@ -520,80 +581,68 @@ Todos os comandos devem ser executados na raiz do projeto usando o Python do amb
 ./.venv-wsl/bin/python scripts/data_pipeline.py download-ibge --product municipios
 ```
 
-### 5.4 Baixar CHIRPS 0.25 diario, ano a ano
+### 5.4 Baixar CHIRPS 0.25 diario com retomada
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py download-chirps --start-year "$y" --end-year "$y" --resolution p25 --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/curate_and_resume_downloads.py --source chirps --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error
 ```
 
-### 5.5 Baixar NOAA OISST diario, ano a ano
+### 5.5 Baixar NOAA OISST diario com retomada
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py download-oisst --start-year "$y" --end-year "$y" --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/curate_and_resume_downloads.py --source oisst --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error
 ```
 
-### 5.6 Baixar CTD NOAA WOD e gerar Zarr TEOS-10
+### 5.6 Baixar CTD NOAA WOD e gerar Zarr para termoclina
 
-Este comando baixa o NetCDF anual do WOD, aplica filtro espacial do Pacifico, aceita somente flags WOD aprovadas, calcula TEOS-10 e grava Zarr anual.
+Este comando baixa o NetCDF anual do WOD, aplica filtro espacial Nino 3.4, aceita somente flags WOD aprovadas, usa grade 0-300 m para termoclina e grava Zarr anual. Anos sem perfis de temperatura no Nino 3.4 sao registrados como `ano - sem dados` e o lote continua.
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py download-ctd --start-year "$y" --end-year "$y" --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/data_pipeline.py download-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 
 Para baixar somente o bruto e deixar o ETL para depois:
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py download-ctd --start-year "$y" --end-year "$y" --raw-only --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/data_pipeline.py download-ctd --start-year 1981 --raw-only --execute --continue-on-error
 ```
 
 Para processar CTD bruto ja baixado:
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py etl-ctd --start-year "$y" --end-year "$y" --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 
 ### 5.7 Baixar ERA5 e converter para Zarr
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py download-era5 --start-year "$y" --end-year "$y" --kind both --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 ### 5.8 Baixar ORAS5 e converter para Zarr
 
 ```bash
-for y in $(seq 1981 $(date +%Y)); do
-  ./.venv-wsl/bin/python scripts/data_pipeline.py download-oras --start-year "$y" --end-year "$y" --execute
-  ./.venv-wsl/bin/python scripts/data_pipeline.py audit
-done
+./.venv-wsl/bin/python scripts/data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
 ```
+
+### 5.9 Baixar TAO/TRITON/Argo para validacao in situ
+
+```bash
+./.venv-wsl/bin/python scripts/data_pipeline.py download-validation --source all --start-year 1981 --max-depth 300 --execute --continue-on-error
+```
+
+TAO/TRITON usa PMEL ERDDAP (`pmelTaoDyT` e `pmelTaoDyS`) no recorte Nino 3.4. Argo usa Ifremer ERDDAP (`ArgoFloats`) no mesmo recorte, com `--argo-start-year 1999` como padrao interno. Se `--end-date` for omitido, o script usa a data local do dia da execucao.
 
 ## 6. Continuidade depois de erro
 
 ```text
 1. Nao reiniciar tudo do zero.
-2. Rodar audit.
-3. Repetir o mesmo comando do ano ou mes que falhou.
-4. O download HTTP retoma arquivo .part quando o servidor aceita Range.
-5. O ETL pula Zarr valido quando ele ja existe.
-6. Usar --overwrite somente quando houver arquivo corrompido ou decisao clara de reprocessar.
+2. Usar os comandos de retomada com --continue-on-error.
+3. O download HTTP retoma arquivo .part quando o servidor aceita Range.
+4. O ETL pula Zarr valido quando ele ja existe.
+5. O ledger registra ok, erro, fonte ausente ou ano sem dado util.
+6. Rodar audit ao fim do lote.
+7. Usar --overwrite somente quando houver arquivo corrompido ou decisao clara de reprocessar.
 ```
 
 Comando de auditoria:
@@ -617,10 +666,11 @@ Uma base so deve ser considerada pronta quando:
 ## 8. Periodo por fonte
 
 ```text
-CHIRPS: 1981-latest_available, diario, 0.25 grau nas Fases 1, 2, 3 e 4; 0.05 grau reservado para experimento futuro de alta resolucao
+CHIRPS: 1981-latest_available, diario, 0.25 grau nas Fases 1 a 7; 0.05 grau reservado para experimento futuro de alta resolucao
 NOAA OISST: 1981-latest_available, diario, 0.25 grau, SST/SSTA principal
 CTD NOAA WOD: 1981-latest_available, perfis irregulares, filtrados no Pacifico
+TAO/TRITON/Argo: validacao in situ baixavel por ERDDAP; bruto em CSV anual, ETL Zarr posterior
 ERA5: 1981-latest_available, subdiario baixado em 4 horarios e agregado depois para diario
-ORAS5: 1981-latest_available, mensal, reservado para memoria subsuperficial oceanica
+ORAS5: 1981-latest_available, fonte mensal baixada no historico por ano/variavel, reservado para memoria subsuperficial oceanica
 IBGE: cartografia estatica
 ```

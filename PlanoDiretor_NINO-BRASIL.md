@@ -36,13 +36,15 @@ Fase 1 consolida a fundação local do projeto: estrutura Git, documentação me
 
 Fase 2 calibra e padroniza os dados na grade comum de 0.25°: controle de qualidade, anomalias, climatologia sem vazamento, acumulados, percentis P10/P25/P75/P90, horizontes semanais, ERA5, ORAS5, CTD/WOD e Zarrs regridados.
 
-Fase 3 executa machine learning clássico e XAI: Ridge, Random Forest, XGBoost, cabeças de regressão e classificação, ablations A/B/C/D/E/F, walk-forward, permutation importance, SHAP, pesos por grupo e mapas analíticos.
+Fase 3 executa o diagnostico fisico do sinal Nino 3.4: alinhamento de anomalias, volume/grau de agua quente anomala, D20/termoclina, slope longitudinal/vertical, duracao do sinal correlacionado e comparacao com os picos de El Nino mais impactantes da serie historica.
 
-Fase 4 executa Redes Neurais + XAI: CNN, ConvLSTM, U-Net, Transformer espaço-temporal, saliency maps, occlusion maps, attention maps, comparação com a Fase 3 e avaliação física dos padrões aprendidos.
+Fase 4 executa pre-analises estatisticas experimentais: regressao multipla, PCA/EOF, KNN, correlacoes defasadas e triagem de variaveis Nino 3.4 individuais e combinadas para seca no Nordeste e chuva no Sul.
 
-Fase 5 testa a técnica de test-time memorization do Google Research (Memory Caching, arXiv:2602.24281): RNNs com memória crescente via cache de estados de memória, nas variantes Residual Memory, Gated Residual Memory, Memory Soup e Sparse Selective Caching, aplicadas às sequências diárias espaço-temporais e comparadas sob o mesmo protocolo walk-forward contra os modelos das Fases 3 e 4, buscando o melhor equilíbrio entre skill preditivo e eficiência computacional (interpolação O(L) a O(L²)).
+Fase 5 executa machine learning classico e XAI: Ridge, Random Forest, XGBoost/LightGBM, cabecas de regressao e classificacao, ablations A/B/C/D/E/F, walk-forward, permutation importance, SHAP, pesos por grupo e mapas analiticos.
 
-Fase 6 publica e operacionaliza o produto: GitHub Pages em `docs/`, comparação previsão-observado, drift, recalibração, mapas de confiança, relatório automático, rotina recorrente e experimentos CHIRPS 0.05°.
+Fase 6 executa Redes Neurais + XAI e experimentos de memoria: CNN, ConvLSTM, U-Net, Transformer espaco-temporal, saliency maps, occlusion maps, attention maps, comparacao contra fases anteriores e teste opcional de Memory Caching (arXiv:2602.24281).
+
+Fase 7 publica e operacionaliza o produto: GitHub Pages em `docs/`, comparacao previsao-observado, drift, recalibracao, mapas de confianca, relatorio automatico, rotina recorrente e experimentos CHIRPS 0.05°.
 
 ## 3. Etapa 1 - Download, armazenamento, tratamento e disponibilização
 
@@ -52,8 +54,9 @@ Fase 6 publica e operacionaliza o produto: GitHub Pages em `docs/`, comparação
 |---|---|---|---|
 | Oceano reanalisado | ORAS/ORAS5 | `data/raw/oras/` | Campo contínuo de temperatura e salinidade por profundidade para representar a memória térmica do oceano. |
 | Oceano observado | CTD NOAA/WOD | `data/raw/ctd_noaa/wod/` e `data/processed/zarr/ctd_noaa/wod/` | Perfis in situ com QC WOD e TEOS-10 para validar temperatura, salinidade, densidade, termoclina, haloclina, picnoclina e conteúdo de calor. |
+| Validacao in situ | TAO/TRITON/Argo | `data/raw/tao_triton/`, `data/raw/argo/` e `data/processed/zarr/validation/` | Camada auxiliar para validar ORAS5/CTD-WOD no Nino 3.4; nao substitui OISST/ORAS5 e nao decide antecipadamente se subsuperficie melhora o modelo. |
 | Atmosfera | ERA5 | `data/raw/era5/` | Variáveis atmosféricas necessárias para representar o transporte do sinal do Pacífico em direção ao Brasil. |
-| Precipitação | CHIRPS 0.25° diário nas Fases 1, 2, 3 e 4; CHIRPS 0.05° reservado para experimento futuro de alta resolução | `data/raw/chirps/p25/` e `data/raw/chirps/p05/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
+| Precipitação | CHIRPS 0.25° diário nas Fases 1 a 7; CHIRPS 0.05° reservado para experimento futuro de alta resolução | `data/raw/chirps/p25/` e `data/raw/chirps/p05/` | Campo observado de chuva para calcular anomalias, seca e chuva acima do normal. |
 | Limites territoriais | IBGE | `data/raw/ibge/` | Máscara oficial do Brasil e limites para mapas coropléticos por UF, região e recortes territoriais. |
 
 ### 3.2 Tratamento mínimo
@@ -125,7 +128,7 @@ O dado do IBGE será usado para:
 - agregar resultados por UF, região, bacia, bioma e Semiárido.
 - gerar mapas coropléticos no produto web.
 
-## 5. Etapa 3 - Machine Learning, validação, mapas e XAI
+## 5. Etapa 3 - Diagnostico fisico, estatistica, modelagem, mapas e XAI
 
 ### 5.1 Formulação
 
@@ -142,7 +145,23 @@ Saídas:
 - peso relativo das variáveis oceanográficas.
 - peso relativo das variáveis atmosféricas.
 
-### 5.2 Modelos
+### 5.2 Diagnostico fisico e modelos
+
+Fase 3:
+
+- alinhamento de anomalias entre Nino 3.4 e chuva no Brasil.
+- calculo de volume/grau de agua quente anomala no Nino 3.4.
+- D20, termoclina, gradiente vertical e profundidade do maior gradiente.
+- slope longitudinal/vertical e duracao do sinal.
+- comparacao de slope, duracao e intensidade com picos historicos de El Nino.
+
+Fase 4:
+
+- regressao multipla.
+- PCA/EOF.
+- KNN para analogos historicos.
+- correlacao defasada por lag semanal.
+- triagem de variaveis individuais e combinadas para Nordeste e Sul.
 
 Baselines:
 
@@ -153,7 +172,7 @@ Baselines:
 - Random Forest.
 - XGBoost.
 
-Modelos da Fase 4, Redes Neurais + XAI:
+Modelos da Fase 6, Redes Neurais + XAI:
 
 - CNN.
 - ConvLSTM.
@@ -183,13 +202,27 @@ Técnicas:
 
 Artefatos mínimos da Fase 3:
 
+- `nino34_physical_signal.zarr`.
+- `nino34_thermocline_diagnostics.zarr`.
+- `nino34_peak_signal_comparison.zarr`.
+- `nino34_signal_slope_duration.zarr`.
+
+Artefatos mínimos da Fase 4:
+
+- `phase4_variable_screening.zarr`.
+- `phase4_multiple_regression.zarr`.
+- `phase4_pca_modes.zarr`.
+- `phase4_knn_similarity.zarr`.
+
+Artefatos mínimos da Fase 5:
+
 - `walk_forward_metrics.zarr`.
 - `walk_forward_predictions.zarr`.
 - `walk_forward_importances.zarr`.
 - `walk_forward_group_weights.zarr`.
 - `distribution_diagnostics.zarr` quando houver diagnóstico de cauda.
 
-Artefatos mínimos da Fase 4:
+Artefatos mínimos da Fase 6:
 
 - `neural_training_runs.zarr`.
 - `neural_predictions.zarr`.
@@ -233,9 +266,9 @@ Mapas obrigatórios:
 - erro histórico.
 - confiança.
 
-## 6. Fase 5 - Teste com Memory Caching (Google Research)
+## 6. Fase 6 - Redes neurais, XAI e teste com Memory Caching
 
-Avaliação da técnica de test-time memorization publicada pelo Google Research em "Memory Caching: RNNs with Growing Memory" (Behrouz et al., arXiv:2602.24281), como camada experimental entre as redes neurais da Fase 4 e a operação.
+Avaliação da técnica de test-time memorization publicada pelo Google Research em "Memory Caching: RNNs with Growing Memory" (Behrouz et al., arXiv:2602.24281), como experimento interno da Fase 6, depois das redes neurais basicas e antes da operação.
 
 Motivação: RNNs comprimem o passado em memória de tamanho fixo (custo O(L)), enquanto Transformers mantêm memória crescente (custo O(L²)). Memory Caching guarda checkpoints do estado de memória por segmento da sequência e os consulta na recuperação, interpolando entre os dois regimes com custo O(NL) — alinhado ao objetivo do projeto de experimentar diferentes modelos buscando o melhor equilíbrio entre skill e eficiência.
 
@@ -243,18 +276,18 @@ Escopo experimental:
 
 1. Segmentar as sequências diárias (1981-presente) em blocos e cachear os estados de memória por segmento.
 2. Implementar as quatro variantes de agregação do artigo: Residual Memory, Gated Residual Memory (gating dependente do contexto), Memory Soup (interpolação de parâmetros das memórias) e Sparse Selective Caching (roteador top-k estilo Mixture-of-Experts).
-3. Aplicar sobre backbones recorrentes (linear attention e memórias profundas) para os mesmos alvos das Fases 3 e 4: anomalia de precipitação e eventos P10/P25/P75/P90.
+3. Aplicar sobre backbones recorrentes (linear attention e memórias profundas) para os mesmos alvos das Fases 5 e 6: anomalia de precipitação e eventos P10/P25/P75/P90.
 4. Manter o protocolo metodológico inegociável: frequência diária, walk-forward em blocos temporais, climatologia/percentis apenas no treino de cada fold, grade comum 0.25°.
-5. Medir o trade-off skill × custo: métricas das Fases 3/4 mais throughput de treino, memória de pico e custo de inferência por horizonte (1-24 semanas), variando número de segmentos N entre os regimes O(L) e O(L²).
-6. Comparar contra os campeões das Fases 3 e 4 e registrar a recomendação de modelo operacional.
+5. Medir o trade-off skill × custo: métricas das Fases 5/6 mais throughput de treino, memória de pico e custo de inferência por horizonte (1-24 semanas), variando número de segmentos N entre os regimes O(L) e O(L²).
+6. Comparar contra os campeões das Fases 5 e 6 e registrar a recomendação de modelo operacional.
 
-Artefatos mínimos da Fase 5:
+Artefatos mínimos da Fase 6:
 
 - `memory_caching_runs.zarr`.
 - `memory_caching_skill_comparison.zarr`.
 - `memory_caching_efficiency.zarr`.
 
-## 7. Fase 6 - Operação e deploy no GitHub Pages
+## 7. Fase 7 - Operação e deploy no GitHub Pages
 
 O deploy será feito em `docs/`, usando GitHub Pages.
 

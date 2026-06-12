@@ -10,11 +10,12 @@ O fluxo oficial preserva a janela historica completa: `1981-01-01` ate o ultimo 
 - Horizontes de previsao: semanal, de 1 a 24 semanas (`7` a `168` dias).
 - Validacao: somente blocos temporais e walk-forward; nao usar split aleatorio.
 - Anti-vazamento: climatologia diaria, desvio padrao, P10, P25, P75 e P90 sao estimados no bloco de treino de cada fold e reaplicados a validacao/teste.
-- Grade comum das Fases 1, 2, 3 e 4: `0.25` grau, longitude `0_360`, declarada em `configs/project.yaml`.
-- CHIRPS oficial das Fases 1, 2, 3 e 4: `p25`, coerente com a grade comum e com o arquivo local ja baixado.
+- Grade comum das Fases 1 a 7: `0.25` grau, declarada em `configs/project.yaml`, com foco em duas regioes: `nino34` e `brazil`.
+- CHIRPS oficial das Fases 1 a 7: `p25`, coerente com a grade comum.
 - CHIRPS `p05`: reservado para experimento futuro de alta resolucao, depois que o fluxo `0.25` grau estiver validado.
 - SST/SSTA principal: NOAA OISST diario.
 - ORAS5: reservado para memoria oceanica subsuperficial, nao para duplicar SST mensal.
+- TAO/TRITON/Argo: camada auxiliar de validacao in situ; nao substitui OISST/ORAS5/CTD-WOD e nao decide antecipadamente se a subsuperficie melhora a resposta de chuva.
 
 Hipotese fisica regional a testar: El Nino alto tende a aumentar o risco de seca no Nordeste/Semiarido e chuva acima do normal no Sul do Brasil. O projeto deve medir a intensidade, o lag dominante e a confianca desse sinal por pixel, regiao e estacao.
 
@@ -32,14 +33,15 @@ Classes de precipitacao por percentis locais:
 |---|---|---|
 | Fase 1 | Fundacao local, estrutura Git, catalogo, scripts de ingestao e base diaria inicial | Dados essenciais baixaveis/reprodutiveis e estrutura versionada |
 | Fase 2 | Calibracao, padronizacao, anomalias, lags e regridding para a grade comum `0.25` grau | Cubos Zarr reconciliados em `data/processed/zarr/regridded/` |
-| Fase 3 | Machine learning classico e XAI: Ridge, Random Forest, XGBoost, walk-forward, permutation importance, SHAP e pesos por grupo | Stores Zarr de metricas, previsoes, importancias, pesos por grupo e mapas analiticos |
-| Fase 4 | Redes neurais e XAI: CNN, ConvLSTM, U-Net, Transformer espaco-temporal, saliency, occlusion e attention maps | Stores Zarr de treino/inferencia neural, explicabilidade neural e comparacao contra a Fase 3 |
-| Fase 5 | Teste da tecnica Memory Caching do Google Research (arXiv:2602.24281): RNNs com memoria crescente via cache de estados, variantes Residual/Gated/Soup/SSC, sob o mesmo walk-forward | Stores Zarr de runs, comparacao de skill contra Fases 3/4 e relatorio skill x eficiencia |
-| Fase 6 | Publicacao, operacao recorrente, experimentos `p05` e relatorios automaticos | Produto em `docs/`, rotina recorrente e painel publico |
+| Fase 3 | Diagnostico fisico Nino 3.4: alinhamento de anomalias, volume/grau de termoclina, slope, duracao de sinal e picos historicos de El Nino | Feature store fisico com variaveis de superficie/subsuperficie, slope e duracao de sinal |
+| Fase 4 | Pre-analises estatisticas experimentais: regressao multipla, PCA, KNN, correlacoes defasadas e triagem de variaveis combinadas | Ranking experimental das variaveis Nino 3.4 mais associadas a seca no Nordeste e chuva no Sul |
+| Fase 5 | Machine learning classico e XAI: Ridge, Random Forest, XGBoost/LightGBM, walk-forward, permutation importance, SHAP e pesos por grupo | Stores Zarr de metricas, previsoes, importancias, pesos por grupo e mapas analiticos |
+| Fase 6 | Redes neurais, XAI e memoria experimental: CNN, ConvLSTM, U-Net, Transformer e Memory Caching | Stores Zarr de treino/inferencia neural, explicabilidade neural e comparacao contra fases anteriores |
+| Fase 7 | Publicacao, operacao recorrente, experimentos `p05` e relatorios automaticos | Produto em `docs/`, rotina recorrente e painel publico |
 
 ## Estado local dos dados
 
-Atualmente ha IBGE e um arquivo CHIRPS `p25` de 1981 em `data/raw/chirps/p25/`. Esse arquivo nao e erro: ele esta alinhado com a escolha oficial da Fase 1. Nao apague `p25` salvo se o arquivo estiver corrompido.
+O status local vivo deve ser consultado pelo painel executivo gerado em `painel_executivo.md`. Esse arquivo e local, ignorado pelo Git, e pode diferir entre maquinas.
 
 Dados que ainda precisam ser ingeridos para encerrar a base da Fase 1 e entrar com seguranca na Fase 2:
 
@@ -48,6 +50,7 @@ Dados que ainda precisam ser ingeridos para encerrar a base da Fase 1 e entrar c
 - ERA5 single e pressure levels.
 - ORAS5 subsuperficial.
 - CTD/WOD para validacao vertical.
+- TAO/TRITON/Argo como validacao complementar da subsuperficie no Pacifico equatorial.
 - Cubos Zarr regridados em `data/processed/zarr/regridded/`.
 
 Arquivos grandes em `data/raw/`, `data/interim/` e `data/processed/` nao devem ser commitados. Versione codigo, configs, catalogo, docs e testes.
@@ -103,7 +106,29 @@ Saidas esperadas:
 - `data/interim/ibge/BR_UF_2024/`
 - `data/interim/ibge/BR_Municipios_2024/`
 
-### 3. CHIRPS Fase 1
+### 3. Politica de retomada
+
+Regra operacional: checar o que ja existe, auditar no ledger, baixar/processar apenas pendencias e seguir para o proximo item quando um ano/mes isolado falhar. Use `--overwrite` somente para arquivo corrompido ou reprocessamento deliberado.
+
+No Windows `cmd`, os comandos recomendados sao:
+
+```cmd
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\curate_and_resume_downloads.py --source chirps --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error
+
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\curate_and_resume_downloads.py --source oisst --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error
+
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
+
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-validation --source all --start-year 1981 --max-depth 300 --execute --continue-on-error
+```
+
+Runbook completo para usar em outra maquina: [docs/DOWNLOAD_CMD_NINO26.md](docs/DOWNLOAD_CMD_NINO26.md).
+
+### 4. CHIRPS Fase 1
 
 Dry-run:
 
@@ -114,27 +139,24 @@ python scripts\data_pipeline.py download-chirps --start-year 1981 --resolution p
 Execucao real ate o ultimo ano disponivel pela regra de latencia:
 
 ```powershell
-python scripts\data_pipeline.py download-chirps --start-year 1981 --resolution p25 --execute
+python scripts\data_pipeline.py download-chirps --start-year 1981 --resolution p25 --execute --continue-on-error
 ```
 
-Para rodar ano a ano:
+Curadoria completa recomendada:
 
 ```powershell
-for ($y = 1981; $y -le (Get-Date).Year; $y++) {
-  python scripts\data_pipeline.py download-chirps --start-year $y --end-year $y --resolution p25 --execute
-  python scripts\data_pipeline.py audit
-}
+python scripts\curate_and_resume_downloads.py --source chirps --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error
 ```
 
-### 4. OISST
+### 5. OISST
 
 ```powershell
-python scripts\data_pipeline.py download-oisst --start-year 1981 --execute
+python scripts\curate_and_resume_downloads.py --source oisst --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error
 ```
 
 OISST e a fonte oficial de SST/SSTA diaria. Depois do download, o cubo precisa ser padronizado e regridado antes da modelagem.
 
-### 5. ERA5 e ORAS5
+### 6. ERA5 e ORAS5
 
 Verifique credenciais CDS:
 
@@ -145,31 +167,31 @@ python scripts\data_pipeline.py check-cds
 ERA5:
 
 ```powershell
-python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --execute
+python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 ORAS5:
 
 ```powershell
-python scripts\data_pipeline.py download-oras --start-year 1981 --execute
+python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
 ```
 
-Os comandos CDS mantem o bruto em cache e geram Zarr diario por variavel quando executados sem `--raw-only`.
+Os comandos CDS usam bruto como cache temporario quando combinados com `--delete-raw-after-zarr`; no ERA5, o fluxo oficial em `--annual-zarr` faz uma requisicao por ano/regiao/variavel e gera Zarr diario anual separado por variavel. No ORAS5, `--annual-zarr` faz uma requisicao por ano/variavel e alinha a fonte mensal ao calendario diario. Use o modo mensal sem `--annual-zarr` apenas para ano em aberto ou fallback.
 
-### 6. CTD/WOD
+### 7. CTD/WOD
 
 ```powershell
-python scripts\data_pipeline.py download-ctd --start-year 1981 --execute
+python scripts\data_pipeline.py download-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 
 Para baixar bruto primeiro:
 
 ```powershell
-python scripts\data_pipeline.py download-ctd --start-year 1981 --raw-only --execute
-python scripts\data_pipeline.py etl-ctd --start-year 1981 --execute
+python scripts\data_pipeline.py download-ctd --start-year 1981 --raw-only --execute --continue-on-error
+python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 
-### 7. Regridding para a grade comum
+### 8. Regridding para a grade comum
 
 Todo cubo que entrar em `model_pipeline.py` deve estar reconciliado para a grade de `configs/project.yaml`.
 
@@ -204,7 +226,27 @@ Saida:
 
 O diagnostico estima `alpha`, `xmin`, distancia KS e compara power law contra lognormal/exponencial. A comparacao e obrigatoria porque chuva e OHC podem preferir lognormal.
 
-### 9. Modelagem walk-forward
+### 9. Fase 3 - diagnostico fisico Nino 3.4
+
+A Fase 3 produz variaveis fisicas explicaveis antes da modelagem: alinhamento de anomalias, D20/termoclina, volume/grau de aquecimento, slope longitudinal/vertical, duracao do sinal e comparacao com os picos historicos de El Nino mais impactantes.
+
+Saidas previstas:
+
+- `data/processed/zarr/features/nino34_physical_signal.zarr`
+- `data/processed/zarr/features/nino34_thermocline_diagnostics.zarr`
+- `data/processed/zarr/features/nino34_peak_signal_comparison.zarr`
+
+### 10. Fase 4 - pre-analises estatisticas
+
+A Fase 4 e experimental e serve para sentir o terreno antes dos modelos finais: regressao multipla, PCA, KNN, correlacoes defasadas e ablations simples de variaveis individuais/combinadas.
+
+Saidas previstas:
+
+- `data/processed/zarr/statistics/phase4_variable_screening.zarr`
+- `data/processed/zarr/statistics/phase4_pca_modes.zarr`
+- `data/processed/zarr/statistics/phase4_knn_similarity.zarr`
+
+### 11. Fase 5 - modelagem walk-forward
 
 Dry-run:
 
@@ -216,7 +258,7 @@ python scripts\model_pipeline.py `
   --dry-run
 ```
 
-Execucao agregada da Fase 3:
+Execucao agregada da Fase 5:
 
 ```powershell
 python scripts\model_pipeline.py `
@@ -240,9 +282,9 @@ Para SHAP em modelos de arvore:
 python scripts\model_pipeline.py ... --shap --shap-max-rows 1000
 ```
 
-### 10. Validacao pixel-a-pixel em recorte
+### 12. Validacao pixel-a-pixel em recorte
 
-`flatten` e uma validacao controlada da Fase 3 em `0.25` grau. Antes de escalar para todo o Brasil, rode em recorte pequeno:
+`flatten` e uma validacao controlada da Fase 5 em `0.25` grau. Antes de escalar para todo o Brasil, rode em recorte pequeno:
 
 ```powershell
 python scripts\model_pipeline.py `

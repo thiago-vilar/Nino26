@@ -64,7 +64,7 @@ def _group_weights(importances: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run NINO-BRASIL leakage-safe model evaluation.")
+    parser = argparse.ArgumentParser(description="Run NINO-BRASIL phase 5 leakage-safe classical ML/XAI evaluation.")
     parser.add_argument("--predictor-zarr", action="append", required=True, help="Regridded predictor Zarr path.")
     parser.add_argument("--target-zarr", required=True, help="Regridded CHIRPS target Zarr path.")
     parser.add_argument("--target-var", required=True, help="Target precipitation variable name.")

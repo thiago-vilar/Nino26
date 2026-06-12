@@ -299,11 +299,13 @@ def netcdf_to_daily_zarr(
     daily_end: str | pd.Timestamp | None = None,
     overwrite: bool = False,
     consolidated: bool = True,
+    quiet: bool = False,
 ) -> Path:
     """Convert NetCDF cache to a daily Zarr store, optionally one variable at a time."""
     if zarr_path.exists() and not overwrite:
         validate_zarr(zarr_path)
-        print(f"daily zarr exists: {zarr_path}")
+        if not quiet:
+            print(f"daily zarr exists: {zarr_path}")
         return zarr_path
 
     if zarr_path.exists() and overwrite:
@@ -328,7 +330,8 @@ def netcdf_to_daily_zarr(
         ds.close()
 
     validate_zarr(zarr_path)
-    print(f"daily zarr written: {zarr_path}")
+    if not quiet:
+        print(f"daily zarr written: {zarr_path}")
     return zarr_path
 
 
@@ -382,6 +385,7 @@ def zip_netcdf_to_daily_zarr(
     daily_start: str | pd.Timestamp | None = None,
     daily_end: str | pd.Timestamp | None = None,
     overwrite: bool = False,
+    quiet: bool = False,
 ) -> Path:
     """Extract a zipped NetCDF cache and write a daily Zarr store."""
     extract_dir.mkdir(parents=True, exist_ok=True)
@@ -394,7 +398,8 @@ def zip_netcdf_to_daily_zarr(
 
     if zarr_path.exists() and not overwrite:
         validate_zarr(zarr_path)
-        print(f"daily zarr exists: {zarr_path}")
+        if not quiet:
+            print(f"daily zarr exists: {zarr_path}")
         return zarr_path
 
     if zarr_path.exists() and overwrite:
@@ -419,5 +424,6 @@ def zip_netcdf_to_daily_zarr(
         ds.close()
 
     validate_zarr(zarr_path)
-    print(f"daily zarr written: {zarr_path}")
+    if not quiet:
+        print(f"daily zarr written: {zarr_path}")
     return zarr_path

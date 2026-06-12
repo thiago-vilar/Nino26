@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -17,7 +17,7 @@ if str(SRC) not in sys.path:
 REPORT_DIR = ROOT / "data" / "state" / "pipeline_reports"
 
 from nino_brasil.config import load_config
-from nino_brasil.data.availability import iter_available_years
+from nino_brasil.data.availability import iter_available_years, requested_end_date
 from nino_brasil.data.download_cds import (
     ATMOSPHERE_AREAS,
     ERA5_PRESSURE_VARIABLES,
@@ -76,10 +76,27 @@ def years_for(source: str, start_year: int, end_year: int | None) -> list[int]:
     return list(iter_available_years(start_year, end_year, source, load_config()))
 
 
+def complete_years_for(source: str, start_year: int, end_year: int | None) -> list[int]:
+    cfg = load_config()
+    resolved_end = requested_end_date(cfg, source, end_year).date()
+    final_year = resolved_end.year if resolved_end >= date(resolved_end.year, 12, 31) else resolved_end.year - 1
+    if final_year < start_year:
+        return []
+    return list(range(start_year, final_year + 1))
+
+
 def selected_variables(requested: list[str] | None, allowed: list[str]) -> list[str]:
     if not requested:
         return list(allowed)
     return [variable for variable in requested if variable in allowed]
+
+
+def variable_args(variables: list[str], enabled: bool) -> list[str]:
+    args: list[str] = []
+    if enabled:
+        for variable in variables:
+            args.extend(["--variable", variable])
+    return args
 
 
 def validate_variable_filters(args: argparse.Namespace) -> None:
@@ -99,7 +116,7 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     fast = ["--fast"] if args.fast_check else []
     keep_going = ["--continue-on-error"]
     months = args.month or list(range(1, 13))
-    regions = args.region or sorted(ATMOSPHERE_AREAS)
+    regions = args.region or list(ATMOSPHERE_AREAS)
     era5_single_variables = selected_variables(args.era5_variable, ERA5_SINGLE_VARIABLES)
     era5_pressure_variables = selected_variables(args.era5_variable, ERA5_PRESSURE_VARIABLES)
     oras_variables = selected_variables(args.oras_variable, ORAS5_VARIABLES)
@@ -109,11 +126,11 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
         "noaa_oisst": set(years_for("noaa_oisst", args.start_year, args.end_year)),
     }
     if args.include_cds:
-        source_years["era5"] = set(years_for("era5", args.start_year, args.end_year))
-        source_years["oras5"] = set(years_for("oras5", args.start_year, args.end_year))
+        cds_years = years_for if args.month else complete_years_for
+        source_years["era5"] = set(cds_years("era5", args.start_year, args.end_year))
+        source_years["oras5"] = set(cds_years("oras5", args.start_year, args.end_year))
     if args.include_ctd:
         source_years["noaa_wod_ctd"] = set(years_for("noaa_wod_ctd", args.start_year, args.end_year))
-    all_years = sorted(set().union(*source_years.values()))
 
     steps: list[tuple[str, list[str]]] = [
         (
@@ -144,60 +161,63 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
         ),
     ]
 
-    for year in all_years:
+    for year in sorted(source_years.get("chirps", set())):
         year_args = single_year(year)
-        if year in source_years.get("chirps", set()):
-            for stage in ["raw", *(["zarr", "regrid"] if args.include_transforms else [])]:
-                steps.append(
-                    (
-                        f"ano_{year}_p1_diario_chirps_{stage}",
-                        python_cmd(
-                            "scripts/curate_and_resume_downloads.py",
-                            "--source",
-                            "chirps",
-                            "--stage",
-                            stage,
-                            *year_args,
-                            "--chirps-resolution",
-                            args.chirps_resolution,
-                            "--execute",
-                            *core_limit,
-                            *retry,
-                            *fast,
-                            *keep_going,
-                        ),
-                    )
+        for stage in ["raw", *(["zarr", "regrid"] if args.include_transforms else [])]:
+            steps.append(
+                (
+                    f"fonte_chirps_ano_{year}_{stage}",
+                    python_cmd(
+                        "scripts/curate_and_resume_downloads.py",
+                        "--source",
+                        "chirps",
+                        "--stage",
+                        stage,
+                        *year_args,
+                        "--chirps-resolution",
+                        args.chirps_resolution,
+                        "--execute",
+                        *core_limit,
+                        *retry,
+                        *fast,
+                        *keep_going,
+                    ),
                 )
+            )
 
-        if year in source_years.get("noaa_oisst", set()):
-            for stage in ["raw", *(["zarr", "regrid"] if args.include_transforms else [])]:
-                steps.append(
-                    (
-                        f"ano_{year}_p1_diario_oisst_{stage}",
-                        python_cmd(
-                            "scripts/curate_and_resume_downloads.py",
-                            "--source",
-                            "oisst",
-                            "--stage",
-                            stage,
-                            *year_args,
-                            "--execute",
-                            *core_limit,
-                            *retry,
-                            *fast,
-                            *keep_going,
-                        ),
-                    )
+    for year in sorted(source_years.get("noaa_oisst", set())):
+        year_args = single_year(year)
+        for stage in ["raw", *(["zarr", "regrid"] if args.include_transforms else [])]:
+            steps.append(
+                (
+                    f"fonte_oisst_ano_{year}_{stage}",
+                    python_cmd(
+                        "scripts/curate_and_resume_downloads.py",
+                        "--source",
+                        "oisst",
+                        "--stage",
+                        stage,
+                        *year_args,
+                        "--execute",
+                        *core_limit,
+                        *retry,
+                        *fast,
+                        *keep_going,
+                    ),
                 )
+            )
 
-        if args.include_cds and year in source_years.get("era5", set()):
-            for month in months:
-                for region in regions:
-                    if args.era5_kind in {"single", "both"}:
-                        for variable in era5_single_variables:
+    if args.include_cds:
+        for year in sorted(source_years.get("era5", set())):
+            year_args = single_year(year)
+            if args.month:
+                for month in months:
+                    for region in regions:
+                        if args.era5_kind in {"single", "both"} and (not args.era5_variable or era5_single_variables):
+                            era5_vars = variable_args(era5_single_variables, bool(args.era5_variable))
                             steps.append(
                                 (
-                                    f"ano_{year}_p1_diario_era5_single_{safe_step_name(region)}_{safe_step_name(variable)}_{month:02d}",
+                                    f"fonte_era5_ano_{year}_mes_{month:02d}_single_{safe_step_name(region)}",
                                     python_cmd(
                                         "scripts/data_pipeline.py",
                                         "download-era5",
@@ -208,17 +228,17 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                         "single",
                                         "--region",
                                         region,
-                                        "--variable",
-                                        variable,
+                                        *era5_vars,
                                         "--execute",
+                                        *keep_going,
                                     ),
                                 )
                             )
-                    if args.era5_kind in {"pressure", "both"}:
-                        for variable in era5_pressure_variables:
+                        if args.era5_kind in {"pressure", "both"} and (not args.era5_variable or era5_pressure_variables):
+                            era5_vars = variable_args(era5_pressure_variables, bool(args.era5_variable))
                             steps.append(
                                 (
-                                    f"ano_{year}_p1_diario_era5_pressure_{safe_step_name(region)}_{safe_step_name(variable)}_{month:02d}",
+                                    f"fonte_era5_ano_{year}_mes_{month:02d}_pressure_{safe_step_name(region)}",
                                     python_cmd(
                                         "scripts/data_pipeline.py",
                                         "download-era5",
@@ -229,41 +249,109 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                         "pressure",
                                         "--region",
                                         region,
-                                        "--variable",
-                                        variable,
+                                        *era5_vars,
                                         "--execute",
+                                        *keep_going,
                                     ),
                                 )
                             )
+            else:
+                for region in regions:
+                    if args.era5_kind in {"single", "both"} and (not args.era5_variable or era5_single_variables):
+                        era5_vars = variable_args(era5_single_variables, bool(args.era5_variable))
+                        steps.append(
+                            (
+                                f"fonte_era5_ano_{year}_single_{safe_step_name(region)}_zarr_anual",
+                                python_cmd(
+                                    "scripts/data_pipeline.py",
+                                    "download-era5",
+                                    *year_args,
+                                    "--kind",
+                                    "single",
+                                    "--region",
+                                    region,
+                                    "--annual-zarr",
+                                    "--delete-raw-after-zarr",
+                                    *era5_vars,
+                                    "--execute",
+                                    *keep_going,
+                                ),
+                            )
+                        )
+                    if args.era5_kind in {"pressure", "both"} and (not args.era5_variable or era5_pressure_variables):
+                        era5_vars = variable_args(era5_pressure_variables, bool(args.era5_variable))
+                        steps.append(
+                            (
+                                f"fonte_era5_ano_{year}_pressure_{safe_step_name(region)}_zarr_anual",
+                                python_cmd(
+                                    "scripts/data_pipeline.py",
+                                    "download-era5",
+                                    *year_args,
+                                    "--kind",
+                                    "pressure",
+                                    "--region",
+                                    region,
+                                    "--annual-zarr",
+                                    "--delete-raw-after-zarr",
+                                    *era5_vars,
+                                    "--execute",
+                                    *keep_going,
+                                ),
+                            )
+                        )
 
-        if args.include_cds and year in source_years.get("oras5", set()):
-            for month in months:
+        for year in sorted(source_years.get("oras5", set())):
+            year_args = single_year(year)
+            if args.month:
+                for month in months:
+                    for variable in oras_variables:
+                        steps.append(
+                            (
+                                f"fonte_oras5_ano_{year}_mes_{month:02d}_{safe_step_name(variable)}",
+                                python_cmd(
+                                    "scripts/data_pipeline.py",
+                                    "download-oras",
+                                    *year_args,
+                                    "--month",
+                                    str(month),
+                                    "--variable",
+                                    variable,
+                                    "--execute",
+                                    *keep_going,
+                                ),
+                            )
+                        )
+            else:
                 for variable in oras_variables:
                     steps.append(
                         (
-                            f"ano_{year}_p3_mensal_oras5_{safe_step_name(variable)}_{month:02d}",
+                            f"fonte_oras5_ano_{year}_{safe_step_name(variable)}_zarr_anual",
                             python_cmd(
                                 "scripts/data_pipeline.py",
                                 "download-oras",
                                 *year_args,
-                                "--month",
-                                str(month),
+                                "--annual-zarr",
+                                "--delete-raw-after-zarr",
                                 "--variable",
                                 variable,
                                 "--execute",
+                                *keep_going,
                             ),
                         )
                     )
 
-        if args.include_ctd and year in source_years.get("noaa_wod_ctd", set()):
+    if args.include_ctd:
+        for year in sorted(source_years.get("noaa_wod_ctd", set())):
+            year_args = single_year(year)
             steps.append(
                 (
-                    f"ano_{year}_p4_irregular_ctd_wod",
+                    f"fonte_ctd_wod_ano_{year}",
                     python_cmd(
                         "scripts/data_pipeline.py",
                         "download-ctd",
                         *year_args,
                         "--execute",
+                        *keep_going,
                     ),
                 )
             )
@@ -334,11 +422,12 @@ def write_report(report_path: Path, log_path: Path, results: list[StepResult]) -
         "",
         "## Resolucao temporal por fonte",
         "",
-        "- Prioridade 1, diario ou superior convertido para diario: CHIRPS, NOAA OISST e ERA5.",
-        "- Prioridade 2, semanal: nenhuma fonte semanal ativa no catalogo atual.",
-        "- Prioridade 3, mensal convertido para diario: ORAS5.",
+        "- Ordem de execucao: primeiro por fonte, depois por ano; ERA5 por regiao e tipo.",
+        "- Prioridade 1, fontes diarias ou subdiarias convertidas para diario: CHIRPS, NOAA OISST e ERA5.",
+        "- Prioridade 2, fonte semanal: nenhuma fonte semanal ativa no catalogo atual.",
+        "- Prioridade 3, fonte mensal convertida para diario: ORAS5.",
         "- Fora da serie regular diaria: CTD/WOD, observacional irregular por perfil.",
-        "- Politica de cache: bruto em data/raw, depois produto diario em data/processed/zarr por variavel.",
+        "- Politica de cache: bruto em data/raw, depois produto diario em data/processed/zarr; ERA5 consolidado em Zarr anual por regiao/tipo.",
         "",
         "## Etapas",
         "",
@@ -390,7 +479,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--era5-variable",
         action="append",
         choices=sorted(set(ERA5_SINGLE_VARIABLES + ERA5_PRESSURE_VARIABLES)),
-        help="Limit ERA5 to one variable; repeat for many. Default: all variables, one task per variable.",
+        help="Debug only: limit ERA5 to selected variables. Default: all variables grouped by kind.",
     )
     parser.add_argument(
         "--oras-variable",
@@ -419,7 +508,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("Pipeline completo planejado:")
     print(f"- Total de etapas: {len(steps)}")
-    print("- Ordem: ano a ano; prioridade 1 diario/subdiario->diario; prioridade 2 semanal; prioridade 3 mensal->diario.")
+    print("- Ordem: fonte por fonte; ERA5 e ORAS5 por ano/variavel, com Zarr anual.")
     for index, (name, command) in enumerate(steps[: args.print_plan_limit], start=1):
         print(f"{index:02d}. {name}: {' '.join(command)}")
     if len(steps) > args.print_plan_limit:

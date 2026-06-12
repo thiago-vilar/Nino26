@@ -19,10 +19,23 @@ except ImportError:  # pragma: no cover - handled at runtime with a clear error.
 
 
 WOD_FILESERVER = "https://www.ncei.noaa.gov/thredds-ocean/fileServer/ncei/wod"
-PACIFIC_LAT_MIN = -35.0
-PACIFIC_LAT_MAX = 30.0
-PACIFIC_LON_MIN_360 = 120.0
-PACIFIC_LON_MAX_360 = 290.0
+NINO34_LAT_MIN = -5.0
+NINO34_LAT_MAX = 5.0
+NINO34_LON_MIN_360 = 190.0
+NINO34_LON_MAX_360 = 240.0
+THERMOCLINE_MAX_DEPTH_M = 300.0
+THERMOCLINE_MIN_LEVELS = 3
+DEFAULT_GOOD_FLAGS = (0,)
+SALINITY_VARIABLES = (
+    "Salinity",
+    "Salinity_row_size",
+    "Salinity_WODflag",
+    "Salinity_WODprofileflag",
+)
+
+
+class NoValidWodCtdProfiles(ValueError):
+    """Raised when a WOD CTD year has no profiles after domain and QC filters."""
 
 
 def wod_ctd_http_url(year: int) -> str:
@@ -87,7 +100,7 @@ def download_wod_ctd_year(
                 http_status=status_code,
                 raw_path=str(output_path),
             )
-            print(f"missing source for WOD CTD {year}: {url}")
+            print(f"{year} - sem dados")
             return output_path
         audit.record(
             task_id=task_id,
@@ -119,10 +132,11 @@ def etl_wod_ctd_year(
     zarr_root: Path,
     dry_run: bool = True,
     overwrite: bool = False,
-    max_depth_m: float = 700.0,
+    max_depth_m: float = THERMOCLINE_MAX_DEPTH_M,
     depth_step_m: float = 5.0,
-    min_levels: int = 5,
-    good_flags: Iterable[int] = (0,),
+    min_levels: int = THERMOCLINE_MIN_LEVELS,
+    good_flags: Iterable[int] = DEFAULT_GOOD_FLAGS,
+    require_salinity: bool = False,
     include_hash: bool = False,
     audit: AuditLog | None = None,
 ) -> Path:
@@ -140,7 +154,7 @@ def etl_wod_ctd_year(
 
     if zarr_path.exists() and not overwrite:
         dataset_summary(zarr_path, zarr=True)
-        print(f"skip valid CTD Zarr: {zarr_path}")
+        print(f"{year} ok")
         return zarr_path
 
     audit.record(
@@ -168,13 +182,14 @@ def etl_wod_ctd_year(
                 depth_step_m=depth_step_m,
                 min_levels=min_levels,
                 good_flags=tuple(int(flag) for flag in good_flags),
+                require_salinity=require_salinity,
             )
         finally:
             ds.close()
 
         zarr_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            out.to_zarr(zarr_path, mode="w", consolidated=True)
+            out.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=2)
         finally:
             out.close()
 
@@ -187,6 +202,20 @@ def etl_wod_ctd_year(
             zarr={"path": str(zarr_path), "summary": dataset_summary(zarr_path, zarr=True)},
         )
         print(f"CTD Zarr written: {zarr_path}")
+        print(f"{year} ok")
+        return zarr_path
+    except NoValidWodCtdProfiles as exc:
+        audit.record(
+            task_id=task_id,
+            dataset="noaa_wod_ctd",
+            status="metadata",
+            step="etl",
+            raw_path=str(raw_path),
+            zarr_path=str(zarr_path),
+            skipped=True,
+            reason=str(exc),
+        )
+        print(f"{year} - sem dados")
         return zarr_path
     except BaseException as exc:
         audit.record(
@@ -211,35 +240,40 @@ def wod_ctd_to_teos10_dataset(
     depth_step_m: float,
     min_levels: int,
     good_flags: tuple[int, ...],
+    require_salinity: bool = False,
 ) -> xr.Dataset:
-    _require_wod_variables(ds)
+    _require_wod_variables(ds, require_salinity=require_salinity)
 
     lat = _as_float_array(ds["lat"])
     lon_raw = _as_float_array(ds["lon"])
     lon_360 = _to_360(lon_raw)
     domain_mask = (
-        (lat >= PACIFIC_LAT_MIN)
-        & (lat <= PACIFIC_LAT_MAX)
-        & (lon_360 >= PACIFIC_LON_MIN_360)
-        & (lon_360 <= PACIFIC_LON_MAX_360)
+        (lat >= NINO34_LAT_MIN)
+        & (lat <= NINO34_LAT_MAX)
+        & (lon_360 >= NINO34_LON_MIN_360)
+        & (lon_360 <= NINO34_LON_MAX_360)
     )
     selected_casts = np.flatnonzero(domain_mask)
 
     z_row = _row_sizes(ds["z_row_size"])
     t_row = _row_sizes(ds["Temperature_row_size"])
-    s_row = _row_sizes(ds["Salinity_row_size"])
     z_start = _starts(z_row)
     t_start = _starts(t_row)
-    s_start = _starts(s_row)
 
     z_values = _as_float_array(ds["z"])
     temp_values = _as_float_array(ds["Temperature"])
-    sal_values = _as_float_array(ds["Salinity"])
     z_flags = _as_int_array(ds["z_WODflag"])
     temp_flags = _as_int_array(ds["Temperature_WODflag"])
-    sal_flags = _as_int_array(ds["Salinity_WODflag"])
     temp_profile_flags = _as_int_array(ds["Temperature_WODprofileflag"])
-    sal_profile_flags = _as_int_array(ds["Salinity_WODprofileflag"])
+    has_salinity = all(name in ds for name in SALINITY_VARIABLES)
+    if has_salinity:
+        s_row = _row_sizes(ds["Salinity_row_size"])
+        s_start = _starts(s_row)
+        sal_values = _as_float_array(ds["Salinity"])
+        sal_flags = _as_int_array(ds["Salinity_WODflag"])
+        sal_profile_flags = _as_int_array(ds["Salinity_WODprofileflag"])
+    else:
+        s_row = s_start = sal_values = sal_flags = sal_profile_flags = None
 
     dates = _optional_int_array(ds, "date", len(lat))
     time_days = _optional_float_array(ds, "time", len(lat))
@@ -255,49 +289,75 @@ def wod_ctd_to_teos10_dataset(
     out_time_days: list[float] = []
     out_cast_ids: list[int] = []
     out_valid_levels: list[int] = []
+    out_valid_salinity_levels: list[int] = []
 
     for cast in selected_casts:
         if int(temp_profile_flags[cast]) not in good_flags:
             continue
-        if int(sal_profile_flags[cast]) not in good_flags:
-            continue
 
-        n = min(int(z_row[cast]), int(t_row[cast]), int(s_row[cast]))
-        if n < min_levels:
+        n_temp = min(int(z_row[cast]), int(t_row[cast]))
+        if n_temp < min_levels:
             continue
 
         z0 = int(z_start[cast])
         t0 = int(t_start[cast])
-        s0 = int(s_start[cast])
-        z = z_values[z0 : z0 + n]
-        temp = temp_values[t0 : t0 + n]
-        sal = sal_values[s0 : s0 + n]
-        ok = (
-            np.isfinite(z)
+        z_temp = z_values[z0 : z0 + n_temp]
+        temp = temp_values[t0 : t0 + n_temp]
+        ok_temp = (
+            np.isfinite(z_temp)
             & np.isfinite(temp)
-            & np.isfinite(sal)
-            & (z >= 0.0)
-            & (z <= max_depth_m)
-            & (sal >= 0.0)
-            & (sal <= 45.0)
+            & (z_temp >= 0.0)
+            & (z_temp <= max_depth_m)
             & (temp >= -5.0)
             & (temp <= 45.0)
-            & np.isin(z_flags[z0 : z0 + n], good_flags)
-            & np.isin(temp_flags[t0 : t0 + n], good_flags)
-            & np.isin(sal_flags[s0 : s0 + n], good_flags)
+            & np.isin(z_flags[z0 : z0 + n_temp], good_flags)
+            & np.isin(temp_flags[t0 : t0 + n_temp], good_flags)
         )
-        if int(ok.sum()) < min_levels:
+        if int(ok_temp.sum()) < min_levels:
             continue
 
-        prepared = _prepare_profile(z[ok], temp[ok], sal[ok], min_levels=min_levels)
-        if prepared is None:
+        prepared_temp = _prepare_values(z_temp[ok_temp], temp[ok_temp], min_levels=min_levels)
+        if prepared_temp is None:
             continue
-        z_clean, temp_clean, sal_clean = prepared
+        z_temp_clean, temp_clean = prepared_temp
 
-        temp_grid = _interp_to_depth_grid(z_clean, temp_clean, depth_grid)
-        sal_grid = _interp_to_depth_grid(z_clean, sal_clean, depth_grid)
-        valid_levels = np.isfinite(temp_grid) & np.isfinite(sal_grid)
-        if int(valid_levels.sum()) < min_levels:
+        temp_grid = _interp_to_depth_grid(z_temp_clean, temp_clean, depth_grid)
+        valid_temp_levels = np.isfinite(temp_grid)
+        if int(valid_temp_levels.sum()) < min_levels:
+            continue
+
+        sal_grid = np.full(depth_grid.shape, np.nan, dtype=np.float32)
+        valid_salinity_levels = np.zeros(depth_grid.shape, dtype=bool)
+        if has_salinity:
+            assert s_row is not None
+            assert s_start is not None
+            assert sal_values is not None
+            assert sal_flags is not None
+            assert sal_profile_flags is not None
+            if int(sal_profile_flags[cast]) in good_flags:
+                n_sal = min(int(z_row[cast]), int(s_row[cast]))
+                if n_sal >= min_levels:
+                    s0 = int(s_start[cast])
+                    z_sal = z_values[z0 : z0 + n_sal]
+                    sal = sal_values[s0 : s0 + n_sal]
+                    ok_sal = (
+                        np.isfinite(z_sal)
+                        & np.isfinite(sal)
+                        & (z_sal >= 0.0)
+                        & (z_sal <= max_depth_m)
+                        & (sal >= 0.0)
+                        & (sal <= 45.0)
+                        & np.isin(z_flags[z0 : z0 + n_sal], good_flags)
+                        & np.isin(sal_flags[s0 : s0 + n_sal], good_flags)
+                    )
+                    if int(ok_sal.sum()) >= min_levels:
+                        prepared_sal = _prepare_values(z_sal[ok_sal], sal[ok_sal], min_levels=min_levels)
+                        if prepared_sal is not None:
+                            z_sal_clean, sal_clean = prepared_sal
+                            sal_grid = _interp_to_depth_grid(z_sal_clean, sal_clean, depth_grid)
+                            valid_salinity_levels = np.isfinite(sal_grid)
+
+        if require_salinity and int(valid_salinity_levels.sum()) < min_levels:
             continue
 
         temp_profiles.append(temp_grid.astype(np.float32))
@@ -308,11 +368,12 @@ def wod_ctd_to_teos10_dataset(
         out_date.append(int(dates[cast]))
         out_time_days.append(float(time_days[cast]))
         out_cast_ids.append(int(cast_ids[cast]))
-        out_valid_levels.append(int(valid_levels.sum()))
+        out_valid_levels.append(int(valid_temp_levels.sum()))
+        out_valid_salinity_levels.append(int(valid_salinity_levels.sum()))
 
     if not temp_profiles:
-        raise ValueError(
-            "No WOD CTD profiles passed the Pacific domain and QC filters "
+        raise NoValidWodCtdProfiles(
+            "No WOD CTD temperature profiles passed the Nino 3.4 domain and QC filters "
             f"for year {year}."
         )
 
@@ -335,7 +396,7 @@ def wod_ctd_to_teos10_dataset(
     ).astype(np.float32)
     sigma0 = gsw.sigma0(absolute_salinity, conservative_temperature).astype(np.float32)
 
-    thermocline_depth = _gradient_depths(conservative_temperature, depth_grid)
+    thermocline_depth = _gradient_depths(temp_array, depth_grid)
     halocline_depth = _gradient_depths(absolute_salinity, depth_grid)
     pycnocline_depth = _gradient_depths(sigma0, depth_grid)
     profile = np.arange(temp_array.shape[0], dtype=np.int32)
@@ -376,7 +437,7 @@ def wod_ctd_to_teos10_dataset(
             "thermocline_depth": (
                 "profile",
                 thermocline_depth,
-                {"units": "m", "method": "max abs dCT/dz"},
+                {"units": "m", "method": "max abs dT/dz"},
             ),
             "halocline_depth": (
                 "profile",
@@ -392,6 +453,10 @@ def wod_ctd_to_teos10_dataset(
             "time_days_since_1770": ("profile", np.asarray(out_time_days, dtype=np.float64)),
             "wod_unique_cast": ("profile", np.asarray(out_cast_ids, dtype=np.int64)),
             "valid_depth_levels": ("profile", np.asarray(out_valid_levels, dtype=np.int16)),
+            "valid_salinity_depth_levels": (
+                "profile",
+                np.asarray(out_valid_salinity_levels, dtype=np.int16),
+            ),
         },
         coords={
             "profile": profile,
@@ -402,21 +467,22 @@ def wod_ctd_to_teos10_dataset(
             "lon_360": ("profile", lon_360_array, {"units": "degrees_east"}),
         },
         attrs={
-            "title": "NOAA WOD CTD profiles processed with TEOS-10",
+            "title": "NOAA WOD CTD profiles processed for Nino 3.4 thermocline diagnostics",
             "source": "NOAA NCEI World Ocean Database CTD annual NetCDF",
             "source_url": source_url,
             "year": year,
-            "domain": "Pacific 35S-30N, 120E-70W",
-            "longitude_convention_for_filter": "0-360, 70W = 290E",
+            "domain": "Nino 3.4, 5S-5N, 170W-120W",
+            "longitude_convention_for_filter": "0-360, 170W = 190E, 120W = 240E",
             "qc_policy": f"WOD observation and profile flags in {good_flags}",
+            "salinity_policy": "required" if require_salinity else "optional",
             "depth_grid_m": f"0-{max_depth_m:g} step {depth_step_m:g}",
-            "processing": "QC, Pacific crop, vertical interpolation, TEOS-10, stratification depths",
+            "processing": "QC, Nino 3.4 crop, vertical interpolation, thermocline diagnostics, TEOS-10 where salinity is available",
         },
     )
     return out
 
 
-def _require_wod_variables(ds: xr.Dataset) -> None:
+def _require_wod_variables(ds: xr.Dataset, *, require_salinity: bool) -> None:
     required = [
         "lat",
         "lon",
@@ -427,11 +493,9 @@ def _require_wod_variables(ds: xr.Dataset) -> None:
         "Temperature_row_size",
         "Temperature_WODflag",
         "Temperature_WODprofileflag",
-        "Salinity",
-        "Salinity_row_size",
-        "Salinity_WODflag",
-        "Salinity_WODprofileflag",
     ]
+    if require_salinity:
+        required.extend(SALINITY_VARIABLES)
     missing = [name for name in required if name not in ds]
     if missing:
         available = ", ".join(sorted(ds.variables))
@@ -477,22 +541,20 @@ def _to_360(lon: np.ndarray) -> np.ndarray:
     return np.mod(lon, 360.0)
 
 
-def _prepare_profile(
+def _prepare_values(
     z: np.ndarray,
-    temp: np.ndarray,
-    sal: np.ndarray,
+    values: np.ndarray,
     *,
     min_levels: int,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+) -> tuple[np.ndarray, np.ndarray] | None:
     order = np.argsort(z)
     z = z[order]
-    temp = temp[order]
-    sal = sal[order]
+    values = values[order]
     _, unique_idx = np.unique(z, return_index=True)
     unique_idx.sort()
     if unique_idx.size < min_levels:
         return None
-    return z[unique_idx], temp[unique_idx], sal[unique_idx]
+    return z[unique_idx], values[unique_idx]
 
 
 def _interp_to_depth_grid(values_z: np.ndarray, values: np.ndarray, depth_grid: np.ndarray) -> np.ndarray:

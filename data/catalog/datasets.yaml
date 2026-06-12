@@ -19,8 +19,8 @@ era5_single_levels:
   period_end: "latest_available"
   latency_days: 7
   raw_path: "data/raw/era5"
-  processed_path: "data/processed/zarr/era5/single_levels/<year>/<variable>/era5_single_<region>_<variable>_<yyyymm>_daily.zarr"
-  notes: "Cache raw NetCDF by year/month/region/variable, then aggregate subdaily values to daily Zarr."
+  processed_path: "data/processed/zarr/era5/single_levels/<year>/<variable>/era5_single_<region>_<variable>_<year>_daily.zarr"
+  notes: "Default annual mode requests one full year per region/variable, caches raw NetCDF, then aggregates 00/06/12/18 UTC values to daily Zarr. Use request_mode monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
 
 era5_pressure_levels:
   name: "ERA5 pressure levels"
@@ -42,8 +42,8 @@ era5_pressure_levels:
   period_end: "latest_available"
   latency_days: 7
   raw_path: "data/raw/era5"
-  processed_path: "data/processed/zarr/era5/pressure_levels/<year>/<variable>/era5_pressure_<region>_<variable>_<yyyymm>_daily.zarr"
-  notes: "Cache raw NetCDF by year/month/region/variable, then aggregate subdaily values to daily Zarr. Variables are used for the Pacific-Brazil atmospheric bridge."
+  processed_path: "data/processed/zarr/era5/pressure_levels/<year>/<variable>/era5_pressure_<region>_<variable>_<year>_daily.zarr"
+  notes: "Default annual mode requests one full year per region/variable/all pressure levels, caches raw NetCDF, then aggregates 00/06/12/18 UTC values to daily Zarr. Use request_mode monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
 
 oras5:
   name: "ORAS5 ocean reanalysis"
@@ -62,8 +62,8 @@ oras5:
   period_end: "latest_available"
   latency_days: 45
   raw_path: "data/raw/oras"
-  processed_path: "data/processed/zarr/oras/<year>/<variable>/oras5_<variable>_<yyyymm>_daily.zarr"
-  notes: "Cache raw monthly ZIP by year/month/variable, then align each monthly field to the daily model calendar as explicit ocean-memory features. Daily OISST is the primary SST/SSTA source."
+  processed_path: "data/processed/zarr/oras/<year>/<variable>/oras5_<variable>_<year>_daily.zarr"
+  notes: "Default annual mode requests one full year per variable, caches raw ZIP/NetCDF, then aligns the monthly source to the daily model calendar as explicit ocean-memory features. Use monthly mode without annual_zarr only for open-year months or fallback. Daily OISST is the primary SST/SSTA source."
 
 noaa_wod_ctd:
   name: "NOAA World Ocean Database CTD profiles"
@@ -103,7 +103,86 @@ noaa_wod_ctd:
   latency_days: 365
   raw_path: "data/raw/ctd_noaa/wod"
   processed_path: "data/processed/zarr/ctd_noaa/wod"
-  notes: "Annual WOD CTD NetCDF files are filtered to Pacific 35S-30N / 120E-70W, QC flag 0, interpolated to 0-700 m every 5 m, processed with TEOS-10 and saved as annual Zarr."
+  notes: "Annual WOD CTD NetCDF files are filtered to Nino 3.4, 5S-5N / 170W-120W, QC flag 0, interpolated to 0-300 m every 5 m for thermocline diagnostics, with salinity optional unless --require-salinity is used."
+
+tao_triton_temperature:
+  name: "TAO/TRITON daily subsurface temperature validation"
+  institution: "NOAA PMEL / Global Tropical Moored Buoy Array"
+  source_url: "https://data.pmel.noaa.gov/pmel/erddap/tabledap/pmelTaoDyT.html"
+  license: "NOAA public data; acknowledge GTMBA Project Office"
+  version: null
+  variables:
+    - array
+    - station
+    - wmo_platform_code
+    - longitude
+    - latitude
+    - time
+    - depth
+    - T_20
+    - QT_5020
+    - ST_6020
+  temporal_resolution: "daily"
+  spatial_resolution: "moored point time series"
+  period_start: "1977-11-03"
+  period_end: "latest_available"
+  latency_days: 3
+  raw_path: "data/raw/tao_triton/temperature"
+  processed_path: "data/processed/zarr/validation/tao_triton"
+  notes: "Downloaded through PMEL ERDDAP for Nino 3.4, 5S-5N / 170W-120W, depth <=300 m, quality 1-3. Validation layer; not a replacement for ORAS5/OISST."
+
+tao_triton_salinity:
+  name: "TAO/TRITON daily subsurface salinity validation"
+  institution: "NOAA PMEL / Global Tropical Moored Buoy Array"
+  source_url: "https://data.pmel.noaa.gov/pmel/erddap/tabledap/pmelTaoDyS.html"
+  license: "NOAA public data; acknowledge GTMBA Project Office"
+  version: null
+  variables:
+    - array
+    - station
+    - wmo_platform_code
+    - longitude
+    - latitude
+    - time
+    - depth
+    - S_41
+    - QS_5041
+    - SS_6041
+  temporal_resolution: "daily"
+  spatial_resolution: "moored point time series"
+  period_start: "1987-10-14"
+  period_end: "latest_available"
+  latency_days: 3
+  raw_path: "data/raw/tao_triton/salinity"
+  processed_path: "data/processed/zarr/validation/tao_triton"
+  notes: "Downloaded through PMEL ERDDAP for Nino 3.4, 5S-5N / 170W-120W, depth <=300 m, quality 1-3. Validation layer; salinity coverage is sparser than temperature."
+
+argo_gdac_nino34:
+  name: "Argo GDAC Nino 3.4 profile validation"
+  institution: "International Argo Program / Ifremer ERDDAP"
+  source_url: "https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.html"
+  license: "Argo data policy; cite International Argo Program"
+  version: null
+  variables:
+    - time
+    - latitude
+    - longitude
+    - pres
+    - temp
+    - psal
+    - pres_qc
+    - temp_qc
+    - psal_qc
+    - data_mode
+    - platform_number
+  temporal_resolution: "profile based"
+  spatial_resolution: "float profile tracks"
+  period_start: "1999-01-01"
+  period_end: "latest_available"
+  latency_days: 3
+  raw_path: "data/raw/argo"
+  processed_path: "data/processed/zarr/validation/argo"
+  notes: "Downloaded through Ifremer ERDDAP for Nino 3.4, 5S-5N / 170W-120W, pressure <=300 dbar. Validation layer strongest after the early 2000s."
 
 noaa_oisst:
   name: "NOAA Optimum Interpolation SST v2.1"

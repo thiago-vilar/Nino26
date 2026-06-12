@@ -12,6 +12,8 @@ DEFAULT_SOURCE_LATENCY_DAYS = {
     "era5": 7,
     "oras5": 45,
     "noaa_wod_ctd": 365,
+    "tao_triton": 3,
+    "argo_gdac": 3,
 }
 
 

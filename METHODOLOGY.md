@@ -19,7 +19,7 @@ Regras:
 - registrar a cobertura temporal real de cada variável antes do alinhamento.
 - registrar lacunas de fonte sem preenchimento silencioso.
 - converter ERA5 subdiário para estatísticas diárias.
-- alinhar ORAS5 mensal como variável de memória oceânica com regra explícita de lag.
+- alinhar ORAS5 mensal, baixado no historico por ano/variavel, como variavel de memoria oceanica com regra explicita de lag.
 - avaliar previsões em horizontes semanais de 1 a 24 semanas, equivalentes a 7-168 dias.
 - documentar qualquer reamostragem temporal.
 - registrar a latência de cada fonte no ledger de auditoria.
@@ -141,6 +141,27 @@ haloclina = profundidade do maior gradiente vertical de SA
 picnoclina = profundidade do maior gradiente vertical de sigma0
 ```
 
+## 4.2 Validacao TAO/TRITON/Argo
+
+TAO/TRITON/Argo nao muda a direcao do projeto e nao substitui OISST, ORAS5 ou CTD/WOD. Essa camada entra como validacao independente para manter aberta a pergunta cientifica: a subsuperficie do Pacifico Nino 3.4 melhora a explicacao das anomalias de chuva/seca no Brasil, ou SST/SSTA superficial e suficiente?
+
+Uso metodologico:
+
+```text
+1. comparar ORAS5 contra observacoes in situ no Nino 3.4;
+2. validar D20, termoclina, OHC 0-300 m e temperatura media 0-300 m;
+3. identificar periodos em que CTD/WOD e escasso sem preencher lacunas artificialmente;
+4. rodar ablation com e sem variaveis subsuperficiais em walk-forward.
+```
+
+Papel das fontes:
+
+```text
+TAO/TRITON/GTMBA = fundeios equatoriais, bons para serie temporal subsuperficial;
+Argo GDAC = perfis T/S independentes, mais fortes a partir dos anos 2000;
+WOD/GTSPP = agregadores uteis para auditoria, com cuidado para duplicatas.
+```
+
 ## 5. Variáveis atmosféricas
 
 Grupos:
@@ -170,7 +191,7 @@ Lags iniciais:
 1 a 24 semanas: 7, 14, 21, ..., 168 dias
 ```
 
-As grades do Pacífico, Brasil e ponte atmosférica são reconciliadas antes da montagem da matriz de modelagem. As Fases 1, 2, 3 e 4 usam grade comum `0.25°` em longitude `0_360`; CHIRPS `0.05°` fica reservado para experimento futuro de alta resolução depois que o fluxo `0.25°` estiver validado.
+As grades do Pacífico, Brasil e ponte atmosférica são reconciliadas antes da montagem da matriz de modelagem. As Fases 1 a 7 usam grade comum `0.25°` em longitude `0_360`; CHIRPS `0.05°` fica reservado para experimento futuro de alta resolução depois que o fluxo `0.25°` estiver validado.
 
 Saídas:
 
@@ -209,7 +230,24 @@ Modelo E: sem altos níveis atmosféricos
 Modelo F: sem umidade atmosférica
 ```
 
-Modelos da Fase 3:
+Fase 3 - diagnostico fisico Nino 3.4:
+
+- alinhamento temporal de anomalias oceanicas e atmosfericas.
+- volume/grau de agua quente anomala no Nino 3.4.
+- D20, termoclina, gradiente vertical e profundidade de maior estratificacao.
+- slope longitudinal/vertical do sinal termico.
+- duracao do sinal anomalo por evento.
+- comparacao com os picos historicos de El Nino mais impactantes da serie.
+
+Fase 4 - pre-analises estatisticas experimentais:
+
+- regressao multipla.
+- PCA/EOF para modos dominantes de covariacao.
+- KNN para similaridade de eventos e analogos historicos.
+- correlacao defasada por lag semanal.
+- ablation screening de variaveis individuais e combinadas.
+
+Modelos da Fase 5:
 
 - climatologia.
 - persistência.
@@ -218,7 +256,7 @@ Modelos da Fase 3:
 - Random Forest.
 - XGBoost.
 
-Modelos da Fase 4, Redes Neurais + XAI:
+Modelos da Fase 6, Redes Neurais + XAI:
 
 - CNN.
 - ConvLSTM.
@@ -277,6 +315,28 @@ Técnicas:
 Saídas operacionais da Fase 3:
 
 ```text
+nino34_physical_signal.zarr
+nino34_thermocline_diagnostics.zarr
+nino34_peak_signal_comparison.zarr
+nino34_signal_slope_duration.zarr
+```
+
+Esses arquivos alimentam a Fase 4 e mantem explicita a pergunta: a subsuperficie do Nino 3.4 melhora a explicacao das anomalias de chuva no Brasil ou a SST/SSTA superficial e suficiente?
+
+Saídas operacionais da Fase 4:
+
+```text
+phase4_variable_screening.zarr
+phase4_multiple_regression.zarr
+phase4_pca_modes.zarr
+phase4_knn_similarity.zarr
+```
+
+Esses stores Zarr geram um ranking experimental das variaveis Nino 3.4, individuais e combinadas, associadas a seca no Nordeste e chuva no Sul.
+
+Saídas operacionais da Fase 5:
+
+```text
 walk_forward_metrics.zarr
 walk_forward_predictions.zarr
 walk_forward_importances.zarr
@@ -285,7 +345,7 @@ walk_forward_group_weights.zarr
 
 Esses arquivos alimentam os mapas de peso oceanográfico, peso atmosférico e variável dominante.
 
-Saídas operacionais da Fase 4:
+Saídas operacionais da Fase 6:
 
 ```text
 neural_training_runs.zarr

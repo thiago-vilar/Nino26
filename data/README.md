@@ -28,18 +28,18 @@ data/
 
 - `raw/ibge/`: zips oficiais IBGE de UF e municipios.
 - `interim/ibge/`: shapefiles extraidos.
-- `raw/chirps/p25/chirps-v2.0.1981.days_p25.nc`: valido para a Fase 1.
-- Demais pastas climaticas ainda estao vazias ou so com `.gitkeep`.
+- O status local vivo fica em `painel_executivo.md`, gerado por `scripts/update_painel_executivo.py`.
+- As pastas climaticas podem estar em estados diferentes entre maquinas; dados grandes nao entram no Git.
 
-O arquivo CHIRPS `p25` nao deve ser removido. As Fases 1, 2, 3 e 4 usam grade `0.25` grau; `p05` fica para experimento futuro de alta resolucao.
+O arquivo CHIRPS `p25` nao deve ser removido. As Fases 1 a 7 usam grade `0.25` grau; `p05` fica para experimento futuro de alta resolucao.
 
 ## raw/
 
-Use `raw/` para dados baixados sem modificacao.
+Use `raw/` para dados baixados sem modificacao. No fluxo compacto de ERA5/ORAS, o raw pode ser apenas cache temporario e ser apagado depois do Zarr validado.
 
 Subpastas esperadas:
 
-- `raw/chirps/p25/`: CHIRPS diario 0.25 grau das Fases 1, 2, 3 e 4.
+- `raw/chirps/p25/`: CHIRPS diario 0.25 grau das Fases 1 a 7.
 - `raw/chirps/p05/`: CHIRPS diario 0.05 grau reservado para experimento futuro de alta resolucao.
 - `raw/cpc_noaa/oisst/`: NOAA OISST diario.
 - `raw/era5/`: ERA5 single e pressure levels.
@@ -68,7 +68,9 @@ Use `processed/` para artefatos prontos para analise:
 
 - `processed/zarr/`: cubos multidimensionais.
 - `processed/zarr/regridded/`: cubos na grade comum de modelagem.
-- `processed/zarr/modeling/`: metricas, previsoes, importancias e pesos por grupo.
+- `processed/zarr/features/`: Fase 3, diagnosticos fisicos Nino 3.4.
+- `processed/zarr/statistics/`: Fase 4, pre-analises estatisticas experimentais.
+- `processed/zarr/modeling/`: Fase 5, metricas, previsoes, importancias e pesos por grupo.
 - `processed/zarr/distributions/`: diagnosticos de cauda.
 - `processed/geotiff/`: mascaras e rasters auxiliares.
 
@@ -154,14 +156,16 @@ python scripts\run_full_download_pipeline.py --execute
 
 Este e o comando recomendado quando a intencao for dar apenas um play e deixar o computador baixando de `1981` ate o ultimo dado disponivel por fonte. Ele pula arquivos ja validos, retoma pendencias, muda de fonte na ordem do pipeline e grava log/relatorio em `data/state/pipeline_reports/`.
 
-A ordem operacional agora e ano a ano, com prioridade temporal:
+A ordem operacional agora e fonte por fonte, e dentro de cada fonte por ano. No ERA5, o recorte oficial tem apenas duas regioes: `nino34` e `brazil`.
 
-1. fontes diarias ou subdiarias convertidas para diario: CHIRPS, OISST e ERA5;
-2. fontes semanais, quando forem adicionadas ao catalogo;
-3. fontes mensais convertidas para calendario diario: ORAS5;
-4. fontes observacionais irregulares fora da serie diaria regular: CTD/WOD.
+1. CHIRPS diario;
+2. OISST diario;
+3. ERA5 subdiario convertido para diario;
+4. fontes semanais, quando forem adicionadas ao catalogo;
+5. ORAS5 mensal convertido para calendario diario;
+6. CTD/WOD observacional irregular.
 
-ERA5 e ORAS5 sao processados variavel por variavel. O bruto fica em cache em `data/raw/` e o produto pronto fica em `data/processed/zarr/` como Zarr diario por variavel. Assim, se uma variavel falhar, a proxima execucao retoma exatamente o ano/mes/variavel pendente.
+ERA5 e processado por ano, regiao e tipo (`single_levels` ou `pressure_levels`). O cache bruto fica em `data/raw/era5/` por mes, e o produto pronto fica em `data/processed/zarr/era5/` como um Zarr diario anual por regiao/tipo. ORAS5 continua mensal por variavel por ser fonte oceanica de memoria subsuperficial.
 
 Para ver o plano sem executar:
 
@@ -181,15 +185,15 @@ O pipeline completo roda IBGE, CHIRPS, OISST, ERA5, ORAS5, CTD/WOD, conversao di
 
 ```powershell
 python scripts\data_pipeline.py check-cds
-python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --execute
-python scripts\data_pipeline.py download-oras --start-year 1981 --execute
-python scripts\data_pipeline.py download-ctd --start-year 1981 --execute
+python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 
 Para testar uma unica variavel CDS sem iniciar tudo:
 
 ```powershell
-python scripts\data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1 --kind single --region west_pacific --variable mean_sea_level_pressure
+python scripts\data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1 --kind single --region nino34
 python scripts\data_pipeline.py download-oras --start-year 1981 --end-year 1981 --month 1 --variable salinity
 ```
 
@@ -207,7 +211,14 @@ python scripts\data_pipeline.py regrid-zarr --input <zarr_entrada> --output data
 python scripts\data_pipeline.py diagnose-distributions --input <zarr_regridded> --dataset <dataset> --variable <variavel>
 ```
 
-8. Rodar modelagem:
+8. Rodar Fase 3 e Fase 4 quando os cubos de entrada estiverem fechados:
+
+```text
+Fase 3: gerar diagnosticos fisicos Nino 3.4 em processed/zarr/features/
+Fase 4: gerar triagem estatistica experimental em processed/zarr/statistics/
+```
+
+9. Rodar modelagem da Fase 5:
 
 ```powershell
 python scripts\model_pipeline.py --predictor-zarr <zarr_predictor> --target-zarr <zarr_alvo> --target-var precip
@@ -232,7 +243,7 @@ Nao limpar:
 ## Checklist antes de modelar
 
 - `configs/project.yaml` esta em `period.end: latest_available`.
-- `modeling.chirps_resolution` esta em `p25` para as Fases 1, 2, 3 e 4.
+- `modeling.chirps_resolution` esta em `p25` para as Fases 1 a 7.
 - OISST foi tratado como SST/SSTA principal.
 - ORAS5 nao esta duplicando SST mensal.
 - Todos os Zarr de entrada estao regridados.

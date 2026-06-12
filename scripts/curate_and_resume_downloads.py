@@ -164,7 +164,7 @@ def regrid_zarr(input_path: Path, output_path: Path, *, dataset: str, overwrite:
             if output_path.exists() and overwrite:
                 shutil.rmtree(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            regridded.to_zarr(output_path, mode="w", consolidated=True)
+            regridded.to_zarr(output_path, mode="w", consolidated=True, zarr_format=2)
         finally:
             ds.close()
         validate_zarr(output_path)
@@ -409,13 +409,13 @@ def add_cds_ctd_placeholders(
     commands = {
         "era5": f"python scripts/data_pipeline.py download-era5 --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
-        + " --kind both --execute",
+        + " --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error",
         "oras": f"python scripts/data_pipeline.py download-oras --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
-        + " --execute",
+        + " --annual-zarr --delete-raw-after-zarr --execute --continue-on-error",
         "ctd": f"python scripts/data_pipeline.py download-ctd --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
-        + " --execute",
+        + " --max-depth 300 --min-levels 3 --execute --continue-on-error",
     }
     for source, command in commands.items():
         if source not in selected_sources and "all" not in selected_sources:
