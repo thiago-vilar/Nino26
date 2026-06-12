@@ -30,8 +30,8 @@ time:
   master_calendar: "daily_1981_latest_available"
   download_priority: ["daily_or_subdaily_to_daily", "weekly_to_daily", "monthly_to_daily"]
   execution_order: "source_first_then_year_region_kind"
-  raw_cache_policy: "cache_source_files_before_daily_zarr_transform"
-  variable_ingest_policy: "era5_group_variables_by_kind_single_or_pressure"
+  raw_cache_policy: "temporary_grouped_raw_cache_deleted_after_valid_daily_zarr"
+  variable_ingest_policy: "cds_annual_kind_download_split_to_variable_year_zarr"
   source_gaps_policy: "record_missing_without_silent_fill"
   monthly_ocean_policy: "align_as_memory_features_with_explicit_lags"
   forecast_horizon_weeks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]

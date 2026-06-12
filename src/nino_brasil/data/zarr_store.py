@@ -335,6 +335,56 @@ def netcdf_to_daily_zarr(
     return zarr_path
 
 
+def netcdf_collection_to_daily_zarr(
+    nc_files: list[Path],
+    zarr_path: Path,
+    *,
+    variables: list[str] | None = None,
+    variable_aliases: dict[str, list[str]] | None = None,
+    source_frequency: str = "monthly",
+    aggregation: str = "mean",
+    daily_start: str | pd.Timestamp | None = None,
+    daily_end: str | pd.Timestamp | None = None,
+    overwrite: bool = False,
+    quiet: bool = False,
+) -> Path:
+    """Write a daily Zarr store from one or more extracted NetCDF files."""
+    if not nc_files:
+        raise FileNotFoundError("No NetCDF files supplied for daily Zarr conversion.")
+
+    if zarr_path.exists() and not overwrite:
+        validate_zarr(zarr_path)
+        if not quiet:
+            print(f"daily zarr exists: {zarr_path}")
+        return zarr_path
+
+    if zarr_path.exists() and overwrite:
+        shutil.rmtree(zarr_path)
+
+    zarr_path.parent.mkdir(parents=True, exist_ok=True)
+    ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={})
+    try:
+        selected = _select_daily_variables(ds, variables, variable_aliases)
+        daily = standardize_dataset_to_daily(
+            selected,
+            source_frequency=source_frequency,
+            aggregation=aggregation,
+            daily_start=daily_start,
+            daily_end=daily_end,
+        )
+        chunks = chunk_plan(daily)
+        if chunks:
+            daily = daily.chunk(chunks)
+        daily.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=2)
+    finally:
+        ds.close()
+
+    validate_zarr(zarr_path)
+    if not quiet:
+        print(f"daily zarr written: {zarr_path}")
+    return zarr_path
+
+
 def zip_netcdf_to_zarr(
     zip_path: Path,
     extract_dir: Path,
@@ -395,35 +445,15 @@ def zip_netcdf_to_daily_zarr(
     nc_files = sorted(extract_dir.rglob("*.nc"))
     if not nc_files:
         raise FileNotFoundError(f"No NetCDF files found after extracting {zip_path}")
-
-    if zarr_path.exists() and not overwrite:
-        validate_zarr(zarr_path)
-        if not quiet:
-            print(f"daily zarr exists: {zarr_path}")
-        return zarr_path
-
-    if zarr_path.exists() and overwrite:
-        shutil.rmtree(zarr_path)
-
-    zarr_path.parent.mkdir(parents=True, exist_ok=True)
-    ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={})
-    try:
-        selected = _select_daily_variables(ds, variables, variable_aliases)
-        daily = standardize_dataset_to_daily(
-            selected,
-            source_frequency=source_frequency,
-            aggregation=aggregation,
-            daily_start=daily_start,
-            daily_end=daily_end,
-        )
-        chunks = chunk_plan(daily)
-        if chunks:
-            daily = daily.chunk(chunks)
-        daily.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=2)
-    finally:
-        ds.close()
-
-    validate_zarr(zarr_path)
-    if not quiet:
-        print(f"daily zarr written: {zarr_path}")
-    return zarr_path
+    return netcdf_collection_to_daily_zarr(
+        nc_files,
+        zarr_path,
+        variables=variables,
+        variable_aliases=variable_aliases,
+        source_frequency=source_frequency,
+        aggregation=aggregation,
+        daily_start=daily_start,
+        daily_end=daily_end,
+        overwrite=overwrite,
+        quiet=quiet,
+    )

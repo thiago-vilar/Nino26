@@ -185,8 +185,8 @@ O pipeline completo roda IBGE, CHIRPS, OISST, ERA5, ORAS5, CTD/WOD, conversao di
 
 ```powershell
 python scripts\data_pipeline.py check-cds
-python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
-python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
+python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 

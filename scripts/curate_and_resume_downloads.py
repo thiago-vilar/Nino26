@@ -409,10 +409,10 @@ def add_cds_ctd_placeholders(
     commands = {
         "era5": f"python scripts/data_pipeline.py download-era5 --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
-        + " --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error",
+        + " --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
         "oras": f"python scripts/data_pipeline.py download-oras --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
-        + " --annual-zarr --delete-raw-after-zarr --execute --continue-on-error",
+        + " --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
         "ctd": f"python scripts/data_pipeline.py download-ctd --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
         + " --max-depth 300 --min-levels 3 --execute --continue-on-error",

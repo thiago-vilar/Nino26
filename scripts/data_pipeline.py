@@ -31,11 +31,14 @@ from nino_brasil.data.download_cds import (
     download_oras_month,
     ingest_era5_pressure_month,
     ingest_era5_pressure_year,
+    ingest_era5_pressure_year_kind,
     ingest_era5_pressure_year_variable,
     ingest_era5_single_month,
     ingest_era5_single_year,
+    ingest_era5_single_year_kind,
     ingest_era5_single_year_variable,
     ingest_oras_month,
+    ingest_oras_year_kind,
     ingest_oras_year_variable,
 )
 from nino_brasil.data.download_chirps import download_chirps_year
@@ -126,8 +129,8 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print("3. download-ibge --product municipios")
     print(f"4. download CHIRPS daily precipitation at {chirps_resolution}")
     print("5. download-oisst: daily SST/SSTA primary source for Nino 3.4")
-    print("6. ingest-era5: cache raw monthly chunks by region/type, consolidate to annual daily Zarr")
-    print("7. ingest-oras: cache raw monthly chunks by variable, align to daily Zarr")
+    print("6. ingest-era5: request annual-kind by region/type, split to annual daily Zarr by variable")
+    print("7. ingest-oras: request annual-kind by year, split to annual daily Zarr by variable")
     print("8. download-ctd: WOD CTD annual raw files, thermocline QC and Zarr")
     print("9. download-validation: TAO/TRITON and Argo in-situ validation for Nino 3.4")
     print("10. regrid-zarr: reconcile each modeling cube to the common modeling grid")
@@ -549,6 +552,51 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
                     )
             return 0
 
+        if args.request_mode == "annual-kind":
+            tasks = [
+                (year, region)
+                for year in years
+                for region in regions
+            ]
+            total_tasks = len(tasks) * int(request_single) + len(tasks) * int(request_pressure)
+            print(f"ERA5 annual-kind CDS requests: {total_tasks}")
+            for year, region in tqdm(tasks, desc="ERA5 annual-kind years/regions", unit="task"):
+                if request_single:
+                    run_or_continue(
+                        f"ERA5 single annual-kind {year} {region}",
+                        lambda year=year, region=region: ingest_era5_single_year_kind(
+                            year=year,
+                            region=region,
+                            raw_dir=raw_dir,
+                            zarr_root=zarr_root,
+                            variables=single_variables,
+                            dry_run=not args.execute,
+                            overwrite=args.overwrite,
+                            include_hash=args.hash,
+                            delete_raw_after_zarr=args.delete_raw_after_zarr,
+                            audit=audit,
+                        ),
+                        continue_on_error=args.continue_on_error,
+                    )
+                if request_pressure:
+                    run_or_continue(
+                        f"ERA5 pressure annual-kind {year} {region}",
+                        lambda year=year, region=region: ingest_era5_pressure_year_kind(
+                            year=year,
+                            region=region,
+                            raw_dir=raw_dir,
+                            zarr_root=zarr_root,
+                            variables=pressure_variables,
+                            dry_run=not args.execute,
+                            overwrite=args.overwrite,
+                            include_hash=args.hash,
+                            delete_raw_after_zarr=args.delete_raw_after_zarr,
+                            audit=audit,
+                        ),
+                        continue_on_error=args.continue_on_error,
+                    )
+            return 0
+
         single_task_variables = single_variables or ERA5_SINGLE_VARIABLES
         pressure_task_variables = pressure_variables or ERA5_PRESSURE_VARIABLES
         tasks: list[tuple[int, str, str, str]] = []
@@ -689,6 +737,29 @@ def cmd_download_oras(args: argparse.Namespace) -> int:
 
     if args.annual_zarr:
         years = iter_complete_annual_years(args.start_year, args.end_year, "oras5", cfg)
+        if args.request_mode == "annual-kind":
+            years_list = list(years)
+            print(f"ORAS annual-kind CDS requests: {len(years_list)}")
+            for year in tqdm(years_list, desc="ORAS annual-kind years", unit="year"):
+                run_or_continue(
+                    f"ORAS5 annual-kind {year}",
+                    lambda year=year: ingest_oras_year_kind(
+                        year=year,
+                        raw_dir=raw_dir,
+                        interim_dir=interim_dir,
+                        zarr_root=zarr_root,
+                        months=months,
+                        variables=variables,
+                        dry_run=not args.execute,
+                        overwrite=args.overwrite,
+                        include_hash=args.hash,
+                        delete_raw_after_zarr=args.delete_raw_after_zarr,
+                        audit=audit,
+                    ),
+                    continue_on_error=args.continue_on_error,
+                )
+            return 0
+
         task_variables = variables or ORAS5_VARIABLES
         tasks = [
             (year, variable)
@@ -1099,9 +1170,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     era5_p.add_argument(
         "--request-mode",
-        choices=["annual-variable", "monthly-kind"],
-        default="annual-variable",
-        help="With --annual-zarr, request one year per variable by default. Use monthly-kind only as fallback.",
+        choices=["annual-kind", "annual-variable", "monthly-kind"],
+        default="annual-kind",
+        help="With --annual-zarr, request one full year per kind/region by default; use annual-variable or monthly-kind as fallbacks.",
     )
     era5_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
     era5_p.add_argument("--continue-on-error", action="store_true", help="Log item failures and keep processing later tasks.")
@@ -1120,11 +1191,17 @@ def build_parser() -> argparse.ArgumentParser:
     oras_p.add_argument("--execute", action="store_true", help="Actually submit CDS requests.")
     oras_p.add_argument("--overwrite", action="store_true")
     oras_p.add_argument("--raw-only", action="store_true", help="Skip Zarr conversion.")
-    oras_p.add_argument("--annual-zarr", action="store_true", help="Cache yearly ORAS5 files per variable and write annual daily Zarr stores.")
+    oras_p.add_argument("--annual-zarr", action="store_true", help="Cache yearly ORAS5 files and write annual daily Zarr stores by variable.")
     oras_p.add_argument(
         "--delete-raw-after-zarr",
         action="store_true",
         help="Delete each raw annual ZIP cache after its yearly variable Zarr is validated.",
+    )
+    oras_p.add_argument(
+        "--request-mode",
+        choices=["annual-kind", "annual-variable"],
+        default="annual-kind",
+        help="With --annual-zarr, request one full year with all selected variables by default; use annual-variable as fallback.",
     )
     oras_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
     oras_p.add_argument("--continue-on-error", action="store_true", help="Log item failures and keep processing later tasks.")

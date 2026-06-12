@@ -133,17 +133,17 @@ Frequencia e formato:
 
 ```text
 fonte: mensal
-download historico: anual por variavel
-fallback: mensal para ano em aberto ou se a requisicao anual falhar
-bruto: ZIP/NetCDF
+download historico: anual agrupado por ano no modo --annual-zarr --request-mode annual-kind
+fallback: anual por variavel ou mensal para ano em aberto
+bruto: ZIP/NetCDF agrupado em cache temporario
 processado: Zarr diario anual por variavel
 ```
 
 Destino local:
 
 ```text
-data/raw/oras/<ano>/<variavel>/oras5_<variavel>_<ano>.zip
-data/interim/oras/<ano>/<variavel>/oras5_<variavel>_<ano>/
+data/raw/oras/<ano>/_annual_kind/oras5_all_variables_<ano>.zip
+data/interim/oras/<ano>/_annual_kind/oras5_all_variables_<ano>/
 data/processed/zarr/oras/<ano>/<variavel>/oras5_<variavel>_<ano>_daily.zarr
 ```
 
@@ -398,16 +398,16 @@ Frequencia e formato:
 ```text
 fonte: horaria
 download do projeto: 00:00, 06:00, 12:00, 18:00
-download: anual por regiao e variavel no modo --annual-zarr
-bruto: NetCDF anual por regiao/variavel no modo --annual-zarr
+download: anual por regiao/tipo com variaveis agrupadas no modo --annual-zarr --request-mode annual-kind
+bruto: NetCDF anual agrupado em cache temporario
 processado: Zarr diario anual por regiao/variavel
-fallback: NetCDF/Zarr mensal apenas com --request-mode monthly-kind ou sem --annual-zarr
+fallback: annual-variable ou NetCDF/Zarr mensal apenas com --request-mode monthly-kind ou sem --annual-zarr
 ```
 
 Destino local:
 
 ```text
-data/raw/era5/single_levels/<ano>/<variavel>/era5_single_<regiao>_<variavel>_<ano>.nc
+data/raw/era5/single_levels/<ano>/_annual_kind/era5_single_<regiao>_all_variables_<ano>.nc
 data/processed/zarr/era5/single_levels/<ano>/<variavel>/era5_single_<regiao>_<variavel>_<ano>_daily.zarr
 ```
 
@@ -456,16 +456,16 @@ Frequencia e formato:
 ```text
 fonte: horaria
 download do projeto: 00:00, 06:00, 12:00, 18:00
-download: anual por regiao e variavel no modo --annual-zarr
-bruto: NetCDF anual por regiao/variavel no modo --annual-zarr
+download: anual por regiao/tipo com variaveis agrupadas no modo --annual-zarr --request-mode annual-kind
+bruto: NetCDF anual agrupado em cache temporario
 processado: Zarr diario anual por regiao/variavel
-fallback: NetCDF/Zarr mensal apenas com --request-mode monthly-kind ou sem --annual-zarr
+fallback: annual-variable ou NetCDF/Zarr mensal apenas com --request-mode monthly-kind ou sem --annual-zarr
 ```
 
 Destino local:
 
 ```text
-data/raw/era5/pressure_levels/<ano>/<variavel>/era5_pressure_<regiao>_<variavel>_<ano>.nc
+data/raw/era5/pressure_levels/<ano>/_annual_kind/era5_pressure_<regiao>_all_variables_<ano>.nc
 data/processed/zarr/era5/pressure_levels/<ano>/<variavel>/era5_pressure_<regiao>_<variavel>_<ano>_daily.zarr
 ```
 
@@ -616,13 +616,13 @@ Para processar CTD bruto ja baixado:
 ### 5.7 Baixar ERA5 e converter para Zarr
 
 ```bash
-./.venv-wsl/bin/python scripts/data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+./.venv-wsl/bin/python scripts/data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 ### 5.8 Baixar ORAS5 e converter para Zarr
 
 ```bash
-./.venv-wsl/bin/python scripts/data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+./.venv-wsl/bin/python scripts/data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 ### 5.9 Baixar TAO/TRITON/Argo para validacao in situ

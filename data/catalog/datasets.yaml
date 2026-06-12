@@ -20,7 +20,7 @@ era5_single_levels:
   latency_days: 7
   raw_path: "data/raw/era5"
   processed_path: "data/processed/zarr/era5/single_levels/<year>/<variable>/era5_single_<region>_<variable>_<year>_daily.zarr"
-  notes: "Default annual mode requests one full year per region/variable, caches raw NetCDF, then aggregates 00/06/12/18 UTC values to daily Zarr. Use request_mode monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
+  notes: "Default annual-kind mode requests one full year per region/kind with all selected single-level variables, caches raw NetCDF, then writes one daily Zarr per variable. Use request_mode annual-variable or monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
 
 era5_pressure_levels:
   name: "ERA5 pressure levels"
@@ -43,7 +43,7 @@ era5_pressure_levels:
   latency_days: 7
   raw_path: "data/raw/era5"
   processed_path: "data/processed/zarr/era5/pressure_levels/<year>/<variable>/era5_pressure_<region>_<variable>_<year>_daily.zarr"
-  notes: "Default annual mode requests one full year per region/variable/all pressure levels, caches raw NetCDF, then aggregates 00/06/12/18 UTC values to daily Zarr. Use request_mode monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
+  notes: "Default annual-kind mode requests one full year per region/kind with all selected pressure variables and pressure levels, caches raw NetCDF, then writes one daily Zarr per variable. Use request_mode annual-variable or monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
 
 oras5:
   name: "ORAS5 ocean reanalysis"
@@ -63,7 +63,7 @@ oras5:
   latency_days: 45
   raw_path: "data/raw/oras"
   processed_path: "data/processed/zarr/oras/<year>/<variable>/oras5_<variable>_<year>_daily.zarr"
-  notes: "Default annual mode requests one full year per variable, caches raw ZIP/NetCDF, then aligns the monthly source to the daily model calendar as explicit ocean-memory features. Use monthly mode without annual_zarr only for open-year months or fallback. Daily OISST is the primary SST/SSTA source."
+  notes: "Default annual-kind mode requests one full year with all selected variables, caches raw ZIP/NetCDF, then writes one daily Zarr per variable as explicit ocean-memory features. Use request_mode annual-variable or monthly mode only for fallback/open-year months. Daily OISST is the primary SST/SSTA source."
 
 noaa_wod_ctd:
   name: "NOAA World Ocean Database CTD profiles"

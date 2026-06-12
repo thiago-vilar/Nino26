@@ -91,26 +91,26 @@ ANO - sem dados
 
 ### 4.1 Historico anual fechado
 
-ERA5 usa Copernicus CDS. As credenciais precisam estar configuradas antes. No modo oficial do NINO26, `--annual-zarr` faz uma requisicao por ano/regiao/variavel e grava Zarr diario anual separado por variavel. Isso evita o padrao lento de 12 requisicoes mensais por ano/tipo.
+ERA5 usa Copernicus CDS. As credenciais precisam estar configuradas antes. No modo oficial do NINO26, `--annual-zarr --request-mode annual-kind` faz uma requisicao por ano/regiao/tipo (`single` ou `pressure`) e grava Zarr diario anual separado por variavel. Isso reduz a fila: em vez de 28 requisicoes por ano para duas regioes, o padrao cai para 4 requisicoes por ano.
 
 ```cmd
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py check-cds
 
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 Se a maquina ja tem 1981-1984 completos, retome em 1985:
 
 ```cmd
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1985 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1985 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 Esse comando anual baixa apenas anos completos. Se a data atual ainda estiver no meio do ano, o ano em aberto e ignorado automaticamente para evitar meses futuros. A flag `--delete-raw-after-zarr` transforma o NetCDF bruto em cache temporario: depois que o Zarr anual por variavel e validado, o `.nc` bruto daquela tarefa e apagado.
 
-Fallback antigo, so se o CDS rejeitar uma requisicao anual grande:
+Fallback fino, so se o CDS rejeitar uma requisicao anual agrupada:
 
 ```cmd
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1985 --kind both --region nino34 --region brazil --annual-zarr --request-mode monthly-kind --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1985 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-variable --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 ### 4.2 ERA5 do ano em aberto
@@ -126,10 +126,10 @@ cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-er
 ### 5.1 Historico anual fechado
 
 ```cmd
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
-O ORAS5 tem latencia maior que ERA5. No modo oficial do NINO26, `--annual-zarr` faz uma requisicao por ano/variavel e grava Zarr diario anual separado por variavel. O dado fonte continua sendo mensal; o Zarr diario e alinhamento de calendario para as features de memoria oceanica.
+O ORAS5 tem latencia maior que ERA5. No modo oficial do NINO26, `--annual-zarr --request-mode annual-kind` faz uma requisicao por ano com todas as variaveis selecionadas e grava Zarr diario anual separado por variavel. O dado fonte continua sendo mensal; o Zarr diario e alinhamento de calendario para as features de memoria oceanica.
 
 Esse comando anual baixa apenas anos completos. Se a data atual ainda estiver no meio do ano, o ano em aberto e ignorado automaticamente para evitar meses futuros.
 
@@ -219,11 +219,11 @@ Comandos:
 ```cmd
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --overwrite --execute --continue-on-error
 
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1985 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1985 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 2026 --kind both --region nino34 --region brazil --execute --continue-on-error
 
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 2026 --execute --continue-on-error
 

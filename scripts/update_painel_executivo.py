@@ -257,11 +257,11 @@ def command_rows() -> list[list[str]]:
         ],
         [
             "ERA5",
-            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
         ],
         [
             "ORAS5",
-            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
         ],
         [
             "TAO/TRITON/Argo",
@@ -322,7 +322,7 @@ def build_markdown() -> str:
         "",
         "## Proxima decisao tecnica",
         "",
-        "- Fechar ERA5 e ORAS5 no fluxo compacto: raw temporario -> Zarr anual por variavel -> apagar raw validado.",
+        "- Fechar ERA5 e ORAS5 no fluxo compacto: requisicao anual agrupada -> Zarr anual por variavel -> apagar raw validado.",
         "- Depois, iniciar Fase 3 com diagnosticos Nino 3.4: anomalias, termoclina, volume/grau, slope e duracao do sinal.",
         "- So depois da Fase 3 entrar na Fase 4 experimental: regressao multipla, PCA, KNN e triagem de combinacoes.",
         "",

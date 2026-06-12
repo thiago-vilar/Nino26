@@ -271,6 +271,8 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                     "--region",
                                     region,
                                     "--annual-zarr",
+                                    "--request-mode",
+                                    "annual-kind",
                                     "--delete-raw-after-zarr",
                                     *era5_vars,
                                     "--execute",
@@ -292,6 +294,8 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                     "--region",
                                     region,
                                     "--annual-zarr",
+                                    "--request-mode",
+                                    "annual-kind",
                                     "--delete-raw-after-zarr",
                                     *era5_vars,
                                     "--execute",
@@ -322,23 +326,24 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                             )
                         )
             else:
-                for variable in oras_variables:
-                    steps.append(
-                        (
-                            f"fonte_oras5_ano_{year}_{safe_step_name(variable)}_zarr_anual",
-                            python_cmd(
-                                "scripts/data_pipeline.py",
-                                "download-oras",
-                                *year_args,
-                                "--annual-zarr",
-                                "--delete-raw-after-zarr",
-                                "--variable",
-                                variable,
-                                "--execute",
-                                *keep_going,
-                            ),
-                        )
+                oras_vars = variable_args(oras_variables, bool(args.oras_variable))
+                steps.append(
+                    (
+                        f"fonte_oras5_ano_{year}_annual_kind_zarr_anual",
+                        python_cmd(
+                            "scripts/data_pipeline.py",
+                            "download-oras",
+                            *year_args,
+                            "--annual-zarr",
+                            "--request-mode",
+                            "annual-kind",
+                            "--delete-raw-after-zarr",
+                            *oras_vars,
+                            "--execute",
+                            *keep_going,
+                        ),
                     )
+                )
 
     if args.include_ctd:
         for year in sorted(source_years.get("noaa_wod_ctd", set())):

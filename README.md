@@ -119,9 +119,9 @@ cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\curate_and_resume_downloads.
 
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 
-cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-validation --source all --start-year 1981 --max-depth 300 --execute --continue-on-error
 ```
@@ -167,16 +167,16 @@ python scripts\data_pipeline.py check-cds
 ERA5:
 
 ```powershell
-python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
 ORAS5:
 
 ```powershell
-python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --delete-raw-after-zarr --execute --continue-on-error
+python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
-Os comandos CDS usam bruto como cache temporario quando combinados com `--delete-raw-after-zarr`; no ERA5, o fluxo oficial em `--annual-zarr` faz uma requisicao por ano/regiao/variavel e gera Zarr diario anual separado por variavel. No ORAS5, `--annual-zarr` faz uma requisicao por ano/variavel e alinha a fonte mensal ao calendario diario. Use o modo mensal sem `--annual-zarr` apenas para ano em aberto ou fallback.
+Os comandos CDS usam bruto como cache temporario quando combinados com `--delete-raw-after-zarr`; no ERA5, o fluxo oficial `--annual-zarr --request-mode annual-kind` faz uma requisicao por ano/regiao/tipo (`single` ou `pressure`) e gera Zarr diario anual separado por variavel. No ORAS5, `annual-kind` faz uma requisicao por ano com todas as variaveis selecionadas e alinha a fonte mensal ao calendario diario. Use `annual-variable` ou modo mensal apenas como fallback.
 
 ### 7. CTD/WOD
 
