@@ -19,7 +19,8 @@ Regras:
 - registrar a cobertura temporal real de cada variável antes do alinhamento.
 - registrar lacunas de fonte sem preenchimento silencioso.
 - converter ERA5 subdiário para estatísticas diárias.
-- alinhar ORAS5 mensal, baixado no historico por ano/variavel, como variavel de memoria oceanica com regra explicita de lag.
+- usar NOAA UFS/GLORYS como oceano originalmente diario e ORAS5 como memoria mensal independente, mantendo fonte, frequencia e resolucao explicitamente identificadas.
+- nunca promover ORAS5 mensal a observacao diaria; para modelos diarios, liberar apenas o ultimo mes ja publicado com latencia causal.
 - avaliar previsões em horizontes semanais de 1 a 24 semanas, equivalentes a 7-168 dias.
 - documentar qualquer reamostragem temporal.
 - registrar a latência de cada fonte no ledger de auditoria.
@@ -143,12 +144,12 @@ picnoclina = profundidade do maior gradiente vertical de sigma0
 
 ## 4.2 Validacao TAO/TRITON/Argo
 
-TAO/TRITON/Argo nao muda a direcao do projeto e nao substitui OISST, ORAS5 ou CTD/WOD. Essa camada entra como validacao independente para manter aberta a pergunta cientifica: a subsuperficie do Pacifico Nino 3.4 melhora a explicacao das anomalias de chuva/seca no Brasil, ou SST/SSTA superficial e suficiente?
+TAO/TRITON/Argo nao muda a direcao do projeto e nao substitui OISST, os cubos oceânicos diarios ou CTD/WOD. Essa camada entra como validacao independente para manter aberta a pergunta cientifica: a subsuperficie do Pacifico Nino 3.4 melhora a explicacao das anomalias de chuva/seca no Brasil, ou SST/SSTA superficial e suficiente?
 
 Uso metodologico:
 
 ```text
-1. comparar ORAS5 contra observacoes in situ no Nino 3.4;
+1. comparar NOAA UFS, GLORYS12V1 e ORAS5 contra observacoes in situ no Nino 3.4, respeitando a frequencia de cada fonte;
 2. validar D20, termoclina, OHC 0-300 m e temperatura media 0-300 m;
 3. identificar periodos em que CTD/WOD e escasso sem preencher lacunas artificialmente;
 4. rodar ablation com e sem variaveis subsuperficiais em walk-forward.
@@ -176,7 +177,59 @@ Umidade e convecção: TCWV, OLR
 
 Essas variáveis descrevem circulação, transporte de umidade, subsidência, ascensão, teleconexões e convecção tropical.
 
-## 6. Cruzamento Pacífico -> Brasil
+## 6. Aprendizado em duas etapas
+
+A fase de IA fica separada em duas perguntas. Essa separacao evita que o
+modelo tente aprender ao mesmo tempo a dinamica do El Nino e o impacto
+regional no Brasil.
+
+Etapa 5A - Modelo de progressao ENSO:
+
+```text
+trajetoria diaria oceano-atmosfera do Nino3.4 em t -> pico futuro do El Nino
+```
+
+O sinal dinamico principal da Etapa 5A deve vir da SSTA diaria Nino3.4
+extraida do OISST para 1981-latest_available. O indice mensal NOAA PSL/ERSST
+v6 entra como referencia oficial de rotulo/pico, nao como unica variavel de
+aprendizado. A serie diaria preserva rampa, aceleracao, persistencia,
+reversoes curtas e duracao do aquecimento.
+
+Alvos minimos:
+
+```text
+future_peak_ssta
+days_to_peak
+future_peak_class
+will_el_nino
+will_strong_el_nino
+will_super_el_nino
+```
+
+O treino deve ser evento-centrado. O modelo precisa aprender trajetorias de
+aquecimento, recarga de calor, D20, OHC, WWV, slope, ventos e duracao do sinal
+que antecedem picos historicos, especialmente Super El Nino.
+
+Etapa 5B - Modelo de teleconexao Nino3.4 -> Brasil:
+
+```text
+estado/fase/intensidade do Nino3.4 em t -> eventos climaticos em clusters de pixels do Brasil em t + lag
+```
+
+O alvo regional nao deve ser apenas media do Brasil. Primeiro os pixels sao
+clusterizados por comportamento de eventos secos/umidos; depois cada cluster
+vira uma unidade de previsao com taxa/probabilidade de evento.
+
+Saidas numericas minimas:
+
+```text
+data/processed/zarr/features/noaa_psl_nino34_reference_peaks.zarr
+data/processed/zarr/features/nino34_daily_oisst.zarr
+data/processed/zarr/modeling/enso_peak_progression.zarr
+data/processed/zarr/modeling/nino34_cluster_progression.zarr
+```
+
+## 6.1 Cruzamento Pacífico -> Brasil
 
 Para cada lag:
 
@@ -247,7 +300,26 @@ Fase 4 - pre-analises estatisticas experimentais:
 - correlacao defasada por lag semanal.
 - ablation screening de variaveis individuais e combinadas.
 
-Modelos da Fase 5:
+Modelos da Fase 5A - progressao ate pico ENSO:
+
+- climatologia e persistencia como baselines.
+- regressao regularizada para intensidade futura do pico.
+- Random Forest e LightGBM para classe/probabilidade de El Nino forte ou Super El Nino.
+- leave-one-event-out para eventos principais.
+- XAI por variavel fisica, horizonte mensal e evento historico.
+
+Modelos da Fase 5B - Nino3.4 para clusters de pixels no Brasil:
+
+- climatologia.
+- persistencia.
+- correlacao defasada.
+- regressao regularizada.
+- Random Forest.
+- LightGBM/XGBoost.
+- clusterizacao de pixels por frequencia, sazonalidade e intensidade de eventos secos/umidos.
+- avaliacao por cluster, lag, estacao e classe de evento.
+
+Modelos legados da Fase 5 para comparacao:
 
 - climatologia.
 - persistência.
@@ -258,10 +330,44 @@ Modelos da Fase 5:
 
 Modelos da Fase 6, Redes Neurais + XAI:
 
-- CNN.
-- ConvLSTM.
-- U-Net.
-- Transformer espaço-temporal.
+Fase 6A - CNN espacial nativa NINO-BRASIL:
+
+- objetivo: criar um baseline neural nativo para prever a progressao ate o pico ENSO.
+- arquitetura: encoder CNN espacial multihorizonte com cabecas densas para regressao/classificacao evento-centrada.
+- entrada: campos diarios OISST/SSTA, trajetoria diaria Nino3.4, ERA5 ponte atmosferica e oceano diario/D20/OHC/WWV quando disponiveis.
+- janelas candidatas: 90, 180, 365 e 540 dias antes da origem.
+- alvos: `future_peak_ssta`, `days_to_peak`, `future_peak_class`, `will_strong_el_nino`, `will_super_el_nino` e estado `P90`/MHW da SSTA Nino3.4.
+
+Fase 6B - memoria espaco-temporal da progressao ENSO:
+
+- objetivo: aprender a rampa, aceleracao, persistencia, reversoes curtas e duracao do aquecimento ate o topo do El Nino.
+- modelos candidatos: ConvLSTM, Temporal CNN e 1D-Transformer sobre series fisicas agregadas.
+- variaveis-chave: SSTA, tendencia de SSTA, medias moveis 7/30/90/180 dias, duracao acima de limiar, excedencia `P90`, D20, OHC, WWV, ventos e SLP.
+- validacao: blocked walk-forward, leave-one-major-event-out e leave-one-super-el-nino-out.
+- pergunta central: o modelo antecipa o pico por processo fisico ou apenas memoriza anos fortes?
+
+Fase 6C - teleconexoes neurais Nino3.4 -> Brasil:
+
+- objetivo: usar o estado latente ENSO aprendido em 6A/6B para prever impactos por clusters de pixels no Brasil.
+- entrada: estado ENSO, trajetoria Nino3.4, ponte atmosferica ERA5, sazonalidade e metadados dos clusters.
+- alvos por cluster: probabilidade `P10` seco extremo, `P25` chuva baixa, `P75` chuva alta, `P90` chuva extrema e anomalia de precipitacao.
+- o alvo `P90` e prioritario para chuva extrema no Sul e para avaliar se a rede entende a cauda superior da distribuicao local.
+- avaliacao: Brier, ROC-AUC, hit rate, false alarm rate, skill por lag, por estacao e por cluster.
+
+Fallback de pre-treino/fine-tuning CMIP6:
+
+- CMIP6 entra apenas se 6A/6B/6C nao superarem climatologia, persistencia e Fase 5 em validacao evento-centrada.
+- qualquer uso de CMIP6 exige anomalias e correcao de vies por modelo, pre-treino separado, fine-tuning em observacao/reanalise e relatorio separado de skill nativo vs fine-tuned.
+- split aleatorio continua proibido.
+
+Fase 8 - exploracao adicional Ham2019:
+
+- objetivo: testar pesos salvos, tensores compativeis e dados associados a Ham2019/reproducao em uma bancada separada.
+- a Fase 8 nao alimenta o treino principal da Fase 6 e nao substitui os modelos nativos.
+- usos permitidos: inventario de SavedModels, leitura de shapes/assinaturas, inferencia congelada se houver compatibilidade de entrada, comparacao de skill contra Fases 5/6 e relatorio de limites de transferencia.
+- os pesos baixados ficam em `data/raw/external/ham2019_reproduction_weights`.
+- qualquer dado externo adicional de Ham2019 deve ser marcado como exploratorio, ter licenca revisada e ficar em namespace separado.
+- resultados devem ser reportados como `ham2019_exploratory_*`, nunca misturados com `neural_6a/6b/6c`.
 
 ## 8. Validação
 
@@ -270,6 +376,8 @@ Regras:
 - não usar split aleatório.
 - usar treino, validação e teste por blocos temporais.
 - aplicar walk-forward validation.
+- aplicar leave-one-event-out na Etapa 5A para picos El Nino/Super El Nino.
+- avaliar a Etapa 5B por clusters de pixels, sem tratar pixels do mesmo cluster como amostras independentes.
 - avaliar por lag.
 - avaliar por região.
 - avaliar por estação do ano.
@@ -337,6 +445,10 @@ Esses stores Zarr geram um ranking experimental das variaveis Nino 3.4, individu
 Saídas operacionais da Fase 5:
 
 ```text
+noaa_psl_nino34_reference_peaks.zarr
+nino34_daily_oisst.zarr
+enso_peak_progression.zarr
+nino34_cluster_progression.zarr
 walk_forward_metrics.zarr
 walk_forward_predictions.zarr
 walk_forward_importances.zarr
@@ -345,6 +457,10 @@ walk_forward_group_weights.zarr
 
 Esses arquivos alimentam os mapas de peso oceanográfico, peso atmosférico e variável dominante.
 
+Os dois primeiros stores da Fase 5 sao os contratos principais da nova fase:
+primeiro progressao ate pico ENSO; depois teleconexao Nino3.4 -> clusters de
+pixels no Brasil. Os stores walk-forward ficam como avaliacao, comparacao e XAI.
+
 Saídas operacionais da Fase 6:
 
 ```text
@@ -352,9 +468,27 @@ neural_training_runs.zarr
 neural_predictions.zarr
 neural_xai_maps.zarr
 neural_skill_comparison.zarr
+neural_6a_enso_cnn_training_runs.zarr
+neural_6a_enso_cnn_predictions.zarr
+neural_6b_enso_memory_training_runs.zarr
+neural_6b_enso_memory_predictions.zarr
+neural_6c_brazil_cluster_training_runs.zarr
+neural_6c_brazil_cluster_predictions.zarr
+neural_6c_brazil_cluster_p90_metrics.zarr
 ```
 
 Esses stores Zarr alimentam a comparação entre redes neurais, ML clássico e XAI físico.
+
+Saidas operacionais da Fase 8:
+
+```text
+ham2019_exploratory_weight_inventory.zarr
+ham2019_exploratory_predictions.zarr
+ham2019_exploratory_skill_comparison.zarr
+ham2019_exploratory_report.csv
+```
+
+Esses arquivos sao exploratorios e nao definem a habilidade operacional do NINO-BRASIL.
 
 ## 9.1 Diagnóstico distribucional
 

@@ -47,17 +47,17 @@ PHASES: tuple[ProjectPhase, ...] = (
     ),
     ProjectPhase(
         5,
-        "classical_ml_xai",
-        "Machine learning classico e XAI",
-        "Ridge, Random Forest, XGBoost/LightGBM, walk-forward, permutation importance, SHAP e pesos por grupo.",
-        "Stores Zarr de metricas, previsoes, importancias, pesos por grupo e mapas analiticos.",
+        "event_centered_ai_xai",
+        "IA em duas etapas: ENSO e teleconexoes",
+        "Etapa 5A aprende a progressao diaria OISST/SSTA ate o pico El Nino/Super El Nino; Etapa 5B aprende Nino3.4 -> eventos climaticos por clusters de pixels no Brasil.",
+        "Stores Zarr de progressao ENSO, progressao por cluster, metricas, previsoes, importancias e pesos por grupo.",
     ),
     ProjectPhase(
         6,
-        "neural_networks_xai",
-        "Redes neurais, XAI e memoria experimental",
-        "CNN, ConvLSTM, U-Net, Transformer espaco-temporal, XAI neural e experimentos Memory Caching.",
-        "Stores Zarr de treino/inferencia neural, explicabilidade neural e comparacao contra fases anteriores.",
+        "neural_event_progression_xai",
+        "Redes neurais 6A/6B/6C e XAI",
+        "6A treina um encoder CNN espacial multihorizonte; 6B testa memoria espaco-temporal para progressao ate pico ENSO; 6C aprende teleconexoes neurais Nino3.4 -> clusters/P90 no Brasil.",
+        "Stores Zarr de treino neural, previsoes por evento, metricas P90/P10, XAI e comparacao contra Fase 5; CMIP6 fica apenas como fallback de pre-treino/fine-tuning.",
     ),
     ProjectPhase(
         7,
@@ -65,6 +65,13 @@ PHASES: tuple[ProjectPhase, ...] = (
         "Publicacao e operacao",
         "GitHub Pages, relatorios automaticos, comparacao previsao-observado, drift, recalibracao e rotina recorrente.",
         "Produto operacional em docs/ com painel publico e rotina atualizavel.",
+    ),
+    ProjectPhase(
+        8,
+        "ham2019_exploratory_benchmark",
+        "Exploracao adicional Ham2019",
+        "Testes isolados com arquitetura, pesos salvos e dados associados ao estudo Ham2019/reproducao, sem contaminar a trilha principal da Fase 6.",
+        "Relatorios e stores separados de compatibilidade, inferencia, skill comparativo e limites de transferencia dos pesos externos.",
     ),
 )
 

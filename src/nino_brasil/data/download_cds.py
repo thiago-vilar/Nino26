@@ -11,12 +11,14 @@ import zipfile
 from pathlib import Path
 
 import cdsapi
+import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
 from nino_brasil.data.audit import AuditLog, dataset_summary, file_info
 from nino_brasil.data.credentials import DEFAULT_CDS_API_URL, load_local_env
 from nino_brasil.data.zarr_store import (
+    ZARR_FORMAT,
     chunk_plan,
     netcdf_collection_to_daily_zarr,
     netcdf_to_daily_zarr,
@@ -50,13 +52,6 @@ ERA5_PRESSURE_VARIABLES = [
 
 ERA5_PRESSURE_LEVELS = ["200", "500", "850"]
 
-ORAS5_VARIABLES = [
-    "potential_temperature",
-    "salinity",
-    "ocean_heat_content_for_the_upper_300m",
-    "ocean_heat_content_for_the_upper_700m",
-]
-
 ERA5_SINGLE_VARIABLE_ALIASES = {
     "mean_sea_level_pressure": ["msl"],
     "10m_u_component_of_wind": ["u10"],
@@ -77,18 +72,10 @@ ERA5_PRESSURE_VARIABLE_ALIASES = {
     "divergence": ["d"],
 }
 
-ORAS5_VARIABLE_ALIASES = {
-    "potential_temperature": ["thetao", "temperature"],
-    "salinity": ["so"],
-    "ocean_heat_content_for_the_upper_300m": ["ohc_0_300m", "ohc300"],
-    "ocean_heat_content_for_the_upper_700m": ["ohc_0_700m", "ohc700"],
-}
-
 ATMOSPHERE_AREAS = {
     "nino34": [5, -170, -5, -120],
     "brazil": [7, -75, -35, -30],
 }
-
 
 def _days(year: int, month: int) -> list[str]:
     last_day = calendar.monthrange(year, month)[1]
@@ -139,6 +126,22 @@ def _variable_slug(variables: list[str] | None) -> str | None:
     return "__".join(_safe_name(variable) for variable in variables)
 
 
+def _env_int(name: str, default: int, *, minimum: int = 1) -> int:
+    value = os.environ.get(name)
+    if not value:
+        return default
+    parsed = int(value)
+    return max(minimum, parsed)
+
+
+def _env_float(name: str, default: float, *, minimum: float = 1.0) -> float:
+    value = os.environ.get(name)
+    if not value:
+        return default
+    parsed = float(value)
+    return max(minimum, parsed)
+
+
 def _group_slug(variables: list[str], default: list[str]) -> str:
     return "all_variables" if variables == default else _variable_slug(variables) or "selected_variables"
 
@@ -175,19 +178,25 @@ def _era5_variable_zarr_path(
         variables=[variable],
     )
 
+def _zarr_valid(path: Path, *, expected_variable: str | None = None) -> bool:
+    if not path.exists():
+        return False
+    summary = dataset_summary(path, zarr=True)
+    variables = set(summary.get("variables", []))
+    if not variables:
+        return False
+    if expected_variable and expected_variable not in variables:
+        return False
+    return True
 
-def _oras_variable_zarr_path(*, zarr_root: Path, year: int, variable: str) -> Path:
-    slug = _safe_name(variable)
-    return zarr_root / "oras" / str(year) / slug / f"oras5_{slug}_{year}_daily.zarr"
 
-
-def _all_zarrs_valid(paths: list[Path], *, overwrite: bool) -> bool:
+def _all_zarrs_valid(paths: list[Path], *, overwrite: bool, expected_variables: list[str] | None = None) -> bool:
     if overwrite:
         return False
-    for path in paths:
-        if not path.exists():
+    for index, path in enumerate(paths):
+        expected_variable = expected_variables[index] if expected_variables and index < len(expected_variables) else None
+        if not _zarr_valid(path, expected_variable=expected_variable):
             return False
-        dataset_summary(path, zarr=True)
     return True
 
 
@@ -222,7 +231,7 @@ def _combine_monthly_zarrs_to_annual(
         chunks = chunk_plan(annual)
         if chunks:
             annual = annual.chunk(chunks)
-        annual.to_zarr(annual_path, mode="w", consolidated=True, zarr_format=2)
+        annual.to_zarr(annual_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
         annual.close()
     finally:
         for ds in opened:
@@ -241,7 +250,16 @@ def _client() -> cdsapi.Client:
         raise RuntimeError("CDS_API_KEY is not set.")
     if os.environ.get("NINO_CDS_VERBOSE", "").lower() not in {"1", "true", "yes"}:
         logging.disable(logging.INFO)
-    return cdsapi.Client(url=url, key=key)
+    retry_max = _env_int("NINO_CDS_RETRY_MAX", 5)
+    sleep_max = _env_float("NINO_CDS_SLEEP_MAX", 60.0)
+    timeout = _env_float("NINO_CDS_TIMEOUT", 120.0)
+    return cdsapi.Client(
+        url=url,
+        key=key,
+        retry_max=retry_max,
+        sleep_max=sleep_max,
+        timeout=timeout,
+    )
 
 
 def _download_cds_result(result: object, target: Path, *, label: str | None = None) -> Path:
@@ -448,30 +466,6 @@ def download_era5_pressure_month(
     )
 
 
-def download_oras_month(
-    *,
-    year: int,
-    month: int,
-    raw_dir: Path,
-    variables: list[str] | None = None,
-    dry_run: bool = True,
-    overwrite: bool = False,
-) -> Path:
-    request = _oras_request(year, month, variables=variables)
-    slug = _variable_slug(variables)
-    if slug:
-        output_path = raw_dir / str(year) / slug / f"oras5_{slug}_{year}{month:02d}.zip"
-    else:
-        output_path = raw_dir / str(year) / f"oras5_{year}{month:02d}.zip"
-    return retrieve_cds(
-        dataset="reanalysis-oras5",
-        request=request,
-        output_path=output_path,
-        dry_run=dry_run,
-        overwrite=overwrite,
-    )
-
-
 def _task_record_start(
     audit: AuditLog,
     *,
@@ -527,10 +521,6 @@ def _record_error(
 
 def _era5_task_label(*, year: int, region: str, kind: str, variable: str) -> str:
     return f"ERA5 {year} {region} {kind} {variable}"
-
-
-def _oras_task_label(*, year: int, variable: str) -> str:
-    return f"ORAS5 {year} {variable}"
 
 
 def _delete_raw_cache(
@@ -662,42 +652,6 @@ def _era5_pressure_year_kind_request(year: int, region: str, *, variables: list[
     }
 
 
-def _oras_request(year: int, month: int, *, variables: list[str] | None = None) -> dict[str, object]:
-    product_type = "consolidated" if year <= 2014 else "operational"
-    return {
-        "product_type": product_type,
-        "vertical_resolution": "all_levels",
-        "variable": _resolve_variables(variables, ORAS5_VARIABLES),
-        "year": str(year),
-        "month": _month(month),
-        "data_format": "netcdf",
-    }
-
-
-def _oras_year_request(year: int, *, variable: str, months: list[int] | None = None) -> dict[str, object]:
-    product_type = "consolidated" if year <= 2014 else "operational"
-    return {
-        "product_type": product_type,
-        "vertical_resolution": "all_levels",
-        "variable": [variable],
-        "year": str(year),
-        "month": _months(months),
-        "data_format": "netcdf",
-    }
-
-
-def _oras_year_kind_request(year: int, *, variables: list[str] | None = None, months: list[int] | None = None) -> dict[str, object]:
-    product_type = "consolidated" if year <= 2014 else "operational"
-    return {
-        "product_type": product_type,
-        "vertical_resolution": "all_levels",
-        "variable": _resolve_variables(variables, ORAS5_VARIABLES),
-        "year": str(year),
-        "month": _months(months),
-        "data_format": "netcdf",
-    }
-
-
 def ingest_era5_single_month(
     *,
     year: int,
@@ -729,8 +683,8 @@ def ingest_era5_single_month(
 
     _task_record_start(audit, task_id=task_id, dataset="era5_single", raw_path=raw_path, zarr_path=zarr_path, request=request)
     try:
-        if zarr_path.exists() and not overwrite:
-            dataset_summary(zarr_path, zarr=True)
+        expected_variable = requested_variables[0] if len(requested_variables) == 1 else None
+        if _zarr_valid(zarr_path, expected_variable=expected_variable) and not overwrite:
             print(f"skip valid zarr: {zarr_path}")
         else:
             retrieve_cds(
@@ -790,8 +744,8 @@ def ingest_era5_pressure_month(
 
     _task_record_start(audit, task_id=task_id, dataset="era5_pressure", raw_path=raw_path, zarr_path=zarr_path, request=request)
     try:
-        if zarr_path.exists() and not overwrite:
-            dataset_summary(zarr_path, zarr=True)
+        expected_variable = requested_variables[0] if len(requested_variables) == 1 else None
+        if _zarr_valid(zarr_path, expected_variable=expected_variable) and not overwrite:
             print(f"skip valid zarr: {zarr_path}")
         else:
             retrieve_cds(
@@ -1004,8 +958,7 @@ def ingest_era5_single_year_variable(
 
     _task_record_start(audit, task_id=task_id, dataset="era5_single_annual_variable", raw_path=raw_path, zarr_path=zarr_path, request=request)
     try:
-        if zarr_path.exists() and not overwrite:
-            dataset_summary(zarr_path, zarr=True)
+        if _zarr_valid(zarr_path, expected_variable=variable) and not overwrite:
             print(f"{label} - ja existe")
         else:
             print(f"{label} - baixando")
@@ -1077,8 +1030,7 @@ def ingest_era5_pressure_year_variable(
 
     _task_record_start(audit, task_id=task_id, dataset="era5_pressure_annual_variable", raw_path=raw_path, zarr_path=zarr_path, request=request)
     try:
-        if zarr_path.exists() and not overwrite:
-            dataset_summary(zarr_path, zarr=True)
+        if _zarr_valid(zarr_path, expected_variable=variable) and not overwrite:
             print(f"{label} - ja existe")
         else:
             print(f"{label} - baixando")
@@ -1158,7 +1110,7 @@ def _ingest_era5_year_kind(
         print(json.dumps(request, indent=2))
         return zarr_paths
 
-    all_valid = _all_zarrs_valid(zarr_paths, overwrite=overwrite)
+    all_valid = _all_zarrs_valid(zarr_paths, overwrite=overwrite, expected_variables=selected_variables)
     audit.record(
         task_id=task_id,
         dataset=dataset_name,
@@ -1193,8 +1145,7 @@ def _ingest_era5_year_kind(
             ascii=True,
         ):
             variable_label = _era5_task_label(year=year, region=region, kind=kind, variable=variable)
-            if zarr_path.exists() and not overwrite:
-                dataset_summary(zarr_path, zarr=True)
+            if _zarr_valid(zarr_path, expected_variable=variable) and not overwrite:
                 print(f"{variable_label} - ja existe")
             else:
                 print(f"{variable_label} - convertendo zarr")
@@ -1307,272 +1258,3 @@ def ingest_era5_pressure_year_kind(
         delete_raw_after_zarr=delete_raw_after_zarr,
         audit=audit,
     )
-
-
-def ingest_oras_month(
-    *,
-    year: int,
-    month: int,
-    raw_dir: Path,
-    interim_dir: Path,
-    zarr_root: Path,
-    variables: list[str] | None = None,
-    dry_run: bool = True,
-    overwrite: bool = False,
-    include_hash: bool = False,
-    audit: AuditLog | None = None,
-) -> Path:
-    audit = audit or AuditLog()
-    requested_variables = _resolve_variables(variables, ORAS5_VARIABLES)
-    slug = _variable_slug(variables)
-    task_id = f"oras5_{slug}_{year}{month:02d}" if slug else f"oras5_{year}{month:02d}"
-    request = _oras_request(year, month, variables=variables)
-    if slug:
-        raw_path = raw_dir / str(year) / slug / f"{task_id}.zip"
-        extract_dir = interim_dir / str(year) / slug / task_id
-        zarr_path = zarr_root / "oras" / str(year) / slug / f"{task_id}_daily.zarr"
-    else:
-        raw_path = raw_dir / str(year) / f"{task_id}.zip"
-        extract_dir = interim_dir / str(year) / task_id
-        zarr_path = zarr_root / "oras" / str(year) / f"{task_id}_daily.zarr"
-
-    if dry_run:
-        print(f"DRY RUN ingest {task_id}: raw={raw_path} zarr={zarr_path}")
-        return zarr_path
-
-    _task_record_start(audit, task_id=task_id, dataset="oras5", raw_path=raw_path, zarr_path=zarr_path, request=request)
-    try:
-        if zarr_path.exists() and not overwrite:
-            dataset_summary(zarr_path, zarr=True)
-            print(f"skip valid zarr: {zarr_path}")
-        else:
-            retrieve_cds(
-                dataset="reanalysis-oras5",
-                request=request,
-                output_path=raw_path,
-                dry_run=False,
-                overwrite=overwrite,
-            )
-            if extract_dir.exists() and overwrite:
-                shutil.rmtree(extract_dir)
-            start, end = _month_bounds(year, month)
-            zip_netcdf_to_daily_zarr(
-                raw_path,
-                extract_dir,
-                zarr_path,
-                variables=requested_variables,
-                variable_aliases=ORAS5_VARIABLE_ALIASES,
-                source_frequency="monthly",
-                daily_start=start,
-                daily_end=end,
-                overwrite=overwrite,
-            )
-        _record_ok(audit, task_id=task_id, dataset="oras5", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
-        return zarr_path
-    except BaseException as exc:
-        _record_error(audit, task_id=task_id, dataset="oras5", error=exc)
-        raise
-
-
-def ingest_oras_year_variable(
-    *,
-    year: int,
-    variable: str,
-    raw_dir: Path,
-    interim_dir: Path,
-    zarr_root: Path,
-    months: list[int] | None = None,
-    dry_run: bool = True,
-    overwrite: bool = False,
-    include_hash: bool = False,
-    delete_raw_after_zarr: bool = False,
-    audit: AuditLog | None = None,
-) -> Path:
-    if variable not in ORAS5_VARIABLES:
-        raise ValueError(f"No requested variable belongs to ORAS5: {variable}")
-
-    audit = audit or AuditLog()
-    selected_months = sorted(set(months or list(range(1, 13))))
-    request = _oras_year_request(year, variable=variable, months=selected_months)
-    slug = _safe_name(variable)
-    task_id = f"oras5_{slug}_{year}"
-    label = _oras_task_label(year=year, variable=variable)
-    raw_path = raw_dir / str(year) / slug / f"{task_id}.zip"
-    extract_dir = interim_dir / str(year) / slug / task_id
-    zarr_path = zarr_root / "oras" / str(year) / slug / f"{task_id}_daily.zarr"
-
-    if dry_run:
-        print(f"DRY RUN annual variable ingest {task_id}: raw={raw_path} zarr={zarr_path}")
-        print(json.dumps(request, indent=2))
-        return zarr_path
-
-    _task_record_start(audit, task_id=task_id, dataset="oras5_annual_variable", raw_path=raw_path, zarr_path=zarr_path, request=request)
-    try:
-        if zarr_path.exists() and not overwrite:
-            dataset_summary(zarr_path, zarr=True)
-            print(f"{label} - ja existe")
-        else:
-            print(f"{label} - baixando")
-            retrieve_cds(
-                dataset="reanalysis-oras5",
-                request=request,
-                output_path=raw_path,
-                dry_run=False,
-                overwrite=overwrite,
-                quiet=True,
-                label=label,
-            )
-            if extract_dir.exists() and overwrite:
-                shutil.rmtree(extract_dir)
-            start, end = _months_bounds(year, selected_months)
-            print(f"{label} - convertendo zarr")
-            zip_netcdf_to_daily_zarr(
-                raw_path,
-                extract_dir,
-                zarr_path,
-                variables=[variable],
-                variable_aliases=ORAS5_VARIABLE_ALIASES,
-                source_frequency="monthly",
-                daily_start=start,
-                daily_end=end,
-                overwrite=overwrite,
-                quiet=True,
-            )
-            print(f"{label} - ok")
-        _record_ok(audit, task_id=task_id, dataset="oras5_annual_variable", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
-        if delete_raw_after_zarr:
-            _delete_raw_cache(raw_path, audit, task_id=task_id, dataset="oras5_annual_variable", label=label)
-        return zarr_path
-    except BaseException as exc:
-        _record_error(audit, task_id=task_id, dataset="oras5_annual_variable", error=exc)
-        raise
-
-
-def ingest_oras_year_kind(
-    *,
-    year: int,
-    raw_dir: Path,
-    interim_dir: Path,
-    zarr_root: Path,
-    months: list[int] | None = None,
-    variables: list[str] | None = None,
-    dry_run: bool = True,
-    overwrite: bool = False,
-    include_hash: bool = False,
-    delete_raw_after_zarr: bool = False,
-    audit: AuditLog | None = None,
-) -> list[Path]:
-    audit = audit or AuditLog()
-    selected_months = sorted(set(months or list(range(1, 13))))
-    selected_variables = _resolve_variables(variables, ORAS5_VARIABLES)
-    invalid = [variable for variable in selected_variables if variable not in ORAS5_VARIABLES]
-    if invalid:
-        raise ValueError(f"No requested variable belongs to ORAS5: {invalid}")
-
-    slug = _group_slug(selected_variables, ORAS5_VARIABLES)
-    task_id = f"oras5_{slug}_{year}"
-    label = f"ORAS5 {year} {slug}"
-    request = _oras_year_kind_request(year, variables=selected_variables, months=selected_months)
-    raw_path = raw_dir / str(year) / "_annual_kind" / f"{task_id}.zip"
-    extract_dir = interim_dir / str(year) / "_annual_kind" / task_id
-    zarr_paths = [
-        _oras_variable_zarr_path(zarr_root=zarr_root, year=year, variable=variable)
-        for variable in selected_variables
-    ]
-
-    if dry_run:
-        print(f"DRY RUN annual-kind ingest {task_id}: raw={raw_path}")
-        for variable, zarr_path in zip(selected_variables, zarr_paths):
-            print(f"  zarr {variable}: {zarr_path}")
-        print(json.dumps(request, indent=2))
-        return zarr_paths
-
-    all_valid = _all_zarrs_valid(zarr_paths, overwrite=overwrite)
-    audit.record(
-        task_id=task_id,
-        dataset="oras5_annual_kind",
-        status="started",
-        year=year,
-        variables=selected_variables,
-        months=selected_months,
-        request_mode="annual_kind",
-        raw_path=str(raw_path),
-        extract_dir=str(extract_dir),
-        zarr_paths=[str(path) for path in zarr_paths],
-        request=request,
-    )
-    try:
-        if all_valid:
-            print(f"{label} - ja existe ({len(selected_variables)} variaveis)")
-        else:
-            print(f"{label} - baixando 1 requisicao CDS para {len(selected_variables)} variaveis")
-            retrieve_cds(
-                dataset="reanalysis-oras5",
-                request=request,
-                output_path=raw_path,
-                dry_run=False,
-                overwrite=overwrite,
-                quiet=True,
-                label=label,
-            )
-            if extract_dir.exists():
-                shutil.rmtree(extract_dir)
-            extract_dir.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(raw_path) as zf:
-                zf.extractall(extract_dir)
-
-        nc_files = sorted(extract_dir.rglob("*.nc")) if extract_dir.exists() else []
-        start, end = _months_bounds(year, selected_months)
-        for variable, zarr_path in tqdm(
-            list(zip(selected_variables, zarr_paths)),
-            desc=f"{label} -> zarr",
-            unit="var",
-            ascii=True,
-        ):
-            variable_label = _oras_task_label(year=year, variable=variable)
-            if zarr_path.exists() and not overwrite:
-                dataset_summary(zarr_path, zarr=True)
-                print(f"{variable_label} - ja existe")
-            else:
-                if not nc_files:
-                    raise FileNotFoundError(f"No extracted ORAS5 NetCDF files found for {raw_path}")
-                variable_nc_files = _netcdf_files_with_variable(nc_files, variable, ORAS5_VARIABLE_ALIASES)
-                if not variable_nc_files:
-                    raise KeyError(f"No extracted ORAS5 NetCDF file contains {variable}; extracted={nc_files[:5]}")
-                print(f"{variable_label} - convertendo zarr")
-                netcdf_collection_to_daily_zarr(
-                    variable_nc_files,
-                    zarr_path,
-                    variables=[variable],
-                    variable_aliases=ORAS5_VARIABLE_ALIASES,
-                    source_frequency="monthly",
-                    daily_start=start,
-                    daily_end=end,
-                    overwrite=overwrite,
-                    quiet=True,
-                )
-                print(f"{variable_label} - ok")
-            _record_ok(
-                audit,
-                task_id=f"oras5_{_safe_name(variable)}_{year}",
-                dataset="oras5_annual_kind_variable",
-                raw_path=raw_path,
-                zarr_path=zarr_path,
-                include_hash=include_hash,
-            )
-
-        audit.record(
-            task_id=task_id,
-            dataset="oras5_annual_kind",
-            status="ok",
-            year=year,
-            variables=selected_variables,
-            zarr_paths=[str(path) for path in zarr_paths],
-        )
-        if delete_raw_after_zarr:
-            _delete_raw_cache(raw_path, audit, task_id=task_id, dataset="oras5_annual_kind", label=label)
-            _delete_dir_cache(extract_dir, audit, task_id=task_id, dataset="oras5_annual_kind", label=label)
-        return zarr_paths
-    except BaseException as exc:
-        _record_error(audit, task_id=task_id, dataset="oras5_annual_kind", error=exc)
-        raise

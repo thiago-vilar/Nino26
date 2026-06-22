@@ -3,26 +3,123 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NINO-BRASIL</title>
+    <title>NINO-BRASIL Docs</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.5; color: #17202a; }
-      main { max-width: 920px; margin: auto; }
-      h1 { margin-bottom: 0.25rem; }
-      .meta { color: #52616b; margin-top: 0; }
-      .panel { border: 1px solid #d9e2ec; border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+      :root {
+        color-scheme: light;
+        --ink: #17202a;
+        --muted: #52616b;
+        --line: #d9e2ec;
+        --panel: #f8fafc;
+        --accent: #0f766e;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        line-height: 1.5;
+        color: var(--ink);
+        background: #ffffff;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 2rem;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      a {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 16px;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 8px;
+        margin: 16px 0;
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+        background: #ffffff;
+        font-size: 0.92rem;
+      }
+      ul {
+        padding-left: 20px;
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>Projeto de previsão climática El NINO e seus impactos no Brasil</h1>
-      <p class="meta">Programa de Pós Graduação em Oceanografia UFPE · Oceanografia Física · Thiago Vilar</p>
+      <h1>NINO-BRASIL</h1>
+      <p class="meta">Painel simples de navegacao da documentacao tecnica.</p>
+
       <section class="panel">
-        <h2>NINO-BRASIL</h2>
-        <p>Esta página será usada para publicar mapas coropléticos e pixel-a-pixel gerados pelo pipeline Python.</p>
+        <h2>Fluxo executivo</h2>
+        <div class="flow" aria-label="Fluxo executivo do projeto">
+          <div class="step">Fontes externas</div>
+          <div class="step">Raw auditavel</div>
+          <div class="step">Zarr diario</div>
+          <div class="step">Grade comum</div>
+          <div class="step">Features fisicas</div>
+          <div class="step">ENSO pico</div>
+          <div class="step">Clusters Brasil</div>
+          <div class="step">RN 6A ENSO</div>
+          <div class="step">RN 6B memoria</div>
+          <div class="step">RN 6C P90 Brasil</div>
+          <div class="step">Walk-forward</div>
+          <div class="step">CSV/Zarr</div>
+          <div class="step">Mapas e paineis</div>
+          <div class="step">Fase 8 Ham2019</div>
+        </div>
+        <p>O desenho detalhado, com Mermaid, metodos, micro-metodos e outputs, esta em <a href="ARQUITETURA.md">ARQUITETURA.md</a>.</p>
       </section>
-      <section class="panel">
-        <h2>Status</h2>
-        <p>Estrutura inicial criada. Os primeiros mapas serão adicionados em <code>docs/assets/maps/</code>.</p>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Operacao</h2>
+          <ul>
+            <li><a href="RUNBOOK_DOWNLOADS.md">Runbook de downloads</a></li>
+            <li><a href="../painel_executivo.md">Painel executivo local</a></li>
+            <li><a href="../README.md">README principal</a></li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h2>Base cientifica</h2>
+          <ul>
+            <li><a href="METODOLOGIA.md">Metodologia</a></li>
+            <li><a href="DATA_SOURCES.md">Fontes de dados</a></li>
+            <li><a href="PARECERES/">Pareceres e paineis</a></li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h2>Historico</h2>
+          <ul>
+            <li><a href="LEGADO/">Documentos de legado</a></li>
+            <li><a href="assets/maps/">Mapas e imagens</a></li>
+          </ul>
+        </article>
       </section>
     </main>
   </body>

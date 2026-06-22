@@ -6,8 +6,10 @@
 aiohttp
 cartopy
 cdsapi
+copernicusmarine
 dask
 folium
+fsspec
 geopandas
 gsw
 h5netcdf
@@ -16,11 +18,13 @@ joblib
 lightgbm
 matplotlib
 netCDF4
+numcodecs
 numpy
 pandas
 plotly
 PyYAML
 pytorch-lightning
+pytest
 rasterio
 regionmask
 requests

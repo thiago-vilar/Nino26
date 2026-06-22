@@ -13,7 +13,7 @@ Este documento define, de forma operacional, quais bases serao baixadas, quais v
 - Periodo do projeto: `1981-01-01` ate o ultimo dado disponivel por fonte.
 - Frequencia mestre da modelagem: diaria.
 - Downloads grandes devem ser executados por ano ou por mes, nunca como bloco unico.
-- Todo dado bruto entra por `data/raw/`; ERA5/ORAS podem usar raw como cache temporario e apagar o arquivo pesado depois do Zarr validado.
+- Todo dado bruto entra por `data/raw/`; ERA5/GLORYS12 podem usar raw como cache temporario e apagar o arquivo pesado depois do Zarr validado.
 - Todo dado temporario ou extraido fica em `data/interim/`.
 - Todo dado tratado para modelagem fica em `data/processed/`.
 - Saidas tabulares de modelagem e diagnostico ficam em stores `.zarr` sob `data/processed/zarr/`.
@@ -76,13 +76,13 @@ data/
       single_levels/
       pressure_levels/
     ibge/
-    oras/
+    ocean_daily/
+      glorys12/
   interim/
     brazil_precipitation/
     ctd_noaa/
     ibge/
     nino34/
-    oras/
   processed/
     zarr/
       brazil_precipitation/
@@ -92,7 +92,7 @@ data/
       era5/
       features/
       modeling/
-      oras/
+      ocean_daily/
       regridded/
       statistics/
     geotiff/
@@ -104,61 +104,40 @@ data/
 
 ## 4. Inventario operacional de variaveis
 
-### 4.1 ORAS5
+### 4.1 Oceano gridded originalmente diario
 
-Fonte: ECMWF / Copernicus Climate Data Store.  
-Produto: ORAS5 global ocean reanalysis monthly data.  
-Link: https://cds.climate.copernicus.eu/datasets/reanalysis-oras5  
-Uso: oceano subsuperficial do Pacifico.
+Fontes:
+- NOAA UFS Marine Reanalysis, analise diaria, usada em 1981-1992.
+- Copernicus Marine GLORYS12V1, media diaria, usada desde 1993.
 
-Variaveis solicitadas pelo script no CDS:
+Variaveis fundamentais: temperatura potencial por profundidade, salinidade por profundidade e nivel do mar. D20, OHC 0-100/0-300/0-700/300-700 m, WWV em m3 e inclinacao da termoclina sao derivados localmente, sem copiar valores mensais para dias.
 
-```text
-potential_temperature
-salinity
-ocean_heat_content_for_the_upper_300m
-ocean_heat_content_for_the_upper_700m
-```
+Dominio: 5S-5N, 120E-80W, bruto ate 800 m e features ate 700 m. O UFS permanece em sua grade nativa nominal de 1 grau; GLORYS e agregado por media de blocos de 1/12 para 0,25 grau. As fontes e resolucoes permanecem explicitamente separadas.
 
-Significado fisico:
+Destinos:
 
 ```text
-potential_temperature: temperatura potencial do oceano por profundidade
-salinity: salinidade por profundidade
-ocean_heat_content_for_the_upper_300m: conteudo de calor oceanico 0-300 m
-ocean_heat_content_for_the_upper_700m: conteudo de calor oceanico 0-700 m
+data/processed/zarr/ocean_daily/noaa_ufs/<ano>/noaa_ufs_equatorial_pacific_<ano>_daily.zarr
+data/raw/ocean_daily/glorys12/<ano>/glorys12_equatorial_pacific_<ano>_daily.zarr
+data/processed/zarr/ocean_daily/glorys12/<ano>/glorys12_equatorial_pacific_<ano>_daily_0p25.zarr
+data/processed/zarr/features/ocean_daily/<fonte>/<ano>/<fonte>_ocean_features_<ano>_daily.zarr
 ```
 
-Frequencia e formato:
+Comandos, numero de requisicoes e politica de retomada: [RUNBOOK_OCEAN_DAILY.md](RUNBOOK_OCEAN_DAILY.md).
+
+### 4.1.1 ORAS5 mensal independente
+
+ORAS5 fornece medias mensais de D20, OHC 0-300/0-700 m, SSH, SSS, temperatura potencial e salinidade. Os valores permanecem em Zarr mensal. WWV e Tilt sao calculados na mesma frequencia mensal.
 
 ```text
-fonte: mensal
-download historico: anual agrupado por ano no modo --annual-zarr --request-mode annual-kind
-fallback: anual por variavel ou mensal para ano em aberto
-bruto: ZIP/NetCDF agrupado em cache temporario
-processado: Zarr diario anual por variavel
+data/raw/ocean_monthly/oras5/<ano>/_annual_kind/
+data/processed/zarr/ocean_monthly/oras5/<ano>/<variavel>/
+data/processed/zarr/features/ocean_monthly/oras5/<ano>/
 ```
 
-Destino local:
+Na matriz de modelos, uma media mensal so fica disponivel depois do fechamento do mes mais 15 dias de latencia. O alinhamento usa o ultimo mes publicado e registra que se trata de covariavel mensal; nunca a apresenta como observacao diaria.
 
-```text
-data/raw/oras/<ano>/_annual_kind/oras5_all_variables_<ano>.zip
-data/interim/oras/<ano>/_annual_kind/oras5_all_variables_<ano>/
-data/processed/zarr/oras/<ano>/<variavel>/oras5_<variavel>_<ano>_daily.zarr
-```
-
-Derivados calculados depois do download:
-
-```text
-anomalia de temperatura oceanica
-anomalia de salinidade
-D20: profundidade da isoterma de 20 graus Celsius
-termoclina
-camada de mistura
-densidade potencial
-conteudo de calor 0-300 m
-conteudo de calor 0-700 m
-```
+Execucao integrada: [RUNBOOK_FASE2_OCEANO.md](RUNBOOK_FASE2_OCEANO.md).
 
 ### 4.2 CTD NOAA WOD
 
@@ -166,7 +145,7 @@ Fonte: NOAA / NCEI.
 Produto: World Ocean Database, CTD annual NetCDF.  
 Catalogo: https://www.ncei.noaa.gov/thredds-ocean/catalog/ncei/wod/catalog.html  
 Produto WOD: https://www.ncei.noaa.gov/products/world-ocean-database  
-Uso: perfis in situ para validar a estrutura vertical do Pacifico e corrigir vieses de ORAS5.
+Uso: perfis in situ para validar a estrutura vertical dos cubos oceânicos diarios e quantificar vieses de reanalise.
 
 Arquivo bruto anual baixado:
 
@@ -258,7 +237,7 @@ data/processed/zarr/ctd_noaa/wod/<ano>/wod_ctd_<ano>.zarr
 
 Observacao tecnica:
 
-CTD nao e grade diaria continua. Cada perfil tem data, posicao e profundidade propria. No projeto, CTD entra como observacao vertical para controle, validacao, comparacao com ORAS5 e possivel correcao de vies.
+CTD nao e grade diaria continua. Cada perfil tem data, posicao e profundidade propria. No projeto, CTD entra como observacao vertical para controle e validacao dos cubos oceânicos diarios; qualquer correcao de vies deve ser estimada e reportada, nunca substituir o dado original armazenado.
 
 ### 4.3 TAO/TRITON/Argo como validacao in situ
 
@@ -275,7 +254,7 @@ WOD/GTSPP: agregadores de perfis in situ que podem ajudar na auditoria, com cuid
 Uso metodologico:
 
 ```text
-1. Validar ORAS5 em pontos/periodos com observacao in situ.
+1. Validar NOAA UFS e GLORYS12 em pontos/periodos com observacao in situ.
 2. Verificar se D20, termoclina, OHC 0-300 m e temperatura media 0-300 m sao fisicamente consistentes.
 3. Marcar anos/periodos em que CTD/WOD esta vazio no Nino 3.4, sem preencher lacunas artificialmente.
 4. Comparar modelos com e sem subsuperficie, mantendo a pergunta em aberto.
@@ -285,7 +264,7 @@ Papel por fonte:
 
 ```text
 OISST: referencia diaria de SST/SSTA superficial.
-ORAS5: campo continuo para memoria oceanica subsuperficial.
+NOAA UFS/GLORYS12: campos originalmente diarios para memoria oceanica subsuperficial.
 CTD/WOD: perfis observados irregulares para controle vertical.
 TAO/TRITON: serie temporal de fundeios para validacao equatorial.
 Argo: perfis T/S independentes para validacao pos-2000.
@@ -307,7 +286,7 @@ Estado operacional atual:
 documentado como camada de validacao;
 download bruto implementado em scripts/data_pipeline.py download-validation;
 ETL Zarr de validacao ainda e etapa posterior;
-nao bloquear o fechamento do CTD/WOD, ERA5 ou ORAS5.
+nao bloquear o fechamento do CTD/WOD, ERA5 ou dos cubos oceânicos diarios.
 ```
 
 Comando Windows cmd:
@@ -358,6 +337,41 @@ Derivados calculados depois do download:
 SSTA: anomalia diaria de temperatura da superficie do mar
 media movel de SSTA
 campos defasados por lag
+serie diaria Nino 3.4: data/processed/zarr/features/nino34_daily_oisst.zarr
+```
+
+### 4.4.1 NOAA PSL indice mensal Nino 3.4
+
+Fonte: NOAA Physical Sciences Laboratory / NCEI.
+Produto: Nino 3.4 anomaly index, NOAA ERSST v6.
+Link: https://psl.noaa.gov/data/correlation/nina34.anom.data
+Uso: referencia oficial mensal para rotular eventos e picos El Nino/Super El Nino.
+
+Variaveis derivadas pelo projeto:
+
+```text
+nino34_anom_c
+nino34_anom_3mo_mean_c
+event_start
+event_end
+peak_time
+peak_ssta_c
+peak_class
+```
+
+Destino local:
+
+```text
+data/raw/cpc_noaa/nino34/nina34.anom.data
+data/processed/zarr/features/noaa_psl_nino34_monthly.zarr
+data/processed/zarr/features/noaa_psl_nino34_reference_peaks.zarr
+```
+
+Regra metodologica:
+
+```text
+NOAA PSL mensal = rotulo/referencia de pico.
+OISST diario = trajetoria dinamica que o modelo aprende.
 ```
 
 ### 4.5 ERA5 single levels
@@ -619,10 +633,11 @@ Para processar CTD bruto ja baixado:
 ./.venv-wsl/bin/python scripts/data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
 ```
 
-### 5.8 Baixar ORAS5 e converter para Zarr
+### 5.8 Baixar e processar oceano originalmente diario
 
 ```bash
-./.venv-wsl/bin/python scripts/data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
+./.venv-wsl/bin/python scripts/ocean_daily_pipeline.py ingest-ufs --start-year 1981 --end-year 1992 --build-features --execute
+./.venv-wsl/bin/python scripts/ocean_daily_pipeline.py ingest-glorys --start-year 1993 --end-year 2025 --delete-source-after-zarr --execute
 ```
 
 ### 5.9 Baixar TAO/TRITON/Argo para validacao in situ
@@ -671,6 +686,7 @@ NOAA OISST: 1981-latest_available, diario, 0.25 grau, SST/SSTA principal
 CTD NOAA WOD: 1981-latest_available, perfis irregulares, filtrados no Pacifico
 TAO/TRITON/Argo: validacao in situ baixavel por ERDDAP; bruto em CSV anual, ETL Zarr posterior
 ERA5: 1981-latest_available, subdiario baixado em 4 horarios e agregado depois para diario
-ORAS5: 1981-latest_available, fonte mensal baixada no historico por ano/variavel, reservado para memoria subsuperficial oceanica
+NOAA UFS: 1981-1992 no projeto, analise diaria nativa, ponte para memoria subsuperficial
+GLORYS12V1: 1993-latest_available, media diaria, fonte principal para memoria subsuperficial
 IBGE: cartografia estatica
 ```

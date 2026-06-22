@@ -17,6 +17,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from nino_brasil.data.download_cds import ERA5_PRESSURE_VARIABLES, ERA5_SINGLE_VARIABLES
 from nino_brasil.project_phases import PHASES
 
 
@@ -150,9 +151,9 @@ def table(headers: list[str], rows: list[list[object]]) -> str:
     return "\n".join(lines)
 
 
-def era5_year_counts() -> dict[int, int]:
+def era5_layer_year_counts(layer: str) -> dict[int, int]:
     counts: dict[int, int] = defaultdict(int)
-    for item in zarr_dirs(ROOT / "data/processed/zarr/era5"):
+    for item in zarr_dirs(ROOT / "data/processed/zarr/era5" / layer):
         match = YEAR_RE.search(str(item))
         if match:
             counts[int(match.group(0))] += 1
@@ -171,6 +172,21 @@ def yearly_count_summary(counts: dict[int, int], expected_label: str = "tarefas"
     return f"{full_text}; parciais {expected_label}: {partial_text}"
 
 
+def expected_count_summary(counts: dict[int, int], expected_per_year: int, start: int, end: int) -> str:
+    full = [year for year in range(start, end + 1) if counts.get(year, 0) == expected_per_year]
+    partial = [
+        f"{year}:{counts[year]}/{expected_per_year}"
+        for year in range(start, end + 1)
+        if 0 < counts.get(year, 0) < expected_per_year
+    ]
+    missing_count = sum(1 for year in range(start, end + 1) if counts.get(year, 0) == 0)
+    full_text = years_summary(full, start, end) if full else "nenhum ano completo"
+    partial_text = ", ".join(partial[:12]) if partial else "sem parciais"
+    if len(partial) > 12:
+        partial_text += "..."
+    return f"{full_text}; parciais: {partial_text}; anos nao iniciados: {missing_count}"
+
+
 def data_status_rows() -> list[list[str]]:
     chirps_raw = years_from_files(ROOT / "data/raw/chirps/p25", "*.nc")
     chirps_zarr = years_from_dirs(ROOT / "data/processed/zarr/brazil_precipitation", "*.zarr")
@@ -184,7 +200,10 @@ def data_status_rows() -> list[list[str]]:
     tao_temp = years_from_files(ROOT / "data/raw/tao_triton/temperature", "*.csv")
     tao_sal = years_from_files(ROOT / "data/raw/tao_triton/salinity", "*.csv")
     argo = years_from_files(ROOT / "data/raw/argo", "*.csv")
-    era5_counts = era5_year_counts()
+    era5_single_counts = era5_layer_year_counts("single_levels")
+    era5_pressure_counts = era5_layer_year_counts("pressure_levels")
+    era5_single_expected = len(ERA5_SINGLE_VARIABLES) * 2
+    era5_pressure_expected = len(ERA5_PRESSURE_VARIABLES) * 2
 
     return [
         ["CHIRPS raw", years_summary(chirps_raw, 1981, 2026), "base de chuva"],
@@ -195,8 +214,36 @@ def data_status_rows() -> list[list[str]]:
         ["OISST regrid", years_summary(oisst_regrid, 1981, 2026), "pronto para modelagem"],
         ["CTD/WOD raw", years_summary(ctd_raw, 1981, 2025), "cache bruto preservado"],
         ["CTD/WOD Zarr", years_summary(ctd_zarr, 1981, 2025), "anos sem perfil valido ficam registrados"],
-        ["ERA5 Zarr anual/variavel", yearly_count_summary(era5_counts), "download ativo pode alterar este numero"],
-        ["ORAS5", years_summary(years_from_dirs(ROOT / "data/processed/zarr/oras"), 1981, 2025), "pendente"],
+        [
+            "ERA5 single-level Zarr",
+            expected_count_summary(era5_single_counts, era5_single_expected, 1981, 2025),
+            f"{len(ERA5_SINGLE_VARIABLES)} variaveis x 2 regioes; camada atmosferica de superficie fechada",
+        ],
+        [
+            "ERA5 pressure-level Zarr",
+            expected_count_summary(era5_pressure_counts, era5_pressure_expected, 1981, 2025),
+            f"{len(ERA5_PRESSURE_VARIABLES)} variaveis x 2 regioes; camada atmosferica vertical fechada",
+        ],
+        [
+            "Oceano diario NOAA UFS",
+            years_summary(years_from_dirs(ROOT / "data/processed/zarr/ocean_daily/noaa_ufs"), 1981, 1992),
+            "T(z), S(z) e SSH diarios; ponte historica 1981-1992",
+        ],
+        [
+            "Oceano diario GLORYS12",
+            years_summary(years_from_dirs(ROOT / "data/processed/zarr/ocean_daily/glorys12"), 1993, 2026),
+            "T(z), S(z) e SSH medios diarios; multiyear desde 1993",
+        ],
+        [
+            "Oceano diario GLO12 operacional",
+            years_summary(years_from_dirs(ROOT / "data/processed/zarr/ocean_daily/glorys12_operational"), 2026, 2026),
+            "cauda de analise; previsoes excluidas",
+        ],
+        [
+            "Oceano mensal ORAS5",
+            years_summary(years_from_dirs(ROOT / "data/processed/zarr/ocean_monthly/oras5"), 1981, 2026),
+            "7 variaveis mensais; nenhuma promocao para diario",
+        ],
         ["TAO/TRITON temp", years_summary(tao_temp, 1981, 2026), "validacao in situ"],
         ["TAO/TRITON sal", years_summary(tao_sal, 1981, 2026), "validacao in situ"],
         ["Argo", years_summary(argo, 1999, 2026), "validacao in situ"],
@@ -208,7 +255,9 @@ def storage_rows() -> list[list[str]]:
         ("raw CHIRPS", ROOT / "data/raw/chirps"),
         ("raw OISST", ROOT / "data/raw/cpc_noaa/oisst"),
         ("raw ERA5", ROOT / "data/raw/era5"),
-        ("raw ORAS5", ROOT / "data/raw/oras"),
+        ("raw GLORYS12 diario", ROOT / "data/raw/ocean_daily/glorys12"),
+        ("raw GLO12 operacional", ROOT / "data/raw/ocean_daily/glorys12_operational"),
+        ("raw ORAS5 mensal", ROOT / "data/raw/ocean_monthly/oras5"),
         ("raw CTD/WOD", ROOT / "data/raw/ctd_noaa"),
         ("raw TAO/TRITON", ROOT / "data/raw/tao_triton"),
         ("raw Argo", ROOT / "data/raw/argo"),
@@ -225,14 +274,27 @@ def phase_status_rows() -> list[list[str]]:
     data_rows = {row[0]: row[1] for row in data_status_rows()}
     model_dirs = zarr_dirs(ROOT / "data/processed/zarr/modeling")
     docs_index = ROOT / "docs/index.html"
+    ocean_audit_path = ROOT / "data/audit/ocean_phase2_audit.json"
+    ocean_audit: dict[str, object] = {}
+    if ocean_audit_path.exists():
+        try:
+            ocean_audit = json.loads(ocean_audit_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            ocean_audit = {}
+    phase2_status = (
+        "Concluida: auditoria oceanica integrada retornou status=complete."
+        if ocean_audit.get("status") == "complete"
+        else f"Em aberto: auditoria oceanica integrada registra {ocean_audit.get('error_count', 'nao executado')} pendencias."
+    )
     statuses = {
-        1: "Em andamento: CHIRPS/OISST/CTD/validacao local avancados; ERA5 em retomada; ORAS5 pendente.",
-        2: "Parcial: CHIRPS/OISST regridados; ERA5/ORAS5 ainda precisam fechar feature store compacto.",
-        3: "Planejada: depende de ORAS/ERA/CTD/TAO/Argo consolidados, mas pode iniciar piloto com OISST+CTD.",
+        1: "Concluida para a base operacional: CHIRPS, OISST, ERA5 e oceano UFS/GLORYS12 estao locais; validacoes in situ preservam as lacunas observadas.",
+        2: phase2_status,
+        3: "Proxima etapa: oceano diario e ERA5 estao consolidados; CTD/TAO/Argo entram como validacao in situ sem preenchimento artificial de lacunas.",
         4: "Planejada: entra apos Fase 3 produzir variaveis candidatas e alvos regionais confiaveis.",
-        5: f"Codigo existe; stores locais: {', '.join(p.name for p in model_dirs) or 'nenhum'}.",
-        6: "Planejada: arquitetura neural e Memory Caching ficam aqui, depois do baseline classico.",
+        5: f"Refatorada em 5A OISST diario + picos NOAA PSL e 5B Nino3.4 -> clusters de pixels; stores locais: {', '.join(p.name for p in model_dirs) or 'nenhum'}.",
+        6: "Planejada como 6A/6B/6C: CNN espacial nativa, memoria espaco-temporal ENSO e decoder neural Nino3.4 -> clusters/P90 Brasil; CMIP6 so como fallback condicional.",
         7: "Esqueleto local existe." if docs_index.exists() else "docs/index.html ausente.",
+        8: "Exploratoria: pesos/dados Ham2019 ficam isolados da Fase 6 para testes de compatibilidade, inferencia congelada e skill comparativo.",
     }
     rows: list[list[str]] = []
     for phase in PHASES:
@@ -256,12 +318,32 @@ def command_rows() -> list[list[str]]:
             r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error",
         ],
         [
-            "ERA5",
-            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
+            "ERA5 pressure-level auto",
+            r'cd /d C:\DEV\NINO26 && set "NINO_CDS_RETRY_MAX=5" && set "NINO_CDS_SLEEP_MAX=60" && set "NINO_CDS_TIMEOUT=120" && .venv\Scripts\python scripts\data_pipeline.py download-era5 --start-year 1984 --end-year 2025 --kind pressure --region nino34 --region brazil --annual-zarr --request-mode annual-auto --delete-raw-after-zarr --execute --continue-on-error',
         ],
         [
-            "ORAS5",
-            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
+            "Oceano diario NOAA UFS 1981-1992",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_daily_pipeline.py ingest-ufs --start-year 1981 --end-year 1992 --build-features --execute",
+        ],
+        [
+            "Sobreposicao NOAA UFS 1993-1995",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_daily_pipeline.py ingest-ufs --start-year 1993 --end-year 1995 --block-size-mb 8 --build-features --execute",
+        ],
+        [
+            "Oceano diario GLORYS12 1993-2026-05-26",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_daily_pipeline.py ingest-glorys --start-year 1993 --end-year 2026 --end-date 2026-05-26 --delete-source-after-zarr --execute",
+        ],
+        [
+            "GLO12 operacional 2026-05-27 ate ontem",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_daily_pipeline.py ingest-glorys-operational --start-date 2026-05-27 --delete-source-after-zarr --execute",
+        ],
+        [
+            "ORAS5 mensal 1981-2026-05",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_monthly_pipeline.py ingest --start-year 1981 --end-year 2026 --end-month 5 --build-features --delete-raw-after-zarr --execute --continue-on-error",
+        ],
+        [
+            "Auditoria oceano Fase 2",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\audit_ocean_phase2.py --glorys-my-end 2026-05-26 --operational-end 2026-06-19 --oras-end 2026-05-01 --overlap-year 1993 --overlap-year 1994 --overlap-year 1995",
         ],
         [
             "TAO/TRITON/Argo",
@@ -291,7 +373,7 @@ def build_markdown() -> str:
                 ["Atualizado em", now_sp()],
                 ["Maquina", f"{platform.node() or 'indisponivel'} ({platform.system()} {platform.release()})"],
                 ["Periodo alvo", "1981-01-01 ate latest_available por fonte"],
-                ["Fase operacional", "Fase 1/2 em fechamento; Fases 3 e 4 foram remanejadas para diagnostico fisico e pre-analise estatistica"],
+                ["Fase operacional", "Fases 1 e 2 concluidas; Fase 3 e a proxima etapa; Fase 5 refatorada em 5A/5B; Fase 6 nativa 6A/6B/6C; Fase 8 separada para Ham2019 exploratorio"],
                 ["Git", f"{git_head}; mudancas locais: {git_changes}"],
                 ["Disco livre", format_bytes(usage.free)],
                 ["Auditoria", f"{len(audit)} eventos; " + (", ".join(f"{k}: {v}" for k, v in sorted(status_counts.items())) or "sem status")],
@@ -322,9 +404,17 @@ def build_markdown() -> str:
         "",
         "## Proxima decisao tecnica",
         "",
-        "- Fechar ERA5 e ORAS5 no fluxo compacto: requisicao anual agrupada -> Zarr anual por variavel -> apagar raw validado.",
-        "- Depois, iniciar Fase 3 com diagnosticos Nino 3.4: anomalias, termoclina, volume/grau, slope e duracao do sinal.",
-        "- So depois da Fase 3 entrar na Fase 4 experimental: regressao multipla, PCA, KNN e triagem de combinacoes.",
+        "- Manter ORAS5 como memoria mensal independente; nunca promover seus valores para observacoes diarias.",
+        "- Preservar a auditoria concluida de continuidade, D20/OHC/WWV/Tilt e das transicoes UFS->GLORYS e GLORYS multiyear->operacional.",
+        "- Iniciar a Fase 3 com diagnosticos Nino 3.4: anomalias, termoclina, volume/grau, slope e duracao do sinal.",
+        "- Baixar a referencia NOAA PSL mensal e gerar a serie diaria OISST Nino3.4/SSTA.",
+        "- Gerar a Fase 5A: matriz diaria de progressao ate pico El Nino/Super El Nino com validacao por evento.",
+        "- Depois, gerar a Fase 5B: matriz Nino3.4 -> eventos climaticos por clusters de pixels do Brasil.",
+        "- Planejar/implementar a Fase 6A: CNN espacial nativa ao padrao NINO-BRASIL, sem depender dos pesos externos.",
+        "- Planejar/implementar a Fase 6B: modelo de memoria espaco-temporal para progressao nao linear ate o pico ENSO.",
+        "- Planejar/implementar a Fase 6C: decoder neural de teleconexoes por cluster, priorizando metricas `P90` e `P10`.",
+        "- Usar CMIP6/pre-treino/fine-tuning apenas se 6A/6B/6C nao superarem climatologia, persistencia e Fase 5.",
+        "- Manter Ham2019 apenas na Fase 8: inventario de pesos, compatibilidade de tensores, inferencia congelada e relatorio exploratorio separado.",
         "",
         "## Rodape tecnico",
         "",

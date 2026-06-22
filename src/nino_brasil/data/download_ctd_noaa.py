@@ -11,6 +11,7 @@ import xarray as xr
 
 from nino_brasil.data.audit import AuditLog, dataset_summary, file_info
 from nino_brasil.data.download_http import download_url
+from nino_brasil.data.zarr_store import ZARR_FORMAT
 
 try:
     import gsw
@@ -189,7 +190,7 @@ def etl_wod_ctd_year(
 
         zarr_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            out.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=2)
+            out.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
         finally:
             out.close()
 

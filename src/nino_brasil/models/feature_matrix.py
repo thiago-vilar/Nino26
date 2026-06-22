@@ -6,8 +6,7 @@ from typing import Literal
 
 import pandas as pd
 import xarray as xr
-
-from nino_brasil.data.build_lagged_dataset import align_predictor_target
+from nino_brasil.data.download_ocean_monthly import align_monthly_features_causally
 from nino_brasil.features.nino import nino34_ssta_index
 
 
@@ -18,6 +17,14 @@ SpatialStrategy = Literal["mean", "flatten"]
 class FeatureMatrix:
     X: pd.DataFrame
     y: pd.DataFrame
+    target_time: pd.Series
+    lag_days: int
+    feature_groups: dict[str, str]
+
+
+@dataclass(frozen=True)
+class PredictorMatrix:
+    X: pd.DataFrame
     target_time: pd.Series
     lag_days: int
     feature_groups: dict[str, str]
@@ -34,8 +41,26 @@ def _spatial_dims(da: xr.DataArray, time_name: str) -> list[str]:
 
 def infer_feature_group(name: str) -> str:
     lower = name.lower()
+    physics_tokens = (
+        "wwv",
+        "warm_water_volume",
+        "tilt",
+        "tendency",
+        "_tend",
+        "curl",
+        "thermocline_tilt",
+        "d20_tendency",
+        "ohc_tendency",
+        "ssta_tendency",
+        "wind_stress_curl",
+        "equatorial_zonal_stress",
+        "ekman",
+        "physics_precalc",
+    )
     ocean_tokens = ("sst", "ssta", "nino", "ohc", "d20", "mld", "thermocline", "salinity", "temperature")
     atmosphere_tokens = ("slp", "u10", "v10", "u850", "v850", "q850", "u500", "v500", "q500", "z500", "omega", "u200", "v200", "z200", "div", "tcwv", "olr", "wind")
+    if any(token in lower for token in physics_tokens):
+        return "physics_precalc"
     if any(token in lower for token in ocean_tokens):
         return "ocean"
     if any(token in lower for token in atmosphere_tokens):
@@ -138,6 +163,36 @@ def add_nino34_feature(
     return predictors.assign(nino34_ssta=nino34)
 
 
+def add_causal_monthly_ocean_features(
+    daily_predictors: xr.Dataset,
+    monthly_ocean: xr.Dataset,
+    *,
+    time_name: str = "time",
+    publication_lag_days: int = 15,
+    prefix: str = "oras5_monthly__",
+) -> tuple[xr.Dataset, dict[str, str]]:
+    """Attach last-published monthly ORAS5 covariates to daily model rows.
+
+    This is a model-matrix alignment operation, not a conversion of the source
+    into daily observations.  Variable names and attributes preserve that
+    distinction and all attached columns receive the `ocean_monthly` group.
+    """
+    if time_name not in daily_predictors.coords:
+        raise KeyError(f"daily_predictors must contain {time_name!r}.")
+    daily_time = pd.DatetimeIndex(daily_predictors[time_name].values)
+    aligned = align_monthly_features_causally(
+        monthly_ocean,
+        daily_time,
+        publication_lag_days=publication_lag_days,
+    )
+    renamed = aligned.rename({name: f"{prefix}{name}" for name in aligned.data_vars})
+    merged = xr.merge([daily_predictors, renamed], join="exact", compat="override")
+    groups = {name: "ocean_monthly" for name in renamed.data_vars}
+    merged.attrs.update(daily_predictors.attrs)
+    merged.attrs["monthly_ocean_alignment"] = "last_published_month_causal"
+    return merged, groups
+
+
 def build_feature_matrix(
     predictors: xr.Dataset,
     target: xr.DataArray,
@@ -153,6 +208,42 @@ def build_feature_matrix(
     feature_groups: dict[str, str] | None = None,
 ) -> FeatureMatrix:
     """Build X(t) and Y(t+lag) from regridded Zarr-compatible cubes."""
+    predictor_matrix = build_predictor_matrix(
+        predictors,
+        lag_days=lag_days,
+        time_name=time_name,
+        predictor_strategy=predictor_strategy,
+        include_time_features=include_time_features,
+        include_nino34=include_nino34,
+        nino34_sst_variable=nino34_sst_variable,
+        climatology_window_days=climatology_window_days,
+        feature_groups=feature_groups,
+    )
+    return align_target_to_predictor_matrix(
+        predictor_matrix,
+        target,
+        target_name=target.name or "target",
+        time_name=time_name,
+        target_strategy=target_strategy,
+    )
+
+
+def build_predictor_matrix(
+    predictors: xr.Dataset,
+    *,
+    lag_days: int,
+    time_name: str = "time",
+    predictor_strategy: SpatialStrategy = "mean",
+    include_time_features: bool = True,
+    include_nino34: bool = True,
+    nino34_sst_variable: str = "sst",
+    climatology_window_days: int = 15,
+    feature_groups: dict[str, str] | None = None,
+) -> PredictorMatrix:
+    """Build reusable X(t) and target-time coordinates for one forecast lag."""
+    if lag_days < 0:
+        raise ValueError("lag_days must be non-negative.")
+
     model_predictors = predictors
     groups_override = dict(feature_groups or {})
     if include_nino34:
@@ -165,38 +256,17 @@ def build_feature_matrix(
         if "nino34_ssta" in model_predictors:
             groups_override.setdefault("nino34_ssta", "ocean")
 
-    aligned_x, aligned_y = align_predictor_target(
-        model_predictors,
-        target,
-        lag_days=lag_days,
-        time_name=time_name,
-    )
     X, groups = dataset_to_feature_frame(
-        aligned_x,
+        model_predictors,
         time_name=time_name,
         spatial_strategy=predictor_strategy,
         feature_groups=groups_override,
     )
-    y = target_to_frame(
-        aligned_y,
-        target_name=target.name or "target",
-        time_name=time_name,
-        spatial_strategy=target_strategy,
-    )
-
-    common_index = X.index.intersection(y.index)
-    X = X.loc[common_index]
-    y = y.loc[common_index]
     target_time = pd.Series(
-        pd.DatetimeIndex(aligned_x["target_time"].sel({time_name: common_index}).values),
-        index=common_index,
+        pd.DatetimeIndex(X.index) + pd.to_timedelta(lag_days, unit="D"),
+        index=X.index,
         name="target_time",
     )
-
-    valid = y.notna().any(axis=1)
-    X = X.loc[valid]
-    y = y.loc[valid]
-    target_time = target_time.loc[valid]
 
     if include_time_features:
         X = X.copy()
@@ -205,4 +275,59 @@ def build_feature_matrix(
         groups["month"] = "calendar"
         groups["dayofyear"] = "calendar"
 
-    return FeatureMatrix(X=X, y=y, target_time=target_time, lag_days=lag_days, feature_groups=groups)
+    return PredictorMatrix(X=X, target_time=target_time, lag_days=lag_days, feature_groups=groups)
+
+
+def align_target_to_predictor_matrix(
+    predictor_matrix: PredictorMatrix,
+    target: xr.DataArray,
+    *,
+    target_name: str = "target",
+    time_name: str = "time",
+    target_strategy: SpatialStrategy = "mean",
+) -> FeatureMatrix:
+    """Align a target Y(t+lag) to a reusable predictor matrix X(t)."""
+    if time_name not in target.coords and time_name not in target.dims:
+        raise KeyError(f"target must contain {time_name!r}.")
+
+    target_index = pd.DatetimeIndex(target[time_name].values)
+    wanted_target_time = pd.DatetimeIndex(predictor_matrix.target_time.values)
+    valid_time_mask = wanted_target_time.isin(target_index)
+    if not valid_time_mask.any():
+        return FeatureMatrix(
+            X=predictor_matrix.X.iloc[0:0].copy(),
+            y=pd.DataFrame(index=predictor_matrix.X.index[0:0]),
+            target_time=predictor_matrix.target_time.iloc[0:0],
+            lag_days=predictor_matrix.lag_days,
+            feature_groups=predictor_matrix.feature_groups,
+        )
+
+    origin_index = predictor_matrix.X.index[valid_time_mask]
+    selected_target_time = wanted_target_time[valid_time_mask]
+    aligned_y = target.sel({time_name: selected_target_time})
+    y = target_to_frame(
+        aligned_y,
+        target_name=target.name or target_name,
+        time_name=time_name,
+        spatial_strategy=target_strategy,
+    )
+    y.index = origin_index
+
+    X = predictor_matrix.X.loc[origin_index]
+    common_index = X.index.intersection(y.index)
+    X = X.loc[common_index]
+    y = y.loc[common_index]
+    target_time = predictor_matrix.target_time.loc[common_index]
+
+    valid = y.notna().any(axis=1)
+    X = X.loc[valid]
+    y = y.loc[valid]
+    target_time = target_time.loc[valid]
+
+    return FeatureMatrix(
+        X=X,
+        y=y,
+        target_time=target_time,
+        lag_days=predictor_matrix.lag_days,
+        feature_groups=predictor_matrix.feature_groups,
+    )

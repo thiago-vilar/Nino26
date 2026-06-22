@@ -35,7 +35,7 @@ O arquivo CHIRPS `p25` nao deve ser removido. As Fases 1 a 7 usam grade `0.25` g
 
 ## raw/
 
-Use `raw/` para dados baixados sem modificacao. No fluxo compacto de ERA5/ORAS, o raw pode ser apenas cache temporario e ser apagado depois do Zarr validado.
+Use `raw/` para dados baixados sem modificacao. No fluxo compacto de ERA5/GLORYS12, o raw pode ser apenas cache temporario e ser apagado depois do Zarr validado.
 
 Subpastas esperadas:
 
@@ -43,7 +43,8 @@ Subpastas esperadas:
 - `raw/chirps/p05/`: CHIRPS diario 0.05 grau reservado para experimento futuro de alta resolucao.
 - `raw/cpc_noaa/oisst/`: NOAA OISST diario.
 - `raw/era5/`: ERA5 single e pressure levels.
-- `raw/oras/`: ORAS5 mensal.
+- `raw/ocean_daily/glorys12/`: cache Zarr nativo diario do GLORYS12.
+- `raw/ocean_monthly/oras5/`: cache ZIP/NetCDF mensal agrupado por resolucao vertical.
 - `raw/ctd_noaa/wod/`: WOD CTD anual.
 - `raw/ibge/`: zips oficiais do IBGE.
 
@@ -57,7 +58,6 @@ Exemplos:
 
 - `interim/ibge/BR_UF_2024/`
 - `interim/ibge/BR_Municipios_2024/`
-- `interim/oras/<ano>/`
 - `interim/ctd_noaa/`
 
 Produtos em `interim/` podem ser refeitos a partir de `raw/`.
@@ -162,10 +162,10 @@ A ordem operacional agora e fonte por fonte, e dentro de cada fonte por ano. No 
 2. OISST diario;
 3. ERA5 subdiario convertido para diario;
 4. fontes semanais, quando forem adicionadas ao catalogo;
-5. ORAS5 mensal convertido para calendario diario;
+5. NOAA UFS e GLORYS12 originalmente diarios;
 6. CTD/WOD observacional irregular.
 
-ERA5 e processado por ano, regiao e tipo (`single_levels` ou `pressure_levels`). O cache bruto fica em `data/raw/era5/` por mes, e o produto pronto fica em `data/processed/zarr/era5/` como um Zarr diario anual por regiao/tipo. ORAS5 continua mensal por variavel por ser fonte oceanica de memoria subsuperficial.
+ERA5 e processado por ano, regiao e tipo (`single_levels` ou `pressure_levels`). O cache bruto fica em `data/raw/era5/` por mes, e o produto pronto fica em `data/processed/zarr/era5/` como um Zarr diario anual por regiao/tipo. A memoria oceanica combina UFS/GLORYS originalmente diarios com ORAS5 mensal independente.
 
 Para ver o plano sem executar:
 
@@ -179,14 +179,16 @@ Para testar uma janela pequena antes de deixar a maquina trabalhando por horas:
 python scripts\run_full_download_pipeline.py --end-year 1981 --month 1
 ```
 
-O pipeline completo roda IBGE, CHIRPS, OISST, ERA5, ORAS5, CTD/WOD, conversao diaria para Zarr, regrid e atualizacao do painel. Por padrao, ele continua depois de falhas individuais e registra o que falhou no relatorio final. Use `--skip-cds` ou `--skip-ctd` se quiser pular temporariamente ERA5/ORAS5 ou CTD.
+O pipeline geral roda IBGE, CHIRPS, OISST, ERA5, CTD/WOD, conversao diaria para Zarr, regrid e atualizacao do painel. O oceano diario possui fluxo proprio em `scripts/ocean_daily_pipeline.py`. Use `--skip-cds` ou `--skip-ctd` para pular temporariamente ERA5 ou CTD.
 
-5. Baixar ERA5/ORAS5/CTD quando houver credenciais e espaco:
+5. Baixar ERA5, oceano diario e CTD quando houver credenciais e espaco:
 
 ```powershell
 python scripts\data_pipeline.py check-cds
 python scripts\data_pipeline.py download-era5 --start-year 1981 --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
-python scripts\data_pipeline.py download-oras --start-year 1981 --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error
+python scripts\ocean_daily_pipeline.py ingest-ufs --start-year 1981 --end-year 1992 --build-features --execute
+python scripts\ocean_daily_pipeline.py ingest-glorys --start-year 1993 --end-year 2026 --end-date 2026-05-26 --delete-source-after-zarr --execute
+python scripts\ocean_monthly_pipeline.py ingest --start-year 1981 --end-year 2026 --end-month 5 --build-features --delete-raw-after-zarr --execute --continue-on-error
 python scripts\data_pipeline.py etl-ctd --start-year 1981 --max-depth 300 --min-levels 3 --execute --continue-on-error
 ```
 
@@ -194,7 +196,7 @@ Para testar uma unica variavel CDS sem iniciar tudo:
 
 ```powershell
 python scripts\data_pipeline.py download-era5 --start-year 1981 --end-year 1981 --month 1 --kind single --region nino34
-python scripts\data_pipeline.py download-oras --start-year 1981 --end-year 1981 --month 1 --variable salinity
+python scripts\ocean_daily_pipeline.py download-glorys --start-year 1993 --end-year 1993
 ```
 
 Sem `--execute`, esses comandos apenas mostram o cache bruto e o Zarr diario que seriam gerados.
@@ -245,7 +247,7 @@ Nao limpar:
 - `configs/project.yaml` esta em `period.end: latest_available`.
 - `modeling.chirps_resolution` esta em `p25` para as Fases 1 a 7.
 - OISST foi tratado como SST/SSTA principal.
-- ORAS5 nao esta duplicando SST mensal.
+- o oceano subsuperficial nao esta duplicando nem promovendo SST mensal.
 - Todos os Zarr de entrada estao regridados.
 - O ledger tem registro de latencia por fonte.
 - `python -m unittest discover -s tests -v` passa.

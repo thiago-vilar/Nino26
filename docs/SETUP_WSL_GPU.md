@@ -169,7 +169,7 @@ Esse teste usa dados sintéticos e confirma:
 Os dados brutos devem entrar em:
 
 ```text
-data/raw/oras/
+data/raw/ocean_daily/glorys12/
 data/raw/ctd_noaa/
 data/raw/era5/
 data/raw/cpc_noaa/

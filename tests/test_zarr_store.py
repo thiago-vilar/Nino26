@@ -4,6 +4,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +17,13 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from nino_brasil.data.zarr_store import dataframe_to_zarr, netcdf_to_daily_zarr, zarr_to_dataframe
+from nino_brasil.data.zarr_store import (
+    dataframe_to_zarr,
+    netcdf_to_daily_zarr,
+    standardize_dataset_to_daily,
+    zip_netcdf_to_zarr,
+    zarr_to_dataframe,
+)
 
 
 class ZarrStoreTests(unittest.TestCase):
@@ -73,34 +80,63 @@ class ZarrStoreTests(unittest.TestCase):
         finally:
             shutil.rmtree(tmp_dir)
 
-    def test_netcdf_to_daily_zarr_expands_monthly_cache_to_daily_calendar(self) -> None:
+    def test_netcdf_to_daily_zarr_rejects_monthly_cache(self) -> None:
         tmp_dir = Path(tempfile.mkdtemp())
         try:
-            raw_path = tmp_dir / "oras.nc"
-            zarr_path = tmp_dir / "oras_daily.zarr"
+            raw_path = tmp_dir / "monthly_source.nc"
+            zarr_path = tmp_dir / "monthly_source_daily.zarr"
             ds = xr.Dataset(
                 {"so": (("time",), np.array([35.0]))},
                 coords={"time": pd.to_datetime(["2001-02-15"])},
             )
             ds.to_netcdf(raw_path)
 
-            netcdf_to_daily_zarr(
-                raw_path,
-                zarr_path,
-                variables=["salinity"],
-                variable_aliases={"salinity": ["so"]},
+            with self.assertRaisesRegex(ValueError, "forbids monthly-to-daily"):
+                netcdf_to_daily_zarr(
+                    raw_path,
+                    zarr_path,
+                    variables=["salinity"],
+                    variable_aliases={"salinity": ["so"]},
+                    source_frequency="monthly",
+                    daily_start="2001-02-01",
+                    daily_end="2001-02-28",
+                )
+            self.assertFalse(zarr_path.exists())
+        finally:
+            shutil.rmtree(tmp_dir)
+
+    def test_standardize_rejects_monthly_steps(self) -> None:
+        ds = xr.Dataset(
+            {"d20": (("time",), np.array([100.0, 120.0, 140.0]))},
+            coords={"time": pd.to_datetime(["2001-01-30", "2001-02-27", "2001-03-30"])},
+        )
+
+        with self.assertRaisesRegex(ValueError, "forbids monthly-to-daily"):
+            standardize_dataset_to_daily(
+                ds,
                 source_frequency="monthly",
-                daily_start="2001-02-01",
-                daily_end="2001-02-28",
+                daily_start="2001-01-01",
+                daily_end="2001-03-31",
             )
 
-            restored = xr.open_zarr(zarr_path)
-            try:
-                self.assertEqual(list(restored.data_vars), ["salinity"])
-                self.assertEqual(restored.sizes["time"], 28)
-                self.assertTrue(np.allclose(restored["salinity"].values, 35.0))
-            finally:
-                restored.close()
+    def test_standardize_daily_regular_calendar_returns_identity(self) -> None:
+        time = pd.date_range("2001-01-01", periods=3, freq="D")
+        ds = xr.Dataset({"sst": (("time",), np.arange(3, dtype=float))}, coords={"time": time})
+
+        daily = standardize_dataset_to_daily(ds, source_frequency="daily")
+
+        self.assertEqual(daily.attrs["nino_brasil_daily_transform"], "identity_daily")
+        self.assertEqual(daily["time"].values.tolist(), ds["time"].values.tolist())
+
+    def test_zip_netcdf_to_zarr_rejects_path_traversal_member(self) -> None:
+        tmp_dir = Path(tempfile.mkdtemp())
+        try:
+            zip_path = tmp_dir / "unsafe.zip"
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                zf.writestr("../escape.nc", "not a netcdf")
+
+            with self.assertRaises(ValueError):
+                zip_netcdf_to_zarr(zip_path, tmp_dir / "extract", tmp_dir / "out.zarr")
         finally:
             shutil.rmtree(tmp_dir)
 

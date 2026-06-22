@@ -24,7 +24,7 @@ from nino_brasil.data.download_chirps import download_chirps_year
 from nino_brasil.data.download_ibge import download_ibge
 from nino_brasil.data.download_oisst import download_oisst_year
 from nino_brasil.data.regrid import normalize_for_common_grid, regrid_dataset, target_grid_from_config
-from nino_brasil.data.zarr_store import netcdf_to_daily_zarr, validate_netcdf, validate_zarr
+from nino_brasil.data.zarr_store import ZARR_FORMAT, netcdf_to_daily_zarr, validate_netcdf, validate_zarr
 
 
 Source = str
@@ -164,7 +164,7 @@ def regrid_zarr(input_path: Path, output_path: Path, *, dataset: str, overwrite:
             if output_path.exists() and overwrite:
                 shutil.rmtree(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            regridded.to_zarr(output_path, mode="w", consolidated=True, zarr_format=2)
+            regridded.to_zarr(output_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
         finally:
             ds.close()
         validate_zarr(output_path)
@@ -410,9 +410,7 @@ def add_cds_ctd_placeholders(
         "era5": f"python scripts/data_pipeline.py download-era5 --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
         + " --kind both --region nino34 --region brazil --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
-        "oras": f"python scripts/data_pipeline.py download-oras --start-year {start_year}"
-        + (f" --end-year {end_year}" if end_year else "")
-        + " --annual-zarr --request-mode annual-kind --delete-raw-after-zarr --execute --continue-on-error",
+        "ocean": "python scripts/run_ocean_phase2.py --execute --continue-on-error",
         "ctd": f"python scripts/data_pipeline.py download-ctd --start-year {start_year}"
         + (f" --end-year {end_year}" if end_year else "")
         + " --max-depth 300 --min-levels 3 --execute --continue-on-error",
@@ -423,7 +421,7 @@ def add_cds_ctd_placeholders(
         path = project_path(
             {
                 "era5": "data/raw/era5",
-                "oras": "data/raw/oras",
+                "ocean": "data/processed/zarr/ocean_daily",
                 "ctd": "data/raw/ctd_noaa/wod",
             }[source]
         )
@@ -459,7 +457,7 @@ def print_summary(checks: list[CheckResult], pending: list[PendingAction]) -> No
     print()
     print("CURADORIA LOCAL")
     print("=" * 80)
-    for source in ["ibge", "chirps", "oisst", "era5", "oras", "ctd"]:
+    for source in ["ibge", "chirps", "oisst", "era5", "ocean", "ctd"]:
         source_checks = [item for item in checks if item.source == source]
         if not source_checks:
             continue
@@ -525,7 +523,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Curate local NINO-BRASIL data status and resume the next missing download/transform."
     )
-    parser.add_argument("--source", default="core", help="core, all, or comma list: ibge,chirps,oisst,era5,oras,ctd")
+    parser.add_argument("--source", default="core", help="core, all, or comma list: ibge,chirps,oisst,era5,ocean,ctd")
     parser.add_argument("--stage", default="all", help="all, raw, zarr, regrid, or comma list.")
     parser.add_argument("--start-year", type=int, default=1981)
     parser.add_argument("--end-year", type=int)

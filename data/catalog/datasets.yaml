@@ -45,25 +45,67 @@ era5_pressure_levels:
   processed_path: "data/processed/zarr/era5/pressure_levels/<year>/<variable>/era5_pressure_<region>_<variable>_<year>_daily.zarr"
   notes: "Default annual-kind mode requests one full year per region/kind with all selected pressure variables and pressure levels, caches raw NetCDF, then writes one daily Zarr per variable. Use request_mode annual-variable or monthly-kind only as fallback. Active ERA5 regions: nino34 and brazil."
 
-oras5:
-  name: "ORAS5 ocean reanalysis"
-  institution: "ECMWF / Copernicus"
-  source_url: "https://cds.climate.copernicus.eu/datasets/reanalysis-oras5"
-  license: "Copernicus license; confirm at download time"
-  version: null
-  variables:
-    - potential_temperature
-    - salinity
-    - ocean_heat_content_for_the_upper_300m
-    - ocean_heat_content_for_the_upper_700m
-  temporal_resolution: "monthly source; align to daily model calendar as ocean memory features"
-  spatial_resolution: "native ORAS5 grid"
-  period_start: "1981-01-01"
+noaa_ufs_marine_reanalysis:
+  name: "NOAA UFS Marine Reanalysis daily analysis"
+  institution: "NOAA/NWS/OAR"
+  source_url: "https://registry.opendata.aws/noaa-ufs-marinereanalysis/"
+  source_archive: "s3://noaa-ufs-rnrmarine-pds/ng-godas-1deg/3dvar/ana/1979_2019.zip"
+  license: "NOAA open data; attribution requested"
+  version: "interim 1979-2019 release"
+  variables: ["potential_temperature", "salinity", "sea_surface_height", "layer_thickness"]
+  temporal_resolution: "daily analysis; 24-hour analysis window centered at 12Z"
+  spatial_resolution: "nominal 1 degree"
+  period_start: "1979-01-01"
+  period_end: "2019-12-31"
+  project_role: "daily ocean bridge for 1981-1992"
+  raw_path: "remote ZIP; selected members streamed without downloading the 320 GB archive"
+  processed_path: "data/processed/zarr/ocean_daily/noaa_ufs/<year>/noaa_ufs_equatorial_pacific_<year>_daily.zarr"
+  notes: "The full archive is not cached. Daily ocean members are selected remotely, cropped to 5S-5N/120E-80W/depth<=800m, and appended to annual compressed Zarr stores. Analysis features stop at 700m."
+
+copernicus_glorys12_daily:
+  name: "Copernicus Marine GLORYS12V1 daily global ocean reanalysis"
+  institution: "Copernicus Marine / Mercator Ocean International"
+  source_url: "https://data.marine.copernicus.eu/product/GLOBAL_MULTIYEAR_PHY_001_030/description"
+  dataset_id: "cmems_mod_glo_phy_my_0.083deg_P1D-m"
+  license: "Copernicus Marine licence"
+  version: "latest catalogue version selected by the Toolbox"
+  variables: ["thetao", "so", "zos"]
+  temporal_resolution: "daily mean"
+  spatial_resolution: "native 1/12 degree; processed to 0.25 degree"
+  period_start: "1993-01-01"
   period_end: "latest_available"
-  latency_days: 45
-  raw_path: "data/raw/oras"
-  processed_path: "data/processed/zarr/oras/<year>/<variable>/oras5_<variable>_<year>_daily.zarr"
-  notes: "Default annual-kind mode requests one full year with all selected variables, caches raw ZIP/NetCDF, then writes one daily Zarr per variable as explicit ocean-memory features. Use request_mode annual-variable or monthly mode only for fallback/open-year months. Daily OISST is the primary SST/SSTA source."
+  latency_days: 30
+  project_role: "primary daily ocean source from 1993 onward"
+  raw_path: "data/raw/ocean_daily/glorys12/<year>/glorys12_equatorial_pacific_<year>_daily.zarr"
+  processed_path: "data/processed/zarr/ocean_daily/glorys12/<year>/glorys12_equatorial_pacific_<year>_daily_0p25.zarr"
+  notes: "One annual request groups thetao, so and zos over 5S-5N/120E-80W/depth<=800m so the 700m integral has a bracketing level. Monthly products are never promoted to daily."
+
+copernicus_glo12_operational_daily:
+  name: "Copernicus Marine GLO12 operational daily analysis and forecast"
+  institution: "Copernicus Marine / Mercator Ocean International"
+  source_url: "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024/description"
+  dataset_ids:
+    thetao: "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m"
+    so: "cmems_mod_glo_phy-so_anfc_0.083deg_P1D-m"
+    zos: "cmems_mod_glo_phy_anfc_0.083deg_P1D-m"
+  temporal_resolution: "daily mean"
+  project_role: "analysis-only tail after the multiyear GLORYS endpoint"
+  processed_path: "data/processed/zarr/ocean_daily/glorys12_operational"
+  notes: "Forecast dates are rejected from the historical series. Today is rejected conservatively; ingest defaults to yesterday."
+
+ecmwf_oras5_monthly:
+  name: "ECMWF ORAS5 global ocean reanalysis monthly means"
+  institution: "ECMWF / Copernicus Climate Change Service"
+  source_url: "https://cds.climate.copernicus.eu/datasets/reanalysis-oras5"
+  dataset_id: "reanalysis-oras5"
+  temporal_resolution: "monthly mean"
+  period_start: "1958-01"
+  period_end: "latest_available"
+  variables: ["depth_of_20_c_isotherm", "ocean_heat_content_for_the_upper_300m", "ocean_heat_content_for_the_upper_700m", "sea_surface_height", "sea_surface_salinity", "potential_temperature", "salinity"]
+  derived_variables: ["wwv_equatorial_pacific", "thermocline_tilt"]
+  raw_path: "data/raw/ocean_monthly/oras5/<year>/_annual_kind/oras5_<kind>_<year>.zip"
+  processed_path: "data/processed/zarr/ocean_monthly/oras5/<year>/<variable>/oras5_<variable>_<year>_monthly.zarr"
+  notes: "Two grouped CDS requests per year: single-level and all-level. The 12 monthly means remain monthly and are never represented as daily observations."
 
 noaa_wod_ctd:
   name: "NOAA World Ocean Database CTD profiles"
@@ -129,7 +171,7 @@ tao_triton_temperature:
   latency_days: 3
   raw_path: "data/raw/tao_triton/temperature"
   processed_path: "data/processed/zarr/validation/tao_triton"
-  notes: "Downloaded through PMEL ERDDAP for Nino 3.4, 5S-5N / 170W-120W, depth <=300 m, quality 1-3. Validation layer; not a replacement for ORAS5/OISST."
+  notes: "Downloaded through PMEL ERDDAP for Nino 3.4, 5S-5N / 170W-120W, depth <=300 m, quality 1-3. Validation layer; not a replacement for the gridded daily-ocean cubes or OISST."
 
 tao_triton_salinity:
   name: "TAO/TRITON daily subsurface salinity validation"
@@ -200,6 +242,23 @@ noaa_oisst:
   raw_path: "data/raw/cpc_noaa/oisst"
   processed_path: "data/processed/zarr/noaa_oisst.zarr"
   notes: "Primary daily SST/SSTA source. Project master period is 1981-latest available by source; record internal source gaps without silent filling."
+
+noaa_psl_nino34_anom:
+  name: "NOAA PSL Nino 3.4 anomaly index"
+  institution: "NOAA Physical Sciences Laboratory / NCEI"
+  source_url: "https://psl.noaa.gov/data/correlation/nina34.anom.data"
+  license: "NOAA public data; cite PSL/NCEI product page"
+  version: "ERSST v6"
+  variables:
+    - nino34_anom_c
+    - nino34_anom_3mo_mean_c
+  temporal_resolution: "monthly"
+  spatial_resolution: "Nino 3.4 index"
+  period_start: "1948-01-01"
+  period_end: "latest_available"
+  raw_path: "data/raw/cpc_noaa/nino34/nina34.anom.data"
+  processed_path: "data/processed/zarr/features/noaa_psl_nino34_monthly.zarr"
+  notes: "Used as official monthly peak/event reference labels. Dynamic model features use daily OISST-derived Nino 3.4 SSTA."
 
 noaa_olr:
   name: "NOAA interpolated OLR"

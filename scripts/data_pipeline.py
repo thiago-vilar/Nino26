@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 from typing import Callable, Iterable, TypeVar
 
+import pandas as pd
 from tqdm import tqdm
 import xarray as xr
 
@@ -25,10 +26,8 @@ from nino_brasil.data.download_cds import (
     ATMOSPHERE_AREAS,
     ERA5_PRESSURE_VARIABLES,
     ERA5_SINGLE_VARIABLES,
-    ORAS5_VARIABLES,
     download_era5_pressure_month,
     download_era5_single_month,
-    download_oras_month,
     ingest_era5_pressure_month,
     ingest_era5_pressure_year,
     ingest_era5_pressure_year_kind,
@@ -37,9 +36,6 @@ from nino_brasil.data.download_cds import (
     ingest_era5_single_year,
     ingest_era5_single_year_kind,
     ingest_era5_single_year_variable,
-    ingest_oras_month,
-    ingest_oras_year_kind,
-    ingest_oras_year_variable,
 )
 from nino_brasil.data.download_chirps import download_chirps_year
 from nino_brasil.data.download_ctd_noaa import (
@@ -50,9 +46,13 @@ from nino_brasil.data.download_ctd_noaa import (
 )
 from nino_brasil.data.download_ibge import download_ibge
 from nino_brasil.data.download_oisst import download_oisst_year
+from nino_brasil.data.download_noaa_psl import download_noaa_psl_nino34_anom
 from nino_brasil.data.download_validation_insitu import download_argo_year, download_tao_triton_year
 from nino_brasil.data.regrid import normalize_for_common_grid, regrid_dataset, target_grid_from_config
-from nino_brasil.data.zarr_store import chunk_plan, dataframe_to_zarr
+from nino_brasil.data.zarr_store import ZARR_FORMAT, chunk_plan, dataframe_to_zarr
+from nino_brasil.data.anomalies import daily_anomaly, dayofyear_climatology
+from nino_brasil.features.nino import nino34_sst_index
+from nino_brasil.models.progression import build_daily_enso_peak_progression_table
 
 
 T = TypeVar("T")
@@ -63,12 +63,14 @@ DATA_DIRS = [
     "data/raw/ibge",
     "data/raw/chirps",
     "data/raw/cpc_noaa",
-    "data/raw/oras",
+    "data/raw/cpc_noaa/nino34",
+    "data/raw/ocean_daily/glorys12",
+    "data/raw/ocean_daily/glorys12_operational",
+    "data/raw/ocean_monthly/oras5",
     "data/raw/era5",
     "data/raw/ctd_noaa/wod",
     "data/raw/tao_triton",
     "data/raw/argo",
-    "data/interim/oras",
     "data/interim/ibge",
     "data/interim/ctd_noaa",
     "data/interim/brazil_precipitation",
@@ -80,6 +82,14 @@ DATA_DIRS = [
     "data/processed/zarr/features",
     "data/processed/zarr/statistics",
     "data/processed/zarr/modeling",
+    "data/processed/zarr/ocean_daily/glorys12",
+    "data/processed/zarr/ocean_daily/glorys12_operational",
+    "data/processed/zarr/ocean_daily/noaa_ufs",
+    "data/processed/zarr/ocean_monthly/oras5",
+    "data/processed/zarr/features/ocean_daily",
+    "data/processed/zarr/features/ocean_monthly/oras5",
+    "data/processed/parquet/features",
+    "data/processed/parquet/modeling",
     "data/processed/zarr/validation/tao_triton",
     "data/processed/zarr/validation/argo",
     "data/processed/geotiff",
@@ -130,15 +140,26 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print(f"4. download CHIRPS daily precipitation at {chirps_resolution}")
     print("5. download-oisst: daily SST/SSTA primary source for Nino 3.4")
     print("6. ingest-era5: request annual-kind by region/type, split to annual daily Zarr by variable")
-    print("7. ingest-oras: request annual-kind by year, split to annual daily Zarr by variable")
-    print("8. download-ctd: WOD CTD annual raw files, thermocline QC and Zarr")
-    print("9. download-validation: TAO/TRITON and Argo in-situ validation for Nino 3.4")
-    print("10. regrid-zarr: reconcile each modeling cube to the common modeling grid")
-    print("11. diagnose-distributions: optional QC/EDA tail diagnostics")
-    print("12. phase 3: Nino 3.4 anomaly alignment, thermocline, slope and signal duration diagnostics")
-    print("13. phase 4: exploratory statistics with regression, PCA, KNN and variable screening")
-    print("14. model_pipeline.py: phase 5 walk-forward metrics, predictions and importances")
-    print("15. audit: verify status and failed tasks before continuing")
+    print("7. ocean_daily_pipeline.py: ingest originally daily NOAA UFS/GLORYS ocean fields")
+    print("8. ocean_monthly_pipeline.py: ingest ORAS5 monthly means without daily promotion")
+    print("9. audit_ocean_phase2.py: verify daily continuity, monthly integrity and source transitions")
+    print("10. download-ctd: WOD CTD annual raw files, thermocline QC and Zarr")
+    print("11. download-validation: TAO/TRITON and Argo in-situ validation for Nino 3.4")
+    print("12. regrid-zarr: reconcile only sources that require a common spatial grid")
+    print("13. diagnose-distributions: optional QC/EDA tail diagnostics")
+    print("14. download-nino34-reference: NOAA PSL monthly peak labels/reference")
+    print("15. build-nino34-daily-index: daily OISST Nino 3.4 SSTA trajectory")
+    print("16. build-enso-peak-progression: daily OISST trajectory labeled by NOAA PSL peaks")
+    print("17. phase 3: Nino 3.4 anomaly alignment, thermocline, slope and signal duration diagnostics")
+    print("18. phase 4: exploratory statistics with regression, PCA, KNN and variable screening")
+    print("19. phase 5B: build Nino3.4 -> Brazil pixel-cluster event targets")
+    print("20. model_pipeline.py: event-centered walk-forward metrics, predictions and importances")
+    print("21. phase 6A: train native spatial CNN baseline for ENSO peak progression")
+    print("22. phase 6B: train spatiotemporal memory model for nonlinear ENSO progression")
+    print("23. phase 6C: train Brazil cluster decoder for P10/P25/P75/P90 teleconnections")
+    print("24. optional fallback: CMIP6 pretraining/fine-tuning only if native phase 6 skill gates fail")
+    print("25. phase 8: isolated Ham2019 exploratory benchmark for saved weights/data")
+    print("26. audit: verify status and failed tasks before continuing")
     return 0
 
 
@@ -211,6 +232,184 @@ def run_or_continue(label: str, action: Callable[[], T], *, continue_on_error: b
         return None
 
 
+def _looks_like_cds_request_size_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    markers = [
+        "500",
+        "cost",
+        "costs",
+        "internal server",
+        "internal server error",
+        "limit",
+        "limits",
+        "payload",
+        "too large",
+        "request too large",
+        "403",
+    ]
+    return any(marker in text for marker in markers)
+
+
+def _split_variable_group(variables: list[str]) -> tuple[list[str], list[str]]:
+    midpoint = max(1, len(variables) // 2)
+    return variables[:midpoint], variables[midpoint:]
+
+
+def _ingest_era5_annual_auto_group(
+    *,
+    year: int,
+    region: str,
+    kind: str,
+    variables: list[str],
+    raw_dir: Path,
+    zarr_root: Path,
+    dry_run: bool,
+    overwrite: bool,
+    include_hash: bool,
+    delete_raw_after_zarr: bool,
+    audit: AuditLog,
+) -> list[Path]:
+    """Try the largest annual CDS request and split only when CDS rejects it."""
+    if not variables:
+        return []
+
+    group = ", ".join(variables)
+    if len(variables) > 1:
+        try:
+            if kind == "single":
+                return ingest_era5_single_year_kind(
+                    year=year,
+                    region=region,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    variables=variables,
+                    dry_run=dry_run,
+                    overwrite=overwrite,
+                    include_hash=include_hash,
+                    delete_raw_after_zarr=delete_raw_after_zarr,
+                    audit=audit,
+                )
+            return ingest_era5_pressure_year_kind(
+                year=year,
+                region=region,
+                raw_dir=raw_dir,
+                zarr_root=zarr_root,
+                variables=variables,
+                dry_run=dry_run,
+                overwrite=overwrite,
+                include_hash=include_hash,
+                delete_raw_after_zarr=delete_raw_after_zarr,
+                audit=audit,
+            )
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except BaseException as exc:
+            if not _looks_like_cds_request_size_error(exc):
+                raise
+            left, right = _split_variable_group(variables)
+            print(
+                f"ERA5 {year} {region} {kind} [{group}] - CDS rejeitou o grupo; "
+                f"dividindo em {len(left)} + {len(right)} variaveis"
+            )
+            paths: list[Path] = []
+            paths.extend(
+                _ingest_era5_annual_auto_group(
+                    year=year,
+                    region=region,
+                    kind=kind,
+                    variables=left,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    dry_run=dry_run,
+                    overwrite=overwrite,
+                    include_hash=include_hash,
+                    delete_raw_after_zarr=delete_raw_after_zarr,
+                    audit=audit,
+                )
+            )
+            paths.extend(
+                _ingest_era5_annual_auto_group(
+                    year=year,
+                    region=region,
+                    kind=kind,
+                    variables=right,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    dry_run=dry_run,
+                    overwrite=overwrite,
+                    include_hash=include_hash,
+                    delete_raw_after_zarr=delete_raw_after_zarr,
+                    audit=audit,
+                )
+            )
+            return paths
+
+    variable = variables[0]
+    try:
+        if kind == "single":
+            return [
+                ingest_era5_single_year_variable(
+                    year=year,
+                    region=region,
+                    variable=variable,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    dry_run=dry_run,
+                    overwrite=overwrite,
+                    include_hash=include_hash,
+                    delete_raw_after_zarr=delete_raw_after_zarr,
+                    audit=audit,
+                )
+            ]
+        return [
+            ingest_era5_pressure_year_variable(
+                year=year,
+                region=region,
+                variable=variable,
+                raw_dir=raw_dir,
+                zarr_root=zarr_root,
+                dry_run=dry_run,
+                overwrite=overwrite,
+                include_hash=include_hash,
+                delete_raw_after_zarr=delete_raw_after_zarr,
+                audit=audit,
+            )
+        ]
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as exc:
+        if not _looks_like_cds_request_size_error(exc):
+            raise
+        print(f"ERA5 {year} {region} {kind} {variable} - requisicao anual rejeitada; fallback mensal")
+        if kind == "single":
+            return [
+                ingest_era5_single_year(
+                    year=year,
+                    region=region,
+                    raw_dir=raw_dir,
+                    zarr_root=zarr_root,
+                    variables=[variable],
+                    dry_run=dry_run,
+                    overwrite=overwrite,
+                    include_hash=include_hash,
+                    audit=audit,
+                )
+            ]
+        return [
+            ingest_era5_pressure_year(
+                year=year,
+                region=region,
+                raw_dir=raw_dir,
+                zarr_root=zarr_root,
+                variables=[variable],
+                dry_run=dry_run,
+                overwrite=overwrite,
+                include_hash=include_hash,
+                audit=audit,
+            )
+        ]
+
+
 def _selected_variables(requested: list[str] | None, allowed: list[str]) -> list[str] | None:
     if not requested:
         return None
@@ -233,6 +432,259 @@ def cmd_check_cds(_: argparse.Namespace) -> int:
 def cmd_audit(_: argparse.Namespace) -> int:
     AuditLog().print_summary()
     return 0
+
+
+def _default_oisst_zarr_paths() -> list[Path]:
+    processed = sorted(project_path("data/processed/zarr/cpc_noaa/oisst").glob("*.zarr"))
+    if processed:
+        return processed
+    return sorted(project_path("data/processed/zarr/regridded").glob("noaa_oisst_*.zarr"))
+
+
+def cmd_build_nino34_daily_index(args: argparse.Namespace) -> int:
+    paths = [_path_arg(path) for path in (args.input_zarr or [])] or _default_oisst_zarr_paths()
+    output_zarr = _path_arg(args.output_zarr)
+    output_csv = _path_arg(args.output_csv)
+    audit = AuditLog()
+    task_id = "build_nino34_daily_oisst"
+
+    if args.dry_run:
+        print("DRY RUN build Nino 3.4 daily index")
+        print(f"inputs={len(paths)}")
+        for path in paths[:10]:
+            print(f"- {path}")
+        if len(paths) > 10:
+            print("...")
+        print(f"sst_var={args.sst_var}")
+        print(f"climatology={args.climatology_start}..{args.climatology_end}; window_days={args.window_days}")
+        print(f"output_zarr={output_zarr}")
+        print(f"output_csv={output_csv}")
+        return 0
+
+    if not paths:
+        raise FileNotFoundError("No OISST Zarr inputs found. Run download-oisst/regrid-zarr first or pass --input-zarr.")
+    missing = [path for path in paths if not path.exists()]
+    if missing:
+        raise FileNotFoundError(f"Missing OISST Zarr inputs: {missing[:5]}")
+
+    audit.record(
+        task_id=task_id,
+        dataset="nino34_daily_oisst",
+        status="started",
+        input_paths=[str(path) for path in paths],
+        output_zarr=str(output_zarr),
+        output_csv=str(output_csv),
+        climatology_start=args.climatology_start,
+        climatology_end=args.climatology_end,
+    )
+    datasets = [xr.open_zarr(path) for path in paths]
+    try:
+        ds = xr.concat(datasets, dim="time").sortby("time") if len(datasets) > 1 else datasets[0].sortby("time")
+        if args.sst_var not in ds:
+            raise KeyError(f"{args.sst_var!r} not found in OISST dataset variables: {list(ds.data_vars)}")
+        index = nino34_sst_index(ds[args.sst_var])
+        climatology_source = index.sel(time=slice(args.climatology_start, args.climatology_end))
+        climatology = dayofyear_climatology(climatology_source, args.window_days)
+        ssta = daily_anomaly(index, climatology=climatology, window_days=args.window_days).rename("nino34_ssta")
+
+        table_data = {
+            "time": pd.DatetimeIndex(index["time"].values),
+            "nino34_sst": index.to_pandas().to_numpy(),
+            "nino34_ssta": ssta.to_pandas().to_numpy(),
+        }
+        frame = pd.DataFrame(table_data).sort_values("time").reset_index(drop=True)
+        frame["year"] = frame["time"].dt.year
+        frame["month"] = frame["time"].dt.month
+        frame["day"] = frame["time"].dt.day
+        rolling_days = args.rolling_days or [7, 30, 90, 180]
+        for window in rolling_days:
+            frame[f"nino34_ssta_mean_{window}d"] = frame["nino34_ssta"].rolling(window, min_periods=1).mean()
+            frame[f"nino34_ssta_delta_{window}d"] = frame["nino34_ssta"] - frame["nino34_ssta"].shift(window)
+        frame["source"] = "NOAA OISST v2.1 daily SST"
+        frame["climatology"] = f"{args.climatology_start}:{args.climatology_end}"
+
+        output_csv.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_csv(output_csv, index=False)
+        dataframe_to_zarr(
+            frame,
+            output_zarr,
+            overwrite=True,
+            attrs={
+                "artifact": "nino34_daily_oisst",
+                "climatology_start": args.climatology_start,
+                "climatology_end": args.climatology_end,
+                "window_days": int(args.window_days),
+            },
+        )
+        audit.record(
+            task_id=task_id,
+            dataset="nino34_daily_oisst",
+            status="ok",
+            output_zarr=str(output_zarr),
+            output_csv=str(output_csv),
+            rows=int(len(frame)),
+            first_date=str(frame["time"].min().date()),
+            last_date=str(frame["time"].max().date()),
+            zarr_summary=dataset_summary(output_zarr, zarr=True),
+        )
+        print(f"nino34 daily csv: {output_csv}")
+        print(f"nino34 daily zarr: {output_zarr}")
+        return 0
+    except Exception as exc:
+        audit.record(
+            task_id=task_id,
+            dataset="nino34_daily_oisst",
+            status="error",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise
+    finally:
+        for dataset in datasets:
+            dataset.close()
+
+
+def cmd_download_nino34_reference(args: argparse.Namespace) -> int:
+    raw_path = _path_arg(args.raw_path)
+    csv_path = _path_arg(args.csv_path)
+    zarr_path = _path_arg(args.zarr_path)
+    peaks_csv_path = _path_arg(args.peaks_csv_path)
+    peaks_zarr_path = _path_arg(args.peaks_zarr_path)
+    audit = AuditLog()
+    task_id = "download_noaa_psl_nino34_reference"
+
+    if args.dry_run:
+        print("DRY RUN download NOAA PSL Nino 3.4 reference")
+        print(f"raw={raw_path}")
+        print(f"csv={csv_path}")
+        print(f"zarr={zarr_path}")
+        print(f"peaks_csv={peaks_csv_path}")
+        print(f"peaks_zarr={peaks_zarr_path}")
+        return 0
+
+    audit.record(
+        task_id=task_id,
+        dataset="noaa_psl_nino34_reference",
+        status="started",
+        raw_path=str(raw_path),
+        csv_path=str(csv_path),
+        zarr_path=str(zarr_path),
+        peaks_csv_path=str(peaks_csv_path),
+        peaks_zarr_path=str(peaks_zarr_path),
+    )
+    try:
+        output = download_noaa_psl_nino34_anom(
+            raw_path=raw_path,
+            csv_path=csv_path,
+            zarr_path=zarr_path,
+            peaks_csv_path=peaks_csv_path,
+            peaks_zarr_path=peaks_zarr_path,
+            overwrite=args.overwrite,
+        )
+        audit.record(
+            task_id=task_id,
+            dataset="noaa_psl_nino34_reference",
+            status="ok",
+            raw_path=str(output.raw_path),
+            csv_path=str(output.csv_path),
+            zarr_path=str(output.zarr_path),
+            peaks_csv_path=str(output.peaks_csv_path),
+            peaks_zarr_path=str(output.peaks_zarr_path),
+            rows=output.rows,
+            peaks=output.peaks,
+        )
+        print(f"nino34 reference csv: {output.csv_path}")
+        print(f"nino34 reference peaks: {output.peaks_csv_path}")
+        return 0
+    except Exception as exc:
+        audit.record(
+            task_id=task_id,
+            dataset="noaa_psl_nino34_reference",
+            status="error",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise
+
+
+def cmd_build_enso_peak_progression(args: argparse.Namespace) -> int:
+    daily_csv = _path_arg(args.daily_csv)
+    peaks_csv = _path_arg(args.peaks_csv)
+    output_zarr = _path_arg(args.output_zarr)
+    output_csv = _path_arg(args.output_csv)
+    lead_days = args.lead_days or [30, 60, 90, 120, 180, 270, 365]
+    history_days = args.history_days or [7, 30, 90, 180]
+    audit = AuditLog()
+    task_id = "build_enso_peak_progression"
+
+    if args.dry_run:
+        print("DRY RUN build ENSO peak progression")
+        print(f"daily_csv={daily_csv}")
+        print(f"peaks_csv={peaks_csv}")
+        print(f"lead_days={lead_days}")
+        print(f"history_days={history_days}")
+        print(f"output_zarr={output_zarr}")
+        print(f"output_csv={output_csv}")
+        return 0
+
+    if not daily_csv.exists():
+        raise FileNotFoundError(f"Daily Nino 3.4 CSV not found: {daily_csv}")
+    if not peaks_csv.exists():
+        raise FileNotFoundError(f"NOAA PSL reference peaks CSV not found: {peaks_csv}")
+
+    audit.record(
+        task_id=task_id,
+        dataset="enso_peak_progression",
+        status="started",
+        daily_csv=str(daily_csv),
+        peaks_csv=str(peaks_csv),
+        output_zarr=str(output_zarr),
+        output_csv=str(output_csv),
+        lead_days=lead_days,
+        history_days=history_days,
+    )
+    try:
+        daily = pd.read_csv(daily_csv, parse_dates=["time"])
+        peaks = pd.read_csv(peaks_csv, parse_dates=["peak_time"])
+        table = build_daily_enso_peak_progression_table(
+            daily,
+            peaks,
+            lead_days=lead_days,
+            history_windows_days=history_days,
+        )
+        output_csv.parent.mkdir(parents=True, exist_ok=True)
+        table.to_csv(output_csv, index=False)
+        dataframe_to_zarr(
+            table,
+            output_zarr,
+            overwrite=True,
+            attrs={
+                "artifact": "enso_peak_progression",
+                "dynamic_signal": "daily_oisst_nino34_ssta",
+                "peak_reference": "noaa_psl_monthly_nino34_ersst_v6",
+            },
+        )
+        audit.record(
+            task_id=task_id,
+            dataset="enso_peak_progression",
+            status="ok",
+            output_zarr=str(output_zarr),
+            output_csv=str(output_csv),
+            rows=int(len(table)),
+            zarr_summary=dataset_summary(output_zarr, zarr=True),
+        )
+        print(f"enso peak progression csv: {output_csv}")
+        print(f"enso peak progression zarr: {output_zarr}")
+        return 0
+    except Exception as exc:
+        audit.record(
+            task_id=task_id,
+            dataset="enso_peak_progression",
+            status="error",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise
 
 
 def _path_arg(value: str) -> Path:
@@ -271,8 +723,6 @@ def cmd_regrid_zarr(args: argparse.Namespace) -> int:
                 target_grid_from_config(cfg),
                 method=method,
             )
-            if output_path.exists() and args.overwrite:
-                shutil.rmtree(output_path)
             if output_path.exists() and not args.overwrite:
                 dataset_summary(output_path, zarr=True)
                 print(f"zarr exists: {output_path}")
@@ -281,7 +731,36 @@ def cmd_regrid_zarr(args: argparse.Namespace) -> int:
                 chunks = chunk_plan(regridded)
                 if chunks:
                     regridded = regridded.chunk(chunks)
-                regridded.to_zarr(output_path, mode="w", consolidated=True, zarr_format=2)
+
+                # Zarr v3 inputs expose backend-specific encodings such as
+                # ``serializer`` and ``compressors``.  Reusing those encodings
+                # while writing the project's Zarr v2 outputs raises
+                # ``Zarr format 2 arrays do not support serializer``.  The
+                # regridded values/chunks are independent of those source
+                # encodings, so discard them before serializing.
+                regridded = regridded.drop_encoding()
+
+                # Build and validate beside the destination before replacing
+                # it.  A failed write must not destroy the last usable store.
+                staging_path = output_path.with_name(f".{output_path.name}.building")
+                backup_path = output_path.with_name(f".{output_path.name}.backup")
+                if staging_path.exists():
+                    shutil.rmtree(staging_path)
+                regridded.to_zarr(staging_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
+                dataset_summary(staging_path, zarr=True)
+
+                if backup_path.exists():
+                    shutil.rmtree(backup_path)
+                if output_path.exists():
+                    output_path.replace(backup_path)
+                try:
+                    staging_path.replace(output_path)
+                except BaseException:
+                    if backup_path.exists() and not output_path.exists():
+                        backup_path.replace(output_path)
+                    raise
+                if backup_path.exists():
+                    shutil.rmtree(backup_path)
                 print(f"regridded zarr written: {output_path}")
             audit.record(
                 task_id=task_id,
@@ -309,11 +788,13 @@ def cmd_regrid_zarr(args: argparse.Namespace) -> int:
 def cmd_diagnose_distributions(args: argparse.Namespace) -> int:
     input_path = _path_arg(args.input)
     output_path = _path_arg(args.output)
+    csv_output_path = _path_arg(args.csv_output)
     audit = AuditLog()
     task_id = f"diagnose_distributions_{input_path.stem}"
 
     if args.dry_run:
         print(f"DRY RUN diagnose distributions: {input_path} -> {output_path}")
+        print(f"DRY RUN diagnose distributions CSV: {csv_output_path}")
         print(f"variables={args.variable or 'all'}; tail={args.tail}; sample_size={args.sample_size}")
         return 0
 
@@ -350,15 +831,19 @@ def cmd_diagnose_distributions(args: argparse.Namespace) -> int:
                 "tail": args.tail,
             },
         )
+        csv_output_path.parent.mkdir(parents=True, exist_ok=True)
+        diagnostics.to_csv(csv_output_path, index=False)
         audit.record(
             task_id=task_id,
             dataset=args.dataset,
             status="ok",
             input_path=str(input_path),
             output_path=str(output_path),
+            csv_output_path=str(csv_output_path),
             rows=int(len(diagnostics)),
         )
         print(f"distribution diagnostics: {output_path}")
+        print(f"distribution diagnostics csv: {csv_output_path}")
         return 0
     except Exception as exc:
         audit.record(
@@ -597,6 +1082,56 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
                     )
             return 0
 
+        if args.request_mode == "annual-auto":
+            tasks = [
+                (year, region)
+                for year in years
+                for region in regions
+            ]
+            total_families = len(tasks) * int(request_single) + len(tasks) * int(request_pressure)
+            print(
+                "ERA5 annual-auto groups: "
+                f"{total_families}; tenta annual-kind agregado e divide apenas se o CDS rejeitar"
+            )
+            for year, region in tqdm(tasks, desc="ERA5 annual-auto years/regions", unit="task"):
+                if request_single:
+                    run_or_continue(
+                        f"ERA5 single annual-auto {year} {region}",
+                        lambda year=year, region=region: _ingest_era5_annual_auto_group(
+                            year=year,
+                            region=region,
+                            kind="single",
+                            variables=single_variables or ERA5_SINGLE_VARIABLES,
+                            raw_dir=raw_dir,
+                            zarr_root=zarr_root,
+                            dry_run=not args.execute,
+                            overwrite=args.overwrite,
+                            include_hash=args.hash,
+                            delete_raw_after_zarr=args.delete_raw_after_zarr,
+                            audit=audit,
+                        ),
+                        continue_on_error=args.continue_on_error,
+                    )
+                if request_pressure:
+                    run_or_continue(
+                        f"ERA5 pressure annual-auto {year} {region}",
+                        lambda year=year, region=region: _ingest_era5_annual_auto_group(
+                            year=year,
+                            region=region,
+                            kind="pressure",
+                            variables=pressure_variables or ERA5_PRESSURE_VARIABLES,
+                            raw_dir=raw_dir,
+                            zarr_root=zarr_root,
+                            dry_run=not args.execute,
+                            overwrite=args.overwrite,
+                            include_hash=args.hash,
+                            delete_raw_after_zarr=args.delete_raw_after_zarr,
+                            audit=audit,
+                        ),
+                        continue_on_error=args.continue_on_error,
+                    )
+            return 0
+
         single_task_variables = single_variables or ERA5_SINGLE_VARIABLES
         pressure_task_variables = pressure_variables or ERA5_PRESSURE_VARIABLES
         tasks: list[tuple[int, str, str, str]] = []
@@ -716,113 +1251,6 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
                     ),
                     continue_on_error=args.continue_on_error,
                 )
-    return 0
-
-
-def cmd_download_oras(args: argparse.Namespace) -> int:
-    cfg = load_config()
-    raw_dir = project_path("data/raw/oras")
-    interim_dir = project_path("data/interim/oras")
-    zarr_root = project_path("data/processed/zarr")
-    months = iter_months(args.month)
-    if args.annual_zarr and args.raw_only:
-        raise ValueError("--annual-zarr cannot be combined with --raw-only.")
-    if args.annual_zarr and args.month and sorted(set(args.month)) != list(range(1, 13)):
-        raise ValueError("--annual-zarr needs the full year; omit --month or pass all 12 months.")
-    variables = _selected_variables(args.variable, ORAS5_VARIABLES)
-    if args.variable and not variables:
-        raise ValueError(f"No requested variable belongs to ORAS5: {args.variable}")
-    audit = AuditLog()
-    record_source_latency(audit, "oras5", cfg)
-
-    if args.annual_zarr:
-        years = iter_complete_annual_years(args.start_year, args.end_year, "oras5", cfg)
-        if args.request_mode == "annual-kind":
-            years_list = list(years)
-            print(f"ORAS annual-kind CDS requests: {len(years_list)}")
-            for year in tqdm(years_list, desc="ORAS annual-kind years", unit="year"):
-                run_or_continue(
-                    f"ORAS5 annual-kind {year}",
-                    lambda year=year: ingest_oras_year_kind(
-                        year=year,
-                        raw_dir=raw_dir,
-                        interim_dir=interim_dir,
-                        zarr_root=zarr_root,
-                        months=months,
-                        variables=variables,
-                        dry_run=not args.execute,
-                        overwrite=args.overwrite,
-                        include_hash=args.hash,
-                        delete_raw_after_zarr=args.delete_raw_after_zarr,
-                        audit=audit,
-                    ),
-                    continue_on_error=args.continue_on_error,
-                )
-            return 0
-
-        task_variables = variables or ORAS5_VARIABLES
-        tasks = [
-            (year, variable)
-            for year in years
-            for variable in task_variables
-        ]
-        print(f"ORAS annual variable tasks: {len(tasks)}")
-        for year, variable in tasks:
-            run_or_continue(
-                f"ORAS5 annual {year} {variable}",
-                lambda year=year, variable=variable: ingest_oras_year_variable(
-                    year=year,
-                    variable=variable,
-                    raw_dir=raw_dir,
-                    interim_dir=interim_dir,
-                    zarr_root=zarr_root,
-                    months=months,
-                    dry_run=not args.execute,
-                    overwrite=args.overwrite,
-                    include_hash=args.hash,
-                    delete_raw_after_zarr=args.delete_raw_after_zarr,
-                    audit=audit,
-                ),
-                continue_on_error=args.continue_on_error,
-            )
-        return 0
-
-    year_months = iter_complete_year_months(args.start_year, args.end_year, "oras5", cfg, args.month)
-    tasks = [
-        (year, month)
-        for year, month in year_months
-    ]
-    for year, month in tqdm(tasks, desc="ORAS tasks", unit="task"):
-        if args.raw_only:
-            run_or_continue(
-                f"ORAS5 raw {year}-{month:02d}",
-                lambda year=year, month=month: download_oras_month(
-                    year=year,
-                    month=month,
-                    raw_dir=raw_dir,
-                    variables=variables,
-                    dry_run=not args.execute,
-                    overwrite=args.overwrite,
-                ),
-                continue_on_error=args.continue_on_error,
-            )
-        else:
-            run_or_continue(
-                f"ORAS5 {year}-{month:02d}",
-                lambda year=year, month=month: ingest_oras_month(
-                    year=year,
-                    month=month,
-                    raw_dir=raw_dir,
-                    interim_dir=interim_dir,
-                    zarr_root=zarr_root,
-                    variables=variables,
-                    dry_run=not args.execute,
-                    overwrite=args.overwrite,
-                    include_hash=args.hash,
-                    audit=audit,
-                ),
-                continue_on_error=args.continue_on_error,
-            )
     return 0
 
 
@@ -1013,32 +1441,8 @@ def cmd_download_all(args: argparse.Namespace) -> int:
                     ),
                     continue_on_error=args.continue_on_error,
                 )
-        record_source_latency(audit, "oras5", cfg)
-        oras_tasks = [
-            (year, month)
-            for year in iter_years(args.start_year, args.end_year, "oras5", cfg)
-            for month in months
-        ]
-        for year, month in tqdm(oras_tasks, desc="ORAS ingest months", unit="month"):
-            for variable in ORAS5_VARIABLES:
-                run_or_continue(
-                    f"ORAS5 {year}-{month:02d} {variable}",
-                    lambda year=year, month=month, variable=variable: ingest_oras_month(
-                        year=year,
-                        month=month,
-                        raw_dir=project_path("data/raw/oras"),
-                        interim_dir=project_path("data/interim/oras"),
-                        zarr_root=project_path("data/processed/zarr"),
-                        variables=[variable],
-                        dry_run=dry_run,
-                        overwrite=args.overwrite,
-                        include_hash=args.hash,
-                        audit=audit,
-                    ),
-                    continue_on_error=args.continue_on_error,
-                )
     else:
-        print("CDS downloads skipped. Add --include-cds to include ERA5 and ORAS.")
+        print("CDS downloads skipped. Add --include-cds to include ERA5.")
 
     return 0
 
@@ -1064,6 +1468,47 @@ def build_parser() -> argparse.ArgumentParser:
     audit_p = sub.add_parser("audit", help="Summarize the local audit ledger.")
     audit_p.set_defaults(func=cmd_audit)
 
+    nino34_daily_p = sub.add_parser(
+        "build-nino34-daily-index",
+        help="Build daily Nino 3.4 SST/SSTA trajectory from OISST Zarr inputs.",
+    )
+    nino34_daily_p.add_argument("--input-zarr", action="append", help="OISST Zarr input; defaults to local annual OISST stores.")
+    nino34_daily_p.add_argument("--sst-var", default="sst")
+    nino34_daily_p.add_argument("--climatology-start", default="1991-01-01")
+    nino34_daily_p.add_argument("--climatology-end", default="2020-12-31")
+    nino34_daily_p.add_argument("--window-days", type=int, default=15)
+    nino34_daily_p.add_argument("--rolling-days", type=int, action="append")
+    nino34_daily_p.add_argument("--output-zarr", default="data/processed/zarr/features/nino34_daily_oisst.zarr")
+    nino34_daily_p.add_argument("--output-csv", default="data/processed/parquet/features/nino34_daily_oisst.csv")
+    nino34_daily_p.add_argument("--dry-run", action="store_true")
+    nino34_daily_p.set_defaults(func=cmd_build_nino34_daily_index)
+
+    nino34_ref_p = sub.add_parser(
+        "download-nino34-reference",
+        help="Download NOAA PSL monthly Nino 3.4 reference index and detected peak labels.",
+    )
+    nino34_ref_p.add_argument("--raw-path", default="data/raw/cpc_noaa/nino34/nina34.anom.data")
+    nino34_ref_p.add_argument("--csv-path", default="data/processed/parquet/features/noaa_psl_nino34_monthly.csv")
+    nino34_ref_p.add_argument("--zarr-path", default="data/processed/zarr/features/noaa_psl_nino34_monthly.zarr")
+    nino34_ref_p.add_argument("--peaks-csv-path", default="data/processed/parquet/features/noaa_psl_nino34_reference_peaks.csv")
+    nino34_ref_p.add_argument("--peaks-zarr-path", default="data/processed/zarr/features/noaa_psl_nino34_reference_peaks.zarr")
+    nino34_ref_p.add_argument("--overwrite", action="store_true")
+    nino34_ref_p.add_argument("--dry-run", action="store_true")
+    nino34_ref_p.set_defaults(func=cmd_download_nino34_reference)
+
+    enso_peak_p = sub.add_parser(
+        "build-enso-peak-progression",
+        help="Build daily ENSO peak-progression matrix from OISST daily features and NOAA PSL peak labels.",
+    )
+    enso_peak_p.add_argument("--daily-csv", default="data/processed/parquet/features/nino34_daily_oisst.csv")
+    enso_peak_p.add_argument("--peaks-csv", default="data/processed/parquet/features/noaa_psl_nino34_reference_peaks.csv")
+    enso_peak_p.add_argument("--lead-days", type=int, action="append")
+    enso_peak_p.add_argument("--history-days", type=int, action="append")
+    enso_peak_p.add_argument("--output-zarr", default="data/processed/zarr/modeling/enso_peak_progression.zarr")
+    enso_peak_p.add_argument("--output-csv", default="data/processed/parquet/modeling/enso_peak_progression.csv")
+    enso_peak_p.add_argument("--dry-run", action="store_true")
+    enso_peak_p.set_defaults(func=cmd_build_enso_peak_progression)
+
     regrid_p = sub.add_parser("regrid-zarr", help="Regrid a Zarr cube to the common modeling grid.")
     regrid_p.add_argument("--input", required=True, help="Input Zarr path.")
     regrid_p.add_argument("--output", required=True, help="Output Zarr path.")
@@ -1080,6 +1525,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dist_p.add_argument("--input", required=True, help="Input Zarr path.")
     dist_p.add_argument("--output", default="data/processed/zarr/distributions/distribution_diagnostics.zarr")
+    dist_p.add_argument("--csv-output", default="data/processed/parquet/distribution_diagnostics.csv")
     dist_p.add_argument("--dataset", default="unknown", help="Dataset name for audit ledger.")
     dist_p.add_argument("--variable", action="append", help="Variable to diagnose; repeat for many.")
     dist_p.add_argument("--tail", choices=["upper", "absolute"], default="upper")
@@ -1170,42 +1616,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     era5_p.add_argument(
         "--request-mode",
-        choices=["annual-kind", "annual-variable", "monthly-kind"],
+        choices=["annual-kind", "annual-auto", "annual-variable", "monthly-kind"],
         default="annual-kind",
-        help="With --annual-zarr, request one full year per kind/region by default; use annual-variable or monthly-kind as fallbacks.",
+        help=(
+            "With --annual-zarr, request one full year per kind/region by default. "
+            "Use annual-auto to try the largest accepted yearly request and split on CDS cost/payload rejection."
+        ),
     )
     era5_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
     era5_p.add_argument("--continue-on-error", action="store_true", help="Log item failures and keep processing later tasks.")
     era5_p.set_defaults(func=cmd_download_era5)
-
-    oras_p = sub.add_parser("download-oras", help="Download ORAS5 files through CDS.")
-    oras_p.add_argument("--start-year", type=int, required=True)
-    oras_p.add_argument("--end-year", type=int)
-    oras_p.add_argument("--month", type=int, action="append", choices=range(1, 13))
-    oras_p.add_argument(
-        "--variable",
-        action="append",
-        choices=ORAS5_VARIABLES,
-        help="Download/ingest one ORAS5 variable; repeat for many. Omit to request all variables.",
-    )
-    oras_p.add_argument("--execute", action="store_true", help="Actually submit CDS requests.")
-    oras_p.add_argument("--overwrite", action="store_true")
-    oras_p.add_argument("--raw-only", action="store_true", help="Skip Zarr conversion.")
-    oras_p.add_argument("--annual-zarr", action="store_true", help="Cache yearly ORAS5 files and write annual daily Zarr stores by variable.")
-    oras_p.add_argument(
-        "--delete-raw-after-zarr",
-        action="store_true",
-        help="Delete each raw annual ZIP cache after its yearly variable Zarr is validated.",
-    )
-    oras_p.add_argument(
-        "--request-mode",
-        choices=["annual-kind", "annual-variable"],
-        default="annual-kind",
-        help="With --annual-zarr, request one full year with all selected variables by default; use annual-variable as fallback.",
-    )
-    oras_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
-    oras_p.add_argument("--continue-on-error", action="store_true", help="Log item failures and keep processing later tasks.")
-    oras_p.set_defaults(func=cmd_download_oras)
 
     validation_p = sub.add_parser("download-validation", help="Download in-situ validation data for Nino 3.4 from TAO/TRITON and Argo.")
     validation_p.add_argument("--source", choices=["tao_triton", "argo", "all"], default="all")
@@ -1231,7 +1651,7 @@ def build_parser() -> argparse.ArgumentParser:
     all_p.add_argument("--end-year", type=int)
     all_p.add_argument("--month", type=int, action="append", choices=range(1, 13))
     all_p.add_argument("--chirps-resolution", choices=["p25", "p05"])
-    all_p.add_argument("--include-cds", action="store_true", help="Include ERA5 and ORAS.")
+    all_p.add_argument("--include-cds", action="store_true", help="Include ERA5.")
     all_p.add_argument("--execute", action="store_true", help="Actually download/submit requests.")
     all_p.add_argument("--overwrite", action="store_true")
     all_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw CDS files.")

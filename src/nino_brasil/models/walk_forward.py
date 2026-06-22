@@ -19,9 +19,14 @@ from nino_brasil.data.anomalies import (
     standardized_anomaly,
 )
 from nino_brasil.features.nino import nino34_sst_index
-from nino_brasil.features.precipitation_events import event_mask, local_percentile_threshold
+from nino_brasil.features.precipitation_events import event_mask, local_percentile_thresholds
 from nino_brasil.models.baselines import classification_metrics, regression_metrics
-from nino_brasil.models.feature_matrix import FeatureMatrix, SpatialStrategy, build_feature_matrix
+from nino_brasil.models.feature_matrix import (
+    FeatureMatrix,
+    SpatialStrategy,
+    align_target_to_predictor_matrix,
+    build_predictor_matrix,
+)
 from nino_brasil.models.xai import permutation_importance_frame, shap_importance_frame
 
 
@@ -261,20 +266,34 @@ def _importance_frames(
     model_name: str,
     random_state: int,
     n_repeats: int,
+    permutation_feature_limit: int,
     compute_shap: bool,
     shap_max_rows: int,
 ) -> list[pd.DataFrame]:
     frames: list[pd.DataFrame] = []
     y_for_importance = y_eval.astype(int) if task == "classification" else y_eval
-    permutation = permutation_importance_frame(
-        model,
-        X_eval,
-        y_for_importance,
-        scoring=_importance_scoring(task),
-        n_repeats=n_repeats,
-        random_state=random_state,
-    )
-    permutation["method"] = "permutation"
+    if X_eval.shape[1] > permutation_feature_limit:
+        permutation = pd.DataFrame(
+            {
+                "feature": ["__permutation_skipped__"],
+                "importance_mean": [np.nan],
+                "importance_std": [np.nan],
+                "reason": ["n_features_exceeds_limit"],
+                "n_features": [int(X_eval.shape[1])],
+                "feature_limit": [int(permutation_feature_limit)],
+            }
+        )
+        permutation["method"] = "skipped"
+    else:
+        permutation = permutation_importance_frame(
+            model,
+            X_eval,
+            y_for_importance,
+            scoring=_importance_scoring(task),
+            n_repeats=n_repeats,
+            random_state=random_state,
+        )
+        permutation["method"] = "permutation"
     permutation["season"] = "all"
     permutation["importance_value"] = permutation["importance_mean"]
     permutation["group"] = permutation["feature"].map(matrix.feature_groups).fillna("other")
@@ -321,6 +340,7 @@ def _fit_evaluate_matrix(
     compute_importance: bool,
     compute_shap: bool,
     importance_n_repeats: int,
+    permutation_feature_limit: int,
     shap_max_rows: int,
 ) -> WalkForwardOutput:
     metric_rows: list[dict[str, object]] = []
@@ -399,6 +419,7 @@ def _fit_evaluate_matrix(
                             model_name=model_name,
                             random_state=random_state,
                             n_repeats=importance_n_repeats,
+                            permutation_feature_limit=permutation_feature_limit,
                             compute_shap=compute_shap,
                             shap_max_rows=shap_max_rows,
                         )
@@ -478,8 +499,8 @@ def run_walk_forward(
     *,
     lags_days: Sequence[int],
     folds: Sequence[WalkForwardFold] | None = None,
-    regression_models: Sequence[str] = ("ridge", "rf", "xgboost"),
-    classification_models: Sequence[str] = ("logistic", "rf", "xgboost"),
+    regression_models: Sequence[str] = ("ridge", "rf", "lightgbm"),
+    classification_models: Sequence[str] = ("logistic", "rf", "lightgbm"),
     dry_percentile: float = 10.0,
     lower_percentile: float | None = 25.0,
     upper_percentile: float | None = 75.0,
@@ -492,6 +513,7 @@ def run_walk_forward(
     compute_importance: bool = True,
     compute_shap: bool = False,
     importance_n_repeats: int = 5,
+    permutation_feature_limit: int = 500,
     shap_max_rows: int = 1000,
     random_state: int = 42,
 ) -> WalkForwardOutput:
@@ -528,12 +550,16 @@ def run_walk_forward(
             time_name=time_name,
         )
         event_targets = []
+        thresholds = local_percentile_thresholds(
+            target,
+            [percentile for _, _, percentile in event_specs],
+            train_times=target_train_times,
+            time_name=time_name,
+        )
         for event_name, event_kind, percentile in event_specs:
-            threshold = local_percentile_threshold(
-                target,
-                percentile,
-                train_times=target_train_times,
-                time_name=time_name,
+            threshold = thresholds.sel(
+                quantile=float(percentile) / 100.0,
+                drop=True,
             )
             event_targets.append(
                 (
@@ -571,16 +597,20 @@ def run_walk_forward(
             fold_predictors = fold_predictors.assign(nino34_ssta=nino34)
 
         for lag in lags_days:
-            regression_matrix = build_feature_matrix(
+            predictor_matrix = build_predictor_matrix(
                 fold_predictors,
-                target_anomaly,
                 lag_days=int(lag),
                 time_name=time_name,
                 predictor_strategy=predictor_strategy,
-                target_strategy=target_strategy,
                 climatology_window_days=climatology_window_days,
                 include_nino34=False,
                 feature_groups={"nino34_ssta": "ocean"},
+            )
+            regression_matrix = align_target_to_predictor_matrix(
+                predictor_matrix,
+                target_anomaly,
+                time_name=time_name,
+                target_strategy=target_strategy,
             )
             regression_output = _fit_evaluate_matrix(
                 regression_matrix,
@@ -591,6 +621,7 @@ def run_walk_forward(
                 compute_importance=compute_importance,
                 compute_shap=compute_shap,
                 importance_n_repeats=importance_n_repeats,
+                permutation_feature_limit=permutation_feature_limit,
                 shap_max_rows=shap_max_rows,
             )
             all_metrics.append(regression_output.metrics)
@@ -598,16 +629,11 @@ def run_walk_forward(
             all_importances.append(regression_output.importances)
 
             for event_name, event_target in event_targets:
-                class_matrix = build_feature_matrix(
-                    fold_predictors,
+                class_matrix = align_target_to_predictor_matrix(
+                    predictor_matrix,
                     event_target.astype(int).rename(event_name),
-                    lag_days=int(lag),
                     time_name=time_name,
-                    predictor_strategy=predictor_strategy,
                     target_strategy=target_strategy,
-                    climatology_window_days=climatology_window_days,
-                    include_nino34=False,
-                    feature_groups={"nino34_ssta": "ocean"},
                 )
                 class_output = _fit_evaluate_matrix(
                     class_matrix,
@@ -618,6 +644,7 @@ def run_walk_forward(
                     compute_importance=compute_importance,
                     compute_shap=compute_shap,
                     importance_n_repeats=importance_n_repeats,
+                    permutation_feature_limit=permutation_feature_limit,
                     shap_max_rows=shap_max_rows,
                 )
                 if not class_output.metrics.empty:

@@ -22,6 +22,9 @@ class TailFit:
     llr_power_law_vs_lognormal: float
     llr_power_law_vs_exponential: float
     preferred_distribution: str
+    recommended_distribution: str
+    recommendation_confidence: str
+    physical_note: str
 
 
 def _tail_values(values: np.ndarray, tail: str) -> np.ndarray:
@@ -76,6 +79,31 @@ def _loglik_lognormal(x: np.ndarray, xmin: float) -> float:
     )
 
 
+def _recommendation_confidence(likelihoods: dict[str, float], preferred: str) -> str:
+    ordered = sorted(likelihoods.items(), key=lambda item: item[1], reverse=True)
+    if len(ordered) < 2:
+        return "ambiguous"
+    margin = ordered[0][1] - ordered[1][1]
+    if not np.isfinite(margin):
+        return "ambiguous"
+    if margin >= 10.0:
+        return "strong"
+    if margin >= 2.0:
+        return "weak"
+    return "ambiguous"
+
+
+def _physical_note(variable: str, preferred: str, confidence: str) -> str:
+    lower = variable.lower()
+    if any(token in lower for token in ("precip", "rain", "chirps")):
+        return f"precipitation tail: {preferred} preferred with {confidence} evidence"
+    if any(token in lower for token in ("ohc", "heat")):
+        return f"ocean heat content tail: {preferred} preferred with {confidence} evidence"
+    if any(token in lower for token in ("sst", "ssta", "temperature")):
+        return f"temperature anomaly tail: {preferred} preferred with {confidence} evidence"
+    return f"{variable} tail: {preferred} preferred with {confidence} evidence"
+
+
 def fit_power_law_tail(
     values: np.ndarray,
     *,
@@ -120,6 +148,7 @@ def fit_power_law_tail(
         "exponential": ll_exponential,
     }
     preferred = max(likelihoods, key=likelihoods.get)
+    confidence = _recommendation_confidence(likelihoods, preferred)
     return TailFit(
         variable=variable,
         tail=tail,
@@ -133,6 +162,9 @@ def fit_power_law_tail(
         llr_power_law_vs_lognormal=ll_power - ll_lognormal,
         llr_power_law_vs_exponential=ll_power - ll_exponential,
         preferred_distribution=preferred,
+        recommended_distribution=preferred,
+        recommendation_confidence=confidence,
+        physical_note=_physical_note(variable, preferred, confidence),
     )
 
 

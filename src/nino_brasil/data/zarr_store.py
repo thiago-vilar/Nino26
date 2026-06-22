@@ -4,20 +4,27 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 
+ZARR_FORMAT = 2
+
+
 def chunk_plan(ds: xr.Dataset) -> dict[str, int]:
-    """Project-wide chunking policy for Zarr stores (single source of truth)."""
+    """Project-wide analytic chunking policy for Zarr stores.
+
+    The modeling phases read long temporal windows much more often than short
+    monthly slices, so daily cubes use year-sized time chunks by default.
+    """
     chunks: dict[str, int] = {}
     for dim, size in ds.sizes.items():
         name = dim.lower()
         if "time" in name:
-            chunks[dim] = min(int(size), 31)
+            chunks[dim] = min(int(size), 365)
         elif "depth" in name or "level" in name:
             chunks[dim] = min(int(size), 10)
         elif "lat" in name or name in {"y", "j"}:
@@ -122,9 +129,22 @@ def _daily_calendar(
     return pd.date_range(start, end, freq="D", name=time_name)
 
 
-def _expand_single_step_to_daily(ds: xr.Dataset, time_name: str, calendar: pd.DatetimeIndex) -> xr.Dataset:
-    base = ds.isel({time_name: 0}, drop=True)
-    return base.expand_dims({time_name: calendar})
+def _has_regular_daily_calendar(
+    ds: xr.Dataset,
+    time_name: str,
+    daily_start: str | pd.Timestamp | None,
+    daily_end: str | pd.Timestamp | None,
+) -> bool:
+    index = pd.DatetimeIndex(ds[time_name].values)
+    if index.empty:
+        return True
+    if len(index) == 1:
+        return True
+    if pd.infer_freq(index) != "D":
+        return False
+    start, end = _calendar_bounds(ds[time_name], daily_start, daily_end)
+    expected = pd.date_range(start, end, freq="D", name=time_name)
+    return index.equals(expected)
 
 
 def standardize_dataset_to_daily(
@@ -136,7 +156,12 @@ def standardize_dataset_to_daily(
     daily_start: str | pd.Timestamp | None = None,
     daily_end: str | pd.Timestamp | None = None,
 ) -> xr.Dataset:
-    """Return a daily dataset from daily, subdaily, weekly, or monthly source data."""
+    """Return genuinely daily data, aggregating only subdaily observations.
+
+    Weekly and monthly inputs are deliberately rejected.  Expanding a coarse
+    source onto a daily coordinate fabricates temporal resolution and is not
+    allowed by the NINO-BRASIL scientific data contract.
+    """
     resolved_time = time_name or _time_coord_name(ds)
     if resolved_time is None:
         return ds
@@ -147,6 +172,7 @@ def standardize_dataset_to_daily(
 
     ds = ds.sortby(resolved_time)
     frequency = source_frequency.lower()
+    daily_transform = "resample_1d"
     if frequency in {"subdaily", "hourly", "6hourly"}:
         if aggregation == "sum":
             daily = ds.resample({resolved_time: "1D"}).sum()
@@ -157,13 +183,16 @@ def standardize_dataset_to_daily(
         else:
             daily = ds.resample({resolved_time: "1D"}).mean()
     elif frequency == "daily":
-        daily = ds.resample({resolved_time: "1D"}).mean()
-    elif frequency in {"weekly", "monthly"}:
-        calendar = _daily_calendar(ds, resolved_time, daily_start, daily_end)
-        if ds.sizes.get(resolved_time, 0) == 1:
-            daily = _expand_single_step_to_daily(ds, resolved_time, calendar)
+        if _has_regular_daily_calendar(ds, resolved_time, daily_start, daily_end):
+            daily = ds
+            daily_transform = "identity_daily"
         else:
-            daily = ds.reindex({resolved_time: calendar}, method="ffill")
+            daily = ds.resample({resolved_time: "1D"}).mean()
+    elif frequency in {"weekly", "monthly"}:
+        raise ValueError(
+            f"NINO-BRASIL forbids {frequency}-to-daily expansion. "
+            "Use an originally daily/subdaily source or keep the coarse data in a separate store."
+        )
     else:
         raise ValueError(f"Unsupported source_frequency: {source_frequency}")
 
@@ -172,7 +201,7 @@ def standardize_dataset_to_daily(
         {
             "nino_brasil_temporal_standard": "daily",
             "nino_brasil_source_frequency": source_frequency,
-            "nino_brasil_daily_transform": "resample_1d" if frequency in {"daily", "subdaily", "hourly", "6hourly"} else "forward_fill_to_daily_calendar",
+            "nino_brasil_daily_transform": daily_transform,
         }
     )
     return daily
@@ -233,7 +262,7 @@ def dataframe_to_zarr(
         ds = ds.chunk({"row": min(len(table), row_chunk_size)})
 
     zarr_path.parent.mkdir(parents=True, exist_ok=True)
-    ds.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=2)
+    ds.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
     validate_zarr(zarr_path)
     print(f"zarr table written: {zarr_path}")
     return zarr_path
@@ -278,7 +307,7 @@ def netcdf_to_zarr(
         chunks = chunk_plan(ds)
         if chunks:
             ds = ds.chunk(chunks)
-        ds.to_zarr(zarr_path, mode="w", consolidated=consolidated)
+        ds.to_zarr(zarr_path, mode="w", consolidated=consolidated, zarr_format=ZARR_FORMAT)
     finally:
         ds.close()
 
@@ -300,6 +329,7 @@ def netcdf_to_daily_zarr(
     overwrite: bool = False,
     consolidated: bool = True,
     quiet: bool = False,
+    preprocess: Callable[[xr.Dataset], xr.Dataset] | None = None,
 ) -> Path:
     """Convert NetCDF cache to a daily Zarr store, optionally one variable at a time."""
     if zarr_path.exists() and not overwrite:
@@ -315,6 +345,8 @@ def netcdf_to_daily_zarr(
     ds = xr.open_dataset(raw_path, chunks={})
     try:
         selected = _select_daily_variables(ds, variables, variable_aliases)
+        if preprocess is not None:
+            selected = preprocess(selected)
         daily = standardize_dataset_to_daily(
             selected,
             source_frequency=source_frequency,
@@ -325,7 +357,7 @@ def netcdf_to_daily_zarr(
         chunks = chunk_plan(daily)
         if chunks:
             daily = daily.chunk(chunks)
-        daily.to_zarr(zarr_path, mode="w", consolidated=consolidated, zarr_format=2)
+        daily.to_zarr(zarr_path, mode="w", consolidated=consolidated, zarr_format=ZARR_FORMAT)
     finally:
         ds.close()
 
@@ -347,6 +379,7 @@ def netcdf_collection_to_daily_zarr(
     daily_end: str | pd.Timestamp | None = None,
     overwrite: bool = False,
     quiet: bool = False,
+    preprocess: Callable[[xr.Dataset], xr.Dataset] | None = None,
 ) -> Path:
     """Write a daily Zarr store from one or more extracted NetCDF files."""
     if not nc_files:
@@ -365,6 +398,8 @@ def netcdf_collection_to_daily_zarr(
     ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={})
     try:
         selected = _select_daily_variables(ds, variables, variable_aliases)
+        if preprocess is not None:
+            selected = preprocess(selected)
         daily = standardize_dataset_to_daily(
             selected,
             source_frequency=source_frequency,
@@ -375,7 +410,7 @@ def netcdf_collection_to_daily_zarr(
         chunks = chunk_plan(daily)
         if chunks:
             daily = daily.chunk(chunks)
-        daily.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=2)
+        daily.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
     finally:
         ds.close()
 
@@ -383,6 +418,16 @@ def netcdf_collection_to_daily_zarr(
     if not quiet:
         print(f"daily zarr written: {zarr_path}")
     return zarr_path
+
+
+def _safe_extract_zip(zip_path: Path, extract_dir: Path) -> None:
+    root = extract_dir.resolve()
+    with zipfile.ZipFile(zip_path) as zf:
+        for member in zf.infolist():
+            destination = (extract_dir / member.filename).resolve()
+            if destination != root and root not in destination.parents:
+                raise ValueError(f"Unsafe zip member path in {zip_path}: {member.filename}")
+        zf.extractall(extract_dir)
 
 
 def zip_netcdf_to_zarr(
@@ -393,8 +438,7 @@ def zip_netcdf_to_zarr(
     overwrite: bool = False,
 ) -> Path:
     extract_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path) as zf:
-        zf.extractall(extract_dir)
+    _safe_extract_zip(zip_path, extract_dir)
 
     nc_files = sorted(extract_dir.rglob("*.nc"))
     if not nc_files:
@@ -414,7 +458,7 @@ def zip_netcdf_to_zarr(
         chunks = chunk_plan(ds)
         if chunks:
             ds = ds.chunk(chunks)
-        ds.to_zarr(zarr_path, mode="w", consolidated=True)
+        ds.to_zarr(zarr_path, mode="w", consolidated=True, zarr_format=ZARR_FORMAT)
     finally:
         ds.close()
 
@@ -436,11 +480,11 @@ def zip_netcdf_to_daily_zarr(
     daily_end: str | pd.Timestamp | None = None,
     overwrite: bool = False,
     quiet: bool = False,
+    preprocess: Callable[[xr.Dataset], xr.Dataset] | None = None,
 ) -> Path:
     """Extract a zipped NetCDF cache and write a daily Zarr store."""
     extract_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path) as zf:
-        zf.extractall(extract_dir)
+    _safe_extract_zip(zip_path, extract_dir)
 
     nc_files = sorted(extract_dir.rglob("*.nc"))
     if not nc_files:
@@ -456,4 +500,5 @@ def zip_netcdf_to_daily_zarr(
         daily_end=daily_end,
         overwrite=overwrite,
         quiet=quiet,
+        preprocess=preprocess,
     )

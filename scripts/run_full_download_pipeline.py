@@ -22,7 +22,6 @@ from nino_brasil.data.download_cds import (
     ATMOSPHERE_AREAS,
     ERA5_PRESSURE_VARIABLES,
     ERA5_SINGLE_VARIABLES,
-    ORAS5_VARIABLES,
 )
 
 
@@ -104,8 +103,6 @@ def validate_variable_filters(args: argparse.Namespace) -> None:
         raise ValueError(f"Nenhuma variavel solicitada pertence ao ERA5 single levels: {args.era5_variable}")
     if args.era5_variable and args.era5_kind == "pressure" and not selected_variables(args.era5_variable, ERA5_PRESSURE_VARIABLES):
         raise ValueError(f"Nenhuma variavel solicitada pertence ao ERA5 pressure levels: {args.era5_variable}")
-    if args.oras_variable and not selected_variables(args.oras_variable, ORAS5_VARIABLES):
-        raise ValueError(f"Nenhuma variavel solicitada pertence ao ORAS5: {args.oras_variable}")
 
 
 def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
@@ -119,7 +116,6 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     regions = args.region or list(ATMOSPHERE_AREAS)
     era5_single_variables = selected_variables(args.era5_variable, ERA5_SINGLE_VARIABLES)
     era5_pressure_variables = selected_variables(args.era5_variable, ERA5_PRESSURE_VARIABLES)
-    oras_variables = selected_variables(args.oras_variable, ORAS5_VARIABLES)
 
     source_years: dict[str, set[int]] = {
         "chirps": set(years_for("chirps", args.start_year, args.end_year)),
@@ -128,7 +124,6 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     if args.include_cds:
         cds_years = years_for if args.month else complete_years_for
         source_years["era5"] = set(cds_years("era5", args.start_year, args.end_year))
-        source_years["oras5"] = set(cds_years("oras5", args.start_year, args.end_year))
     if args.include_ctd:
         source_years["noaa_wod_ctd"] = set(years_for("noaa_wod_ctd", args.start_year, args.end_year))
 
@@ -304,47 +299,6 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                             )
                         )
 
-        for year in sorted(source_years.get("oras5", set())):
-            year_args = single_year(year)
-            if args.month:
-                for month in months:
-                    for variable in oras_variables:
-                        steps.append(
-                            (
-                                f"fonte_oras5_ano_{year}_mes_{month:02d}_{safe_step_name(variable)}",
-                                python_cmd(
-                                    "scripts/data_pipeline.py",
-                                    "download-oras",
-                                    *year_args,
-                                    "--month",
-                                    str(month),
-                                    "--variable",
-                                    variable,
-                                    "--execute",
-                                    *keep_going,
-                                ),
-                            )
-                        )
-            else:
-                oras_vars = variable_args(oras_variables, bool(args.oras_variable))
-                steps.append(
-                    (
-                        f"fonte_oras5_ano_{year}_annual_kind_zarr_anual",
-                        python_cmd(
-                            "scripts/data_pipeline.py",
-                            "download-oras",
-                            *year_args,
-                            "--annual-zarr",
-                            "--request-mode",
-                            "annual-kind",
-                            "--delete-raw-after-zarr",
-                            *oras_vars,
-                            "--execute",
-                            *keep_going,
-                        ),
-                    )
-                )
-
     if args.include_ctd:
         for year in sorted(source_years.get("noaa_wod_ctd", set())):
             year_args = single_year(year)
@@ -430,7 +384,7 @@ def write_report(report_path: Path, log_path: Path, results: list[StepResult]) -
         "- Ordem de execucao: primeiro por fonte, depois por ano; ERA5 por regiao e tipo.",
         "- Prioridade 1, fontes diarias ou subdiarias convertidas para diario: CHIRPS, NOAA OISST e ERA5.",
         "- Prioridade 2, fonte semanal: nenhuma fonte semanal ativa no catalogo atual.",
-        "- Prioridade 3, fonte mensal convertida para diario: ORAS5.",
+        "- Prioridade 3: oceano originalmente diario via scripts/ocean_daily_pipeline.py.",
         "- Fora da serie regular diaria: CTD/WOD, observacional irregular por perfil.",
         "- Politica de cache: bruto em data/raw, depois produto diario em data/processed/zarr; ERA5 consolidado em Zarr anual por regiao/tipo.",
         "",
@@ -473,11 +427,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--end-year", type=int)
     parser.add_argument("--chirps-resolution", choices=["p25", "p05"], default="p25")
     parser.set_defaults(include_cds=True, include_ctd=True)
-    parser.add_argument("--skip-cds", dest="include_cds", action="store_false", help="Skip ERA5 and ORAS5.")
+    parser.add_argument("--skip-cds", dest="include_cds", action="store_false", help="Skip ERA5.")
     parser.add_argument("--skip-ctd", dest="include_ctd", action="store_false", help="Skip WOD CTD download+ETL.")
     parser.add_argument("--include-transforms", action="store_true", default=True, help="Convert CHIRPS/OISST to Zarr and regrid after raw downloads.")
     parser.add_argument("--no-transforms", dest="include_transforms", action="store_false")
-    parser.add_argument("--month", type=int, action="append", choices=range(1, 13), help="Limit CDS ERA5/ORAS5 to selected months.")
+    parser.add_argument("--month", type=int, action="append", choices=range(1, 13), help="Limit CDS ERA5 to selected months.")
     parser.add_argument("--era5-kind", choices=["single", "pressure", "both"], default="both")
     parser.add_argument("--region", action="append", choices=sorted(ATMOSPHERE_AREAS), help="Limit ERA5 to one region; repeat for many.")
     parser.add_argument(
@@ -485,12 +439,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         choices=sorted(set(ERA5_SINGLE_VARIABLES + ERA5_PRESSURE_VARIABLES)),
         help="Debug only: limit ERA5 to selected variables. Default: all variables grouped by kind.",
-    )
-    parser.add_argument(
-        "--oras-variable",
-        action="append",
-        choices=ORAS5_VARIABLES,
-        help="Limit ORAS5 to one variable; repeat for many. Default: all variables, one task per variable.",
     )
     parser.add_argument("--retries", type=int, default=5)
     parser.add_argument("--retry-wait", type=int, default=60)
@@ -513,7 +461,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print("Pipeline completo planejado:")
     print(f"- Total de etapas: {len(steps)}")
-    print("- Ordem: fonte por fonte; ERA5 e ORAS5 por ano/variavel, com Zarr anual.")
+    print("- Ordem: fonte por fonte; ERA5 por ano/variavel, com Zarr anual.")
     for index, (name, command) in enumerate(steps[: args.print_plan_limit], start=1):
         print(f"{index:02d}. {name}: {' '.join(command)}")
     if len(steps) > args.print_plan_limit:
