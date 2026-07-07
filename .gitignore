@@ -31,3 +31,7 @@ __pycache__/
 painel_executivo.md
 *.pyc
 2602.24281v1.pdf
+
+# Literatura local e temporarios (nao versionar)
+papers/
+tmp/
