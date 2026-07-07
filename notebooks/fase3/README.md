@@ -26,6 +26,7 @@ DHW diario e o cache de mapas. Idempotente.
 | 3E | O sinal vale em 1993-2009 E 2010-presente? | tabela de estabilidade, scatter r1 x r2, mapas por subperiodo |
 | 3F | DHW agrega leitura alem de SSTA/WWV/OHC? Kelvin e visivel? | correlacao parcial por horizonte, Hovmoller SSH |
 | 3G | (extra) Como o ciclo de vida se relaciona com o DHW C-week? | metricas por fase de evento, composto duplo, escalonamento, mapa DHW-lon |
+| 3H | (extra) Que estado fisico precede o onset? A genese separa fortes de fracos? | compostos onset-alinhados, retrato precursor por classe, separacao Spearman |
 
 **Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
 O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada.
