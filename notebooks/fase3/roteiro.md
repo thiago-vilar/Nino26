@@ -32,6 +32,7 @@ cd /d C:\DEV\NINO26
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-p95-peaks
 .venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
+.venv\Scripts\python scripts\update_era5_nino34_atmo_cache.py --start-year 1981 --end-year 2026
 .venv\Scripts\python scripts\fase3_build_inputs.py --force
 .venv\Scripts\python -m pytest -q
 ```

@@ -395,7 +395,7 @@ def netcdf_collection_to_daily_zarr(
         shutil.rmtree(zarr_path)
 
     zarr_path.parent.mkdir(parents=True, exist_ok=True)
-    ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={})
+    ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={}, compat="override")
     try:
         selected = _select_daily_variables(ds, variables, variable_aliases)
         if preprocess is not None:
@@ -453,7 +453,7 @@ def zip_netcdf_to_zarr(
         shutil.rmtree(zarr_path)
 
     zarr_path.parent.mkdir(parents=True, exist_ok=True)
-    ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={})
+    ds = xr.open_mfdataset(nc_files, combine="by_coords", chunks={}, compat="override")
     try:
         chunks = chunk_plan(ds)
         if chunks:

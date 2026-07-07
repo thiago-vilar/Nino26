@@ -128,6 +128,7 @@ def main(argv: list[str] | None = None) -> int:
         ("Fase 3: picos P95", cmd("scripts/data_pipeline.py", "build-nino34-p95-peaks")),
         ("Fase 3: diagnosticos fisicos", cmd("scripts/data_pipeline.py", "build-phase3-diagnostics")),
         ("Fase 3: auditoria", cmd("scripts/data_pipeline.py", "audit-phase3-diagnostics")),
+        ("Fase 3: cache atmosferico ERA5", cmd("scripts/update_era5_nino34_atmo_cache.py", "--start-year", "1981", "--end-year", str(today.year))),
         ("Fase 3: insumos 3A-3I", cmd("scripts/fase3_build_inputs.py", "--force")),
         ("Painel executivo", cmd("scripts/update_painel_executivo.py")),
     ]
