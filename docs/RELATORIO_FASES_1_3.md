@@ -49,6 +49,24 @@ A trajetória diária cobre **16.353 dias (1981-09-01 a 2026-06-09)** e a refer�
 
 **Nota metodológica sobre a reexecução.** O estágio de diagnósticos lê ~50 stores Zarr de features oceânicas diárias. Para reexecutar dentro do ambiente de verificação (sistema de arquivos montado, mais lento), os stores foram materializados uma vez em cache Parquet e o cálculo rodou sobre esse cache — o conteúdo numérico é idêntico ao dos Zarr originais, apenas o I/O foi acelerado. Na máquina de origem, o comando `build-phase3-diagnostics` roda diretamente sobre os Zarr sem esse contorno.
 
+### 5.1 Protocolo 3A-3G implementado e executado (07/07, tarde)
+
+A lacuna apontada em revisão — o protocolo 3A-3F existia só como especificação — foi fechada: `notebooks/fase3/` contém sete notebooks **executados com saídas numéricas, gráficos e mapas**, mais o extra 3G. Cada um declara a pergunta que responde e a metodologia. Resultados-chave (janela comum 1993+, N_eff por autocorrelação, FDR α=0,05):
+
+| NB | Pergunta | Resposta numérica |
+|---|---|---|
+| 3A | Quais séries descrevem o sistema? | Matriz semanal 2.372 × 14 (SSTA, D20, OHC×2, WWV, tilt, SSH, SSS, ATL3/4, TNA, TSA, DHW, τx-proxy), cobertura ≥98% |
+| 3B | Como eventos vivem? Quanta memória? | Taxas por evento; **e-folding = 27 semanas (~6,2 meses)**; composto de pico dos super eventos confirma padrão Pacífico-leste |
+| 3C | O que antecede o pico? | Tilt/SSH/OHC lideram (r 0,70–0,77 em 0–6 sem); **D20 melhor em 15 sem; WWV em 20 sem**; mapa lon×lag mostra inclinação oeste→leste |
+| 3D | O que sobrevive ao rigor? | N_eff cai de ~1.740 para ~22–33; sobrevivem a FDR+IC95: tilt, SSH, OHC 0-300/0-700, DHW, D20, WWV, τx e ATL4 (lag 25, r=−0,27) |
+| 3E | O sinal é estável entre regimes? | **Estáveis:** tilt, SSH, OHC, D20, τx, ATL4. **Instáveis:** WWV (p=0,11 pós-2010, coerente com literatura) e DHW no limiar (p=0,077 pré-2010) |
+| 3F | DHW agrega além de SSTA/WWV/OHC? | **Sim em +4 semanas** (parcial r=0,478, p=0,015); marginal em +8; redundante em +12. Hovmöller SSH mostra pulsos Kelvin em 1997/2015/2023 e na janela 2025/26 |
+| 3G | Ciclo de vida vs DHW °C-week? | DHW **pica 4–11 semanas após** o pico da SSTA (integrador, não precursor); **DHW_max × SSTA_pico: r=0,975**; classes separam-se pelo calor acumulado (super 13,8–19,1; strong 7,5–11,3; moderate ~3; weak ≤1,1 °C-week) |
+
+**Conjunto defensável do parecer (sobrevive a 3D ∩ 3E):** tilt da termoclina, SSH, OHC 0–300/0–700, D20 (lead ~15 sem), τx e ATL4 como controle. WWV entra com ressalva explícita de instabilidade pós-2010; DHW entra como métrica de severidade acumulada e memória curta (+4 sem), não como precursor de longo lead.
+
+**Correção de código no caminho:** a materialização dos índices atlânticos expôs um bug real em `_select_lon_bounds` (`nino.py`): caixas terminando em 0°E (ATL3) quebravam em grades deslocadas como o OISST global bruto. Corrigido com teste de regressão (`e76100f`). Insumos reproduzíveis via `scripts/fase3_build_inputs.py`.
+
 **Justificativa da solução.** A regra de ouro da Fase 3 é derivar eventos, referência e picos da própria SST/SSTA OISST local, e não importar um índice ENSO oficial. Isso torna o parecer internamente consistente e auditável: cada número tem origem rastreável no dado baixado. Rótulos NOAA/PSL ficam permitidos apenas como comparação visual, evitando circularidade (usar um índice externo para "validar" um sinal que deveria ser medido de forma independente). O corte de significância exige sobreviver a rigor estatístico (N_eff, IC95 de Fisher-z, FDR) e a estabilidade entre subperíodos (1993–2009 vs 2010–presente) antes de qualquer afirmação entrar no parecer.
 
 ## 6. O que está bem feito, o que corrigir e o que construir
