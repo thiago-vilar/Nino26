@@ -92,4 +92,6 @@ Versione codigo, configs, testes e documentacao. Nao versione dados grandes em `
 | `scripts/` | Entrypoints operacionais de download, curadoria, diagnosticos da Fase 3 e painel. |
 | `configs/project.yaml` | Fonte de verdade para dominios, grade e parametros principais. |
 | `tests/` | Testes de features, saidas numericas e Zarr. |
-| `docs/`
+| `docs/` | Documentacao organizada. |
+| `papers/` | Artigos cientificos de apoio. |
+| `data/` | Dados locais, geralmente nao versionados. |
