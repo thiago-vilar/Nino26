@@ -415,4 +415,26 @@ def build_markdown() -> str:
         "- Regerar a Fase 3, quando necessario, com `build-nino34-daily-index`, `build-nino34-sst-reference`, `build-nino34-p90-peaks`, `build-phase3-diagnostics` e `audit-phase3-diagnostics`.",
         "- Usar apenas SST/SSTA OISST local para referencia mensal, eventos e picos P90; nenhum rotulo ENSO externo entra no fluxo ativo.",
         "- Reportar analises subsuperficiais com sensibilidade 1993+ e 2000+; nao vender cobertura subsuperficial homogenea desde 1981.",
-        "- Fases 1-3 encerram em par
+        "- Fases 1-3 encerram em parecer fisico auditavel; a Fase 4 (docs/CRONOGRAMA.md e docs/FASE4_PLANO.md) so e retomada apos validacao integral das Fases 1-3, e ML/redes neurais permanecem condicionados aos gates G1-G4.",
+        "",
+        "## Rodape tecnico",
+        "",
+        f"- Workspace: {ROOT}",
+        f"- Arquivo local: {OUTPUT_PATH.relative_to(ROOT)}",
+        "- Atualizar painel:",
+        "```cmd",
+        r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\update_painel_executivo.py",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def main() -> int:
+    OUTPUT_PATH.write_text(build_markdown(), encoding="utf-8")
+    print(f"painel executivo atualizado: {OUTPUT_PATH}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
