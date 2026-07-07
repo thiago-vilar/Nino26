@@ -13,18 +13,14 @@ from shapely.geometry import Point
 
 from nino_brasil.features.marine_heatwave import detect_mhw, export_mhw_catalog
 from nino_brasil.features.nino34_event_table import build_nino34_event_table, export_nino34_event_tables
+from nino_brasil.features.nino34_reference import (
+    build_monthly_nino34_sst_reference,
+    build_nino34_sst_p90_peaks,
+    build_nino34_sst_peak_reference,
+    save_nino34_sst_p90_plot,
+)
 from nino_brasil.maps.plot_choropleths import export_choropleth_table
 from nino_brasil.maps.plot_pixel_maps import export_pixel_table, save_pixel_map
-from nino_brasil.data.download_noaa_psl import (
-    build_noaa_psl_nino34_peak_reference,
-    parse_noaa_psl_nino34_anom,
-)
-
-from scripts.model_pipeline import (
-    importance_top20_by_lag_model,
-    metrics_summary,
-    xai_method_agreement,
-)
 
 
 class NumericOutputTests(unittest.TestCase):
@@ -35,17 +31,17 @@ class NumericOutputTests(unittest.TestCase):
                 np.array([[1.23456, np.nan], [3.0, 4.0]]),
                 coords={"lat": [-5.0, 0.0], "lon": [190.0, 191.0]},
                 dims=("lat", "lon"),
-                name="skill",
+                name="signal",
             )
-            png_path = tmp_dir / "skill.png"
+            png_path = tmp_dir / "signal.png"
 
-            save_pixel_map(da, png_path, "Skill", value_name="skill")
+            save_pixel_map(da, png_path, "Signal", value_name="signal")
 
             csv_path = png_path.with_suffix(".csv")
             self.assertTrue(png_path.exists())
             self.assertTrue(csv_path.exists())
             table = pd.read_csv(csv_path)
-            self.assertEqual(list(table.columns), ["lat", "lon", "skill"])
+            self.assertEqual(list(table.columns), ["lat", "lon", "signal"])
             self.assertEqual(len(table), 3)
         finally:
             shutil.rmtree(tmp_dir)
@@ -54,14 +50,14 @@ class NumericOutputTests(unittest.TestCase):
         tmp_dir = Path(tempfile.mkdtemp())
         try:
             gdf = gpd.GeoDataFrame(
-                {"NM_UF": ["A", "B"], "skill": [0.2, 0.8]},
+                {"NM_UF": ["A", "B"], "signal": [0.2, 0.8]},
                 geometry=[Point(0, 0), Point(1, 1)],
                 crs="EPSG:4326",
             )
-            path = export_choropleth_table(gdf, "skill", tmp_dir / "choropleth.csv")
+            path = export_choropleth_table(gdf, "signal", tmp_dir / "choropleth.csv")
             table = pd.read_csv(path)
 
-            self.assertEqual(list(table.columns), ["NM_UF", "skill", "rank"])
+            self.assertEqual(list(table.columns), ["NM_UF", "signal", "rank"])
             self.assertEqual(table.loc[table["NM_UF"] == "B", "rank"].iloc[0], 1)
         finally:
             shutil.rmtree(tmp_dir)
@@ -127,62 +123,53 @@ class NumericOutputTests(unittest.TestCase):
         finally:
             shutil.rmtree(tmp_dir)
 
-    def test_model_pipeline_numeric_summaries(self) -> None:
-        metrics = pd.DataFrame(
+    def test_local_oisst_nino34_reference_and_p90_peaks(self) -> None:
+        time = pd.date_range("2000-01-01", "2001-12-31", freq="D")
+        monthly_signal = {
+            1: -0.2,
+            2: 0.1,
+            3: 0.3,
+            4: 0.7,
+            5: 0.9,
+            6: 1.1,
+            7: 1.3,
+            8: 1.7,
+            9: 2.1,
+            10: 2.2,
+            11: 1.9,
+            12: 1.5,
+        }
+        ssta = np.array([monthly_signal[stamp.month] if stamp.year == 2000 else 0.1 for stamp in time])
+        daily = pd.DataFrame(
             {
-                "model": ["ridge", "ridge", "lightgbm"],
-                "task": ["regression", "regression", "classification"],
-                "lag_days": [7, 7, 14],
-                "season": ["all", "DJF", "all"],
-                "region": ["precip", "precip", "precip"],
-                "rmse": [1.0, 1.2, np.nan],
-                "brier": [np.nan, np.nan, 0.2],
-                "roc_auc": [np.nan, np.nan, 0.7],
+                "time": time,
+                "nino34_sst": 27.0 + ssta,
+                "nino34_ssta": ssta,
             }
         )
-        summary = metrics_summary(metrics)
-        self.assertIn("metric", summary.columns)
-        self.assertIn("mean", summary.columns)
 
-        importances = pd.DataFrame(
-            {
-                "fold": ["f0", "f0", "f0", "f0"],
-                "lag_days": [7, 7, 7, 7],
-                "model": ["lightgbm"] * 4,
-                "task": ["classification"] * 4,
-                "region": ["precip"] * 4,
-                "method": ["permutation", "permutation", "shap", "shap"],
-                "feature": ["sst", "slp", "sst", "slp"],
-                "group": ["ocean", "atmosphere", "ocean", "atmosphere"],
-                "importance_mean": [0.4, 0.1, 0.3, 0.2],
-                "importance_std": [0.01, 0.01, np.nan, np.nan],
-                "importance_value": [0.4, 0.1, 0.3, 0.2],
-            }
-        )
-        top20 = importance_top20_by_lag_model(importances)
-        agreement = xai_method_agreement(importances)
-
-        self.assertEqual(top20.iloc[0]["feature"], "sst")
-        self.assertEqual(int(agreement["n_features"].iloc[0]), 2)
-
-    def test_noaa_psl_nino34_parser_and_reference_peaks(self) -> None:
-        text = "\n".join(
-            [
-                "        2000        2001",
-                " 2000  -0.10   0.10   0.20   0.60   0.80   1.10   1.30   1.70   2.10   2.20   1.90   1.60",
-                " 2001   1.20   0.80   0.40   0.10  -0.10 -99.99 -99.99 -99.99 -99.99 -99.99 -99.99 -99.99",
-                "   -99.99",
-                "  Nino Anom 3.4 Index  using NOAA ERSST v6 from NCEI",
-            ]
-        )
-
-        monthly = parse_noaa_psl_nino34_anom(text)
-        peaks = build_noaa_psl_nino34_peak_reference(monthly, min_duration_months=5)
+        monthly = build_monthly_nino34_sst_reference(daily)
+        peaks = build_nino34_sst_peak_reference(monthly, min_duration_months=5)
+        p90_peaks = build_nino34_sst_p90_peaks(monthly)
 
         self.assertEqual(len(monthly), 24)
-        self.assertTrue(monthly["nino34_anom_c"].isna().any())
+        self.assertIn("nino34_ssta_c", monthly.columns)
+        self.assertTrue(monthly["source"].str.contains("OISST").all())
         self.assertEqual(len(peaks), 1)
         self.assertEqual(peaks.iloc[0]["peak_class"], "super_el_nino")
+        self.assertEqual(len(p90_peaks), 1)
+        self.assertGreaterEqual(
+            p90_peaks.iloc[0]["peak_nino34_anom_c"],
+            p90_peaks.iloc[0]["percentile_threshold_c"],
+        )
+
+        tmp_dir = Path(tempfile.mkdtemp())
+        try:
+            plot_path = save_nino34_sst_p90_plot(monthly, p90_peaks, tmp_dir / "p90.png")
+            self.assertTrue(plot_path.exists())
+            self.assertGreater(plot_path.stat().st_size, 0)
+        finally:
+            shutil.rmtree(tmp_dir)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,14 @@ if str(SRC) not in sys.path:
 
 from nino_brasil.data.anomalies import daily_anomaly, fit_daily_climatology, standardized_anomaly
 from nino_brasil.features.distributions import fit_power_law_tail
+from nino_brasil.features.dhw import degree_heating_weeks, equatorial_dhw_indices
+from nino_brasil.features.nino import (
+    atl3_sst_index,
+    atl4_sst_index,
+    iod_sst_index,
+    nino34_sst_index,
+    tropical_atlantic_sst_indices,
+)
 from nino_brasil.features.ocean_heat import (
     CP0,
     RHO0,
@@ -213,6 +221,60 @@ class FeatureTests(unittest.TestCase):
         self.assertGreater(fit.alpha, 1.0)
         self.assertTrue(np.isfinite(fit.llr_power_law_vs_lognormal))
         self.assertIn(fit.preferred_distribution, {"power_law", "lognormal", "exponential"})
+
+    def test_sst_indices_cover_pacific_atlantic_and_iod_boxes(self) -> None:
+        lat = np.arange(-30.0, 31.0, 1.0)
+        lon = np.arange(0.0, 360.0, 1.0)
+        values = lon[None, :] + lat[:, None] * 0.0
+        sst = xr.DataArray(values, coords={"lat": lat, "lon": lon}, dims=("lat", "lon"))
+
+        self.assertAlmostEqual(float(nino34_sst_index(sst)), 215.0, places=6)
+        self.assertAlmostEqual(float(atl3_sst_index(sst)), 6990.0 / 21.0, places=6)
+        self.assertAlmostEqual(float(atl4_sst_index(sst)), 322.5, places=6)
+        atl = tropical_atlantic_sst_indices(sst)
+        self.assertTrue({"atl3_sst", "atl4_sst", "tna_sst", "tsa_sst"}.issubset(set(atl.data_vars)))
+        self.assertAlmostEqual(float(iod_sst_index(sst)), -40.0, places=6)
+
+    def test_degree_heating_weeks_accumulates_daily_excess_as_c_weeks(self) -> None:
+        time = pd.date_range("2001-01-01", periods=14, freq="D")
+        ssta = xr.DataArray(np.full(time.size, 2.0), coords={"time": time}, dims=("time",))
+
+        dhw = degree_heating_weeks(ssta, threshold_c=1.0, window_weeks=2)
+
+        self.assertTrue(np.isnan(float(dhw.isel(time=12))))
+        self.assertAlmostEqual(float(dhw.isel(time=13)), 2.0)
+        self.assertEqual(dhw.attrs["units"], "degree_C_weeks")
+
+    def test_equatorial_dhw_indices_emit_expected_weekly_boxes(self) -> None:
+        time = pd.date_range("2001-01-01", periods=21, freq="D")
+        lat = np.array([-5.0, 0.0, 5.0])
+        lon = np.array([120.0, 180.0, 205.0, 240.0, 280.0])
+        values = np.full((time.size, lat.size, lon.size), 2.0)
+        ssta = xr.DataArray(values, coords={"time": time, "lat": lat, "lon": lon}, dims=("time", "lat", "lon"))
+
+        ds = equatorial_dhw_indices(ssta, threshold_c=1.0, window_weeks=2)
+
+        self.assertIn("equatorial_guide_dhw_2w", ds)
+        self.assertIn("west_equatorial_guide_dhw_2w", ds)
+        self.assertIn("east_equatorial_guide_dhw_2w", ds)
+        self.assertGreaterEqual(ds.sizes["time"], 3)
+
+    def test_equatorial_dhw_accumulates_daily_before_weekly_reduction(self) -> None:
+        time = pd.date_range("2001-01-01", periods=14, freq="D")
+        lat = np.array([-5.0, 0.0, 5.0])
+        lon = np.array([190.0, 215.0, 240.0])
+        values = np.zeros((time.size, lat.size, lon.size), dtype=float)
+        values[6, :, :] = 8.0
+        ssta = xr.DataArray(values, coords={"time": time, "lat": lat, "lon": lon}, dims=("time", "lat", "lon"))
+
+        ds = equatorial_dhw_indices(ssta, threshold_c=1.0, window_weeks=1, weekly_reduction="max")
+
+        weekly_peak = float(ds["nino34_dhw_1w"].max(skipna=True))
+        self.assertAlmostEqual(weekly_peak, 1.0)
+        self.assertEqual(
+            ds["nino34_dhw_1w"].attrs["accumulation_resolution"],
+            "native_daily_before_weekly_resample",
+        )
 
 
 if __name__ == "__main__":

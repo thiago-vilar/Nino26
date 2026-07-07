@@ -142,7 +142,10 @@ class ModelingTests(unittest.TestCase):
             validation_years=1,
             test_years=1,
             step_years=1,
+            embargo_days=30,
         )
+        self.assertGreaterEqual((folds[0].validation_start - folds[0].train_end).days, 31)
+        self.assertGreaterEqual((folds[0].test_start - folds[0].validation_end).days, 31)
         output = run_walk_forward(
             predictors,
             target,
