@@ -277,5 +277,28 @@ class FeatureTests(unittest.TestCase):
         )
 
 
+
+
+class LongitudeBoundaryRegressionTests(unittest.TestCase):
+    def test_atl3_on_offset_grid_without_lon_zero_cell(self) -> None:
+        """Regressao: ATL3 (20W-0E) em grade deslocada (sem celula em 0.0)
+        nao pode disparar wrap espurio com segmento vazio (quebrava no OISST
+        bruto global 0.125-359.875)."""
+        lat = np.arange(-29.875, 30.0, 0.25)
+        lon = np.arange(0.125, 360.0, 0.25)
+        time = pd.date_range("1981-09-01", periods=3, freq="D")
+        values = np.ones((time.size, lat.size, lon.size)) * 25.0
+        sst = xr.DataArray(values, coords={"time": time, "lat": lat, "lon": lon}, dims=("time", "lat", "lon"))
+
+        atl3 = atl3_sst_index(sst)
+        self.assertEqual(atl3.shape, (3,))
+        self.assertTrue(np.allclose(atl3.values, 25.0))
+
+        atl = tropical_atlantic_sst_indices(sst)
+        for name in ("atl3_sst", "atl4_sst", "tna_sst", "tsa_sst"):
+            self.assertEqual(atl[name].shape, (3,))
+            self.assertTrue(np.allclose(atl[name].values, 25.0))
+
+
 if __name__ == "__main__":
     unittest.main()

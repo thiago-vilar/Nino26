@@ -23,7 +23,14 @@ def _select_lon_bounds(da: xr.DataArray, bounds: tuple[float, float], lon_name: 
         return da.sel({lon_name: slice(west, east)})
     left = da.sel({lon_name: slice(west, float(da[lon_name].max()))})
     right = da.sel({lon_name: slice(float(da[lon_name].min()), east)})
-    return xr.concat([left, right], dim=lon_name).sortby(lon_name)
+    # Em grades deslocadas (ex.: OISST 0.125-359.875) uma borda leste em 0E
+    # gera segmento vazio; concatenar segmento vazio quebra o xr.concat.
+    parts = [part for part in (left, right) if part.sizes.get(lon_name, 0) > 0]
+    if not parts:
+        raise ValueError(f"Longitude selection {bounds} produced no cells for {lon_name}.")
+    if len(parts) == 1:
+        return parts[0]
+    return xr.concat(parts, dim=lon_name).sortby(lon_name)
 
 
 def area_weighted_mean(
