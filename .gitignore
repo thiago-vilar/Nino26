@@ -35,3 +35,6 @@ painel_executivo.md
 # Literatura local e temporarios (nao versionar)
 papers/
 tmp/
+
+# Config local do editor
+.vscode/
