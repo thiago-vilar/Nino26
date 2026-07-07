@@ -25,7 +25,7 @@ def classify_nino_peak(
     peak_ssta_c: float,
     thresholds: NinoPeakThresholds = DEFAULT_NINO_THRESHOLDS,
 ) -> str:
-    """Classify a future Nino 3.4 peak by ONI-like SSTA intensity."""
+    """Classify a future Nino 3.4 peak by fixed SSTA intensity thresholds."""
     if pd.isna(peak_ssta_c) or peak_ssta_c < thresholds.weak:
         return "neutral"
     if peak_ssta_c < thresholds.moderate:

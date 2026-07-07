@@ -55,19 +55,23 @@ def make_walk_forward_folds(
     validation_years: int = 2,
     test_years: int = 1,
     step_years: int = 1,
+    embargo_days: int = 168,
 ) -> list[WalkForwardFold]:
-    """Create chronological walk-forward blocks."""
+    """Create chronological walk-forward blocks with an embargo gap."""
     if times.empty:
         raise ValueError("times must not be empty.")
+    if embargo_days < 0:
+        raise ValueError("embargo_days must be non-negative.")
     start = pd.Timestamp(times.min()).normalize()
     last = pd.Timestamp(times.max()).normalize()
+    embargo = pd.Timedelta(days=embargo_days)
     folds: list[WalkForwardFold] = []
     fold_idx = 0
     train_end = start + pd.DateOffset(years=initial_train_years) - pd.Timedelta(days=1)
     while True:
-        validation_start = train_end + pd.Timedelta(days=1)
+        validation_start = train_end + pd.Timedelta(days=1) + embargo
         validation_end = validation_start + pd.DateOffset(years=validation_years) - pd.Timedelta(days=1)
-        test_start = validation_end + pd.Timedelta(days=1)
+        test_start = validation_end + pd.Timedelta(days=1) + embargo
         test_end = test_start + pd.DateOffset(years=test_years) - pd.Timedelta(days=1)
         if test_start > last:
             break

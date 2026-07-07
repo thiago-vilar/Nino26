@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import json
 import shutil
 import sys
 from datetime import date
@@ -46,13 +47,20 @@ from nino_brasil.data.download_ctd_noaa import (
 )
 from nino_brasil.data.download_ibge import download_ibge
 from nino_brasil.data.download_oisst import download_oisst_year
-from nino_brasil.data.download_noaa_psl import download_noaa_psl_nino34_anom
 from nino_brasil.data.download_validation_insitu import download_argo_year, download_tao_triton_year
 from nino_brasil.data.regrid import normalize_for_common_grid, regrid_dataset, target_grid_from_config
-from nino_brasil.data.zarr_store import ZARR_FORMAT, chunk_plan, dataframe_to_zarr
+from nino_brasil.data.zarr_store import ZARR_FORMAT, chunk_plan, dataframe_to_zarr, validate_zarr
 from nino_brasil.data.anomalies import daily_anomaly, dayofyear_climatology
 from nino_brasil.features.nino import nino34_sst_index
-from nino_brasil.models.progression import build_daily_enso_peak_progression_table
+from nino_brasil.features.nino34_reference import (
+    export_nino34_sst_p90_peak_analysis,
+    export_nino34_sst_reference,
+)
+from nino_brasil.features.phase3_diagnostics import (
+    build_phase3_diagnostics,
+    discover_daily_ocean_feature_paths,
+)
+from nino_brasil.web.official_nino34_visuals import sync_official_nino34_visuals
 
 
 T = TypeVar("T")
@@ -147,19 +155,13 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print("11. download-validation: TAO/TRITON and Argo in-situ validation for Nino 3.4")
     print("12. regrid-zarr: reconcile only sources that require a common spatial grid")
     print("13. diagnose-distributions: optional QC/EDA tail diagnostics")
-    print("14. download-nino34-reference: NOAA PSL monthly peak labels/reference")
-    print("15. build-nino34-daily-index: daily OISST Nino 3.4 SSTA trajectory")
-    print("16. build-enso-peak-progression: daily OISST trajectory labeled by NOAA PSL peaks")
-    print("17. phase 3: Nino 3.4 anomaly alignment, thermocline, slope and signal duration diagnostics")
-    print("18. phase 4: exploratory statistics with regression, PCA, KNN and variable screening")
-    print("19. phase 5B: build Nino3.4 -> Brazil pixel-cluster event targets")
-    print("20. model_pipeline.py: event-centered walk-forward metrics, predictions and importances")
-    print("21. phase 6A: train native spatial CNN baseline for ENSO peak progression")
-    print("22. phase 6B: train spatiotemporal memory model for nonlinear ENSO progression")
-    print("23. phase 6C: train Brazil cluster decoder for P10/P25/P75/P90 teleconnections")
-    print("24. optional fallback: CMIP6 pretraining/fine-tuning only if native phase 6 skill gates fail")
-    print("25. phase 8: isolated Ham2019 exploratory benchmark for saved weights/data")
-    print("26. audit: verify status and failed tasks before continuing")
+    print("14. build-nino34-daily-index: daily OISST Nino 3.4 SST/SSTA trajectory")
+    print("15. build-nino34-sst-reference: monthly Nino 3.4 reference derived from the local OISST daily SST")
+    print("16. build-nino34-p90-peaks: Phase 3 OISST-derived monthly P90 anomaly peaks and chart")
+    print("17. sync-official-nino34-visuals: mirror official NOAA/PSL Nino 3.4 charts for visual comparison only")
+    print("18. build-phase3-diagnostics: Nino 3.4 physical diagnostics from local SST/ocean products")
+    print("19. audit-phase3-diagnostics: verify Phase 3 outputs")
+    print("scope: stop at Phase 3; no external ENSO labels and no ML/modeling stage in the active plan")
     return 0
 
 
@@ -435,10 +437,10 @@ def cmd_audit(_: argparse.Namespace) -> int:
 
 
 def _default_oisst_zarr_paths() -> list[Path]:
-    processed = sorted(project_path("data/processed/zarr/cpc_noaa/oisst").glob("*.zarr"))
-    if processed:
-        return processed
-    return sorted(project_path("data/processed/zarr/regridded").glob("noaa_oisst_*.zarr"))
+    regridded = sorted(project_path("data/processed/zarr/regridded").glob("noaa_oisst_*.zarr"))
+    if regridded:
+        return regridded
+    return sorted(project_path("data/processed/zarr/cpc_noaa/oisst").glob("*.zarr"))
 
 
 def cmd_build_nino34_daily_index(args: argparse.Namespace) -> int:
@@ -544,62 +546,93 @@ def cmd_build_nino34_daily_index(args: argparse.Namespace) -> int:
             dataset.close()
 
 
-def cmd_download_nino34_reference(args: argparse.Namespace) -> int:
-    raw_path = _path_arg(args.raw_path)
+def cmd_build_nino34_sst_reference(args: argparse.Namespace) -> int:
+    daily_csv = _path_arg(args.daily_csv)
     csv_path = _path_arg(args.csv_path)
     zarr_path = _path_arg(args.zarr_path)
     peaks_csv_path = _path_arg(args.peaks_csv_path)
     peaks_zarr_path = _path_arg(args.peaks_zarr_path)
+    p90_peaks_csv_path = _path_arg(args.p90_peaks_csv_path)
+    p90_peaks_zarr_path = _path_arg(args.p90_peaks_zarr_path)
+    p90_plot_path = _path_arg(args.p90_plot_path)
     audit = AuditLog()
-    task_id = "download_noaa_psl_nino34_reference"
+    task_id = "build_nino34_oisst_reference"
 
     if args.dry_run:
-        print("DRY RUN download NOAA PSL Nino 3.4 reference")
-        print(f"raw={raw_path}")
+        print("DRY RUN build local OISST Nino 3.4 monthly reference")
+        print(f"daily_csv={daily_csv}")
         print(f"csv={csv_path}")
         print(f"zarr={zarr_path}")
         print(f"peaks_csv={peaks_csv_path}")
         print(f"peaks_zarr={peaks_zarr_path}")
+        if not args.skip_p90_analysis:
+            print(f"p90_percentile={args.p90_percentile}")
+            print(f"p90_peaks_csv={p90_peaks_csv_path}")
+            print(f"p90_peaks_zarr={p90_peaks_zarr_path}")
+            print(f"p90_plot={p90_plot_path}")
         return 0
+    if not daily_csv.exists():
+        raise FileNotFoundError(f"Daily OISST Nino 3.4 CSV not found: {daily_csv}. Run build-nino34-daily-index first.")
 
     audit.record(
         task_id=task_id,
-        dataset="noaa_psl_nino34_reference",
+        dataset="nino34_oisst_reference",
         status="started",
-        raw_path=str(raw_path),
+        daily_csv=str(daily_csv),
         csv_path=str(csv_path),
         zarr_path=str(zarr_path),
         peaks_csv_path=str(peaks_csv_path),
         peaks_zarr_path=str(peaks_zarr_path),
+        p90_percentile=args.p90_percentile,
+        event_threshold_c=args.event_threshold_c,
+        min_duration_months=args.min_duration_months,
+        p90_peaks_csv_path=None if args.skip_p90_analysis else str(p90_peaks_csv_path),
+        p90_peaks_zarr_path=None if args.skip_p90_analysis else str(p90_peaks_zarr_path),
+        p90_plot_path=None if args.skip_p90_analysis else str(p90_plot_path),
     )
     try:
-        output = download_noaa_psl_nino34_anom(
-            raw_path=raw_path,
+        daily = pd.read_csv(daily_csv, parse_dates=["time"])
+        output = export_nino34_sst_reference(
+            daily,
             csv_path=csv_path,
             zarr_path=zarr_path,
             peaks_csv_path=peaks_csv_path,
             peaks_zarr_path=peaks_zarr_path,
-            overwrite=args.overwrite,
+            p90_peaks_csv_path=None if args.skip_p90_analysis else p90_peaks_csv_path,
+            p90_peaks_zarr_path=None if args.skip_p90_analysis else p90_peaks_zarr_path,
+            p90_plot_path=None if args.skip_p90_analysis else p90_plot_path,
+            p90_percentile=args.p90_percentile,
+            event_threshold_c=args.event_threshold_c,
+            min_duration_months=args.min_duration_months,
         )
         audit.record(
             task_id=task_id,
-            dataset="noaa_psl_nino34_reference",
+            dataset="nino34_oisst_reference",
             status="ok",
-            raw_path=str(output.raw_path),
+            daily_csv=str(daily_csv),
             csv_path=str(output.csv_path),
             zarr_path=str(output.zarr_path),
             peaks_csv_path=str(output.peaks_csv_path),
             peaks_zarr_path=str(output.peaks_zarr_path),
             rows=output.rows,
             peaks=output.peaks,
+            p90_peaks_csv_path=str(output.p90_peaks_csv_path) if output.p90_peaks_csv_path else None,
+            p90_peaks_zarr_path=str(output.p90_peaks_zarr_path) if output.p90_peaks_zarr_path else None,
+            p90_plot_path=str(output.p90_plot_path) if output.p90_plot_path else None,
+            p90_threshold_c=output.p90_threshold_c,
+            p90_peaks=output.p90_peaks,
         )
-        print(f"nino34 reference csv: {output.csv_path}")
-        print(f"nino34 reference peaks: {output.peaks_csv_path}")
+        print(f"nino34 OISST monthly reference csv: {output.csv_path}")
+        print(f"nino34 OISST event reference peaks: {output.peaks_csv_path}")
+        if output.p90_peaks_csv_path and output.p90_plot_path:
+            print(f"nino34 p90 peaks csv: {output.p90_peaks_csv_path}")
+            print(f"nino34 p90 plot: {output.p90_plot_path}")
+            print(f"nino34 p90 threshold: {output.p90_threshold_c:.3f} C; peaks={output.p90_peaks}")
         return 0
     except Exception as exc:
         audit.record(
             task_id=task_id,
-            dataset="noaa_psl_nino34_reference",
+            dataset="nino34_oisst_reference",
             status="error",
             error_type=type(exc).__name__,
             error=str(exc),
@@ -607,84 +640,294 @@ def cmd_download_nino34_reference(args: argparse.Namespace) -> int:
         raise
 
 
-def cmd_build_enso_peak_progression(args: argparse.Namespace) -> int:
-    daily_csv = _path_arg(args.daily_csv)
-    peaks_csv = _path_arg(args.peaks_csv)
-    output_zarr = _path_arg(args.output_zarr)
-    output_csv = _path_arg(args.output_csv)
-    lead_days = args.lead_days or [30, 60, 90, 120, 180, 270, 365]
-    history_days = args.history_days or [7, 30, 90, 180]
+def cmd_build_nino34_p90_peaks(args: argparse.Namespace) -> int:
+    monthly_csv = _path_arg(args.monthly_csv)
+    peaks_csv_path = _path_arg(args.peaks_csv_path)
+    peaks_zarr_path = _path_arg(args.peaks_zarr_path)
+    plot_path = _path_arg(args.plot_path)
     audit = AuditLog()
-    task_id = "build_enso_peak_progression"
+    task_id = "build_nino34_oisst_p90_peaks"
 
     if args.dry_run:
-        print("DRY RUN build ENSO peak progression")
-        print(f"daily_csv={daily_csv}")
-        print(f"peaks_csv={peaks_csv}")
-        print(f"lead_days={lead_days}")
-        print(f"history_days={history_days}")
-        print(f"output_zarr={output_zarr}")
-        print(f"output_csv={output_csv}")
+        print("DRY RUN build local OISST Nino 3.4 P90 peak analysis")
+        print(f"monthly_csv={monthly_csv}")
+        print(f"percentile={args.percentile}")
+        print(f"peaks_csv={peaks_csv_path}")
+        print(f"peaks_zarr={peaks_zarr_path}")
+        print(f"plot={plot_path}")
         return 0
-
-    if not daily_csv.exists():
-        raise FileNotFoundError(f"Daily Nino 3.4 CSV not found: {daily_csv}")
-    if not peaks_csv.exists():
-        raise FileNotFoundError(f"NOAA PSL reference peaks CSV not found: {peaks_csv}")
+    if not monthly_csv.exists():
+        raise FileNotFoundError(f"Local OISST monthly Nino 3.4 CSV not found: {monthly_csv}. Run build-nino34-sst-reference first.")
 
     audit.record(
         task_id=task_id,
-        dataset="enso_peak_progression",
+        dataset="nino34_oisst_p90_peaks",
         status="started",
-        daily_csv=str(daily_csv),
-        peaks_csv=str(peaks_csv),
-        output_zarr=str(output_zarr),
-        output_csv=str(output_csv),
-        lead_days=lead_days,
-        history_days=history_days,
+        monthly_csv=str(monthly_csv),
+        percentile=args.percentile,
+        peaks_csv_path=str(peaks_csv_path),
+        peaks_zarr_path=str(peaks_zarr_path),
+        plot_path=str(plot_path),
     )
     try:
-        daily = pd.read_csv(daily_csv, parse_dates=["time"])
-        peaks = pd.read_csv(peaks_csv, parse_dates=["peak_time"])
-        table = build_daily_enso_peak_progression_table(
-            daily,
-            peaks,
-            lead_days=lead_days,
-            history_windows_days=history_days,
-        )
-        output_csv.parent.mkdir(parents=True, exist_ok=True)
-        table.to_csv(output_csv, index=False)
-        dataframe_to_zarr(
-            table,
-            output_zarr,
-            overwrite=True,
-            attrs={
-                "artifact": "enso_peak_progression",
-                "dynamic_signal": "daily_oisst_nino34_ssta",
-                "peak_reference": "noaa_psl_monthly_nino34_ersst_v6",
-            },
+        monthly = pd.read_csv(monthly_csv, parse_dates=["time"])
+        output = export_nino34_sst_p90_peak_analysis(
+            monthly,
+            peaks_csv_path=peaks_csv_path,
+            peaks_zarr_path=peaks_zarr_path,
+            plot_path=plot_path,
+            percentile=args.percentile,
         )
         audit.record(
             task_id=task_id,
-            dataset="enso_peak_progression",
+            dataset="nino34_oisst_p90_peaks",
             status="ok",
-            output_zarr=str(output_zarr),
-            output_csv=str(output_csv),
-            rows=int(len(table)),
-            zarr_summary=dataset_summary(output_zarr, zarr=True),
+            peaks_csv_path=str(output.peaks_csv_path),
+            peaks_zarr_path=str(output.peaks_zarr_path),
+            plot_path=str(output.plot_path),
+            percentile=output.percentile,
+            threshold_c=output.threshold_c,
+            peaks=output.peaks,
         )
-        print(f"enso peak progression csv: {output_csv}")
-        print(f"enso peak progression zarr: {output_zarr}")
+        print(f"nino34 p90 peaks csv: {output.peaks_csv_path}")
+        print(f"nino34 p90 peaks zarr: {output.peaks_zarr_path}")
+        print(f"nino34 p90 plot: {output.plot_path}")
+        print(f"nino34 p90 threshold: {output.threshold_c:.3f} C; peaks={output.peaks}")
         return 0
     except Exception as exc:
         audit.record(
             task_id=task_id,
-            dataset="enso_peak_progression",
+            dataset="nino34_oisst_p90_peaks",
             status="error",
             error_type=type(exc).__name__,
             error=str(exc),
         )
         raise
+
+
+def cmd_sync_official_nino34_visuals(args: argparse.Namespace) -> int:
+    output_dir = _path_arg(args.output_dir)
+    audit = AuditLog()
+    task_id = "sync_official_nino34_visuals"
+
+    if args.dry_run:
+        print("DRY RUN sync official Nino 3.4 visuals")
+        print(f"output_dir={output_dir}")
+        print("role=visual comparison only; not a metric, label, event definition or model input")
+        output = sync_official_nino34_visuals(
+            output_dir,
+            timeout_seconds=args.timeout_seconds,
+            dry_run=True,
+        )
+        for path in output.files:
+            print(f"would sync: {path}")
+        print(f"manifest={output.manifest_path}")
+        return 0
+
+    audit.record(
+        task_id=task_id,
+        dataset="official_nino34_visual_reference",
+        status="started",
+        output_dir=str(output_dir),
+        pipeline_role="visual_reference_only_not_metric_not_label_not_model_input",
+    )
+    try:
+        output = sync_official_nino34_visuals(
+            output_dir,
+            timeout_seconds=args.timeout_seconds,
+            dry_run=False,
+        )
+        audit.record(
+            task_id=task_id,
+            dataset="official_nino34_visual_reference",
+            status="ok",
+            output_dir=str(output.output_dir),
+            manifest_path=str(output.manifest_path),
+            files=[str(path) for path in output.files],
+            rows=output.rows,
+            pipeline_role="visual_reference_only_not_metric_not_label_not_model_input",
+        )
+        print(f"official Nino 3.4 visual directory: {output.output_dir}")
+        print(f"official Nino 3.4 visual manifest: {output.manifest_path}")
+        for path in output.files:
+            print(f"official visual: {path}")
+        print("role: visual comparison only; local OISST remains the metric source")
+        return 0
+    except Exception as exc:
+        audit.record(
+            task_id=task_id,
+            dataset="official_nino34_visual_reference",
+            status="error",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise
+
+
+def cmd_build_phase3_diagnostics(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    phase3_cfg = cfg.get("modeling", {}).get("phase_3_diagnostics", {})
+    daily_nino34_csv = _path_arg(args.daily_nino34_csv)
+    ocean_daily_root = _path_arg(args.ocean_daily_root)
+    monthly_nino34_csv = _path_arg(args.monthly_nino34_csv)
+    physical_signal_csv_path = _path_arg(args.physical_signal_csv_path)
+    physical_signal_zarr_path = _path_arg(args.physical_signal_zarr_path)
+    thermocline_zarr_path = _path_arg(args.thermocline_zarr_path)
+    peak_signal_zarr_path = _path_arg(args.peak_signal_zarr_path)
+    signal_slope_duration_zarr_path = _path_arg(args.signal_slope_duration_zarr_path)
+    output_table_dir = _path_arg(args.output_table_dir)
+    physics_precalc_csv_path = _path_arg(args.physics_precalc_csv_path)
+    peak_years = args.peak_year or phase3_cfg.get("el_nino_peak_years", [1982, 1983, 1997, 1998, 2015, 2016, 2023, 2024])
+    audit = AuditLog()
+    task_id = "build_phase3_diagnostics"
+
+    if args.dry_run:
+        print("DRY RUN build Phase 3 diagnostics")
+        print(f"daily_nino34_csv={daily_nino34_csv}")
+        print(f"ocean_daily_root={ocean_daily_root}")
+        print(f"monthly_nino34_csv={monthly_nino34_csv}")
+        print(f"start_date={args.start_date}; end_date={args.end_date}")
+        print(f"peak_years={peak_years}")
+        for source, paths in discover_daily_ocean_feature_paths(ocean_daily_root).items():
+            print(f"{source}: {len(paths)} feature stores")
+        print(f"physical_signal_csv={physical_signal_csv_path}")
+        print(f"physical_signal_zarr={physical_signal_zarr_path}")
+        print(f"thermocline_zarr={thermocline_zarr_path}")
+        print(f"peak_signal_zarr={peak_signal_zarr_path}")
+        print(f"signal_slope_duration_zarr={signal_slope_duration_zarr_path}")
+        print(f"output_table_dir={output_table_dir}")
+        print(f"physics_precalc_csv={physics_precalc_csv_path}")
+        return 0
+
+    audit.record(
+        task_id=task_id,
+        dataset="phase3_nino34_physical_diagnostics",
+        status="started",
+        daily_nino34_csv=str(daily_nino34_csv),
+        ocean_daily_root=str(ocean_daily_root),
+        monthly_nino34_csv=str(monthly_nino34_csv),
+        physical_signal_zarr_path=str(physical_signal_zarr_path),
+        thermocline_zarr_path=str(thermocline_zarr_path),
+        peak_signal_zarr_path=str(peak_signal_zarr_path),
+        signal_slope_duration_zarr_path=str(signal_slope_duration_zarr_path),
+        start_date=args.start_date,
+        end_date=args.end_date,
+        peak_years=peak_years,
+    )
+    try:
+        output = build_phase3_diagnostics(
+            daily_nino34_csv=daily_nino34_csv,
+            ocean_daily_root=ocean_daily_root,
+            monthly_nino34_csv=monthly_nino34_csv,
+            physical_signal_csv_path=physical_signal_csv_path,
+            physical_signal_zarr_path=physical_signal_zarr_path,
+            thermocline_zarr_path=thermocline_zarr_path,
+            peak_signal_zarr_path=peak_signal_zarr_path,
+            signal_slope_duration_zarr_path=signal_slope_duration_zarr_path,
+            output_table_dir=output_table_dir,
+            physics_precalc_csv_path=physics_precalc_csv_path,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            peak_years=peak_years,
+            event_threshold_c=args.event_threshold_c,
+            tendency_windows_days=args.tendency_window_days or [7, 30, 90],
+        )
+        audit.record(
+            task_id=task_id,
+            dataset="phase3_nino34_physical_diagnostics",
+            status="ok",
+            rows_daily=output.rows_daily,
+            rows_monthly=output.rows_monthly,
+            first_date=output.first_date,
+            last_date=output.last_date,
+            physical_signal_csv_path=str(output.physical_signal_csv_path),
+            physical_signal_zarr_path=str(output.physical_signal_zarr_path),
+            thermocline_zarr_path=str(output.thermocline_zarr_path),
+            peak_signal_zarr_path=str(output.peak_signal_zarr_path),
+            signal_slope_duration_zarr_path=str(output.signal_slope_duration_zarr_path),
+            event_table_csv_path=str(output.event_table_csv_path),
+            peak_comparison_csv_path=str(output.peak_comparison_csv_path),
+            physics_precalc_csv_path=str(output.physics_precalc_csv_path),
+        )
+        print(f"phase3 physical signal csv: {output.physical_signal_csv_path}")
+        print(f"phase3 physical signal zarr: {output.physical_signal_zarr_path}")
+        print(f"phase3 thermocline zarr: {output.thermocline_zarr_path}")
+        print(f"phase3 peak signal comparison zarr: {output.peak_signal_zarr_path}")
+        print(f"phase3 signal slope/duration zarr: {output.signal_slope_duration_zarr_path}")
+        print(f"phase3 event monthly csv: {output.event_table_csv_path}")
+        print(f"phase3 peak comparison csv: {output.peak_comparison_csv_path}")
+        print(f"phase3 physics precalc csv: {output.physics_precalc_csv_path}")
+        print(f"phase3 rows: daily={output.rows_daily}; monthly={output.rows_monthly}; {output.first_date}..{output.last_date}")
+        return 0
+    except Exception as exc:
+        audit.record(
+            task_id=task_id,
+            dataset="phase3_nino34_physical_diagnostics",
+            status="error",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
+        raise
+
+
+def cmd_audit_phase3_diagnostics(args: argparse.Namespace) -> int:
+    zarr_paths = [
+        _path_arg(args.physical_signal_zarr_path),
+        _path_arg(args.thermocline_zarr_path),
+        _path_arg(args.peak_signal_zarr_path),
+        _path_arg(args.signal_slope_duration_zarr_path),
+        _path_arg(args.p90_peaks_zarr_path),
+    ]
+    csv_paths = [
+        _path_arg(args.physical_signal_csv_path),
+        _path_arg(args.event_table_csv_path),
+        _path_arg(args.peak_comparison_csv_path),
+        _path_arg(args.physics_precalc_csv_path),
+        _path_arg(args.p90_peaks_csv_path),
+    ]
+    plot_path = _path_arg(args.p90_plot_path)
+    report_path = _path_arg(args.report_path)
+
+    report: dict[str, object] = {"zarr": {}, "csv": {}, "plot": {}, "errors": []}
+    errors: list[str] = []
+    for path in zarr_paths:
+        if not path.exists():
+            errors.append(f"missing zarr: {path}")
+            continue
+        try:
+            report["zarr"][str(path)] = validate_zarr(path)
+        except Exception as exc:
+            errors.append(f"invalid zarr {path}: {type(exc).__name__}: {exc}")
+
+    for path in csv_paths:
+        if not path.exists():
+            errors.append(f"missing csv: {path}")
+            continue
+        try:
+            frame = pd.read_csv(path, nrows=5)
+            total_rows = sum(1 for _ in path.open("r", encoding="utf-8", errors="replace")) - 1
+            if total_rows <= 0:
+                errors.append(f"empty csv: {path}")
+            report["csv"][str(path)] = {"rows": int(max(total_rows, 0)), "columns": list(frame.columns)}
+        except Exception as exc:
+            errors.append(f"invalid csv {path}: {type(exc).__name__}: {exc}")
+
+    if not plot_path.exists():
+        errors.append(f"missing plot: {plot_path}")
+    else:
+        report["plot"][str(plot_path)] = {"bytes": int(plot_path.stat().st_size)}
+
+    report["errors"] = errors
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+
+    if errors:
+        print(f"Phase 3 audit: errors={len(errors)}; report={report_path}")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    print(f"Phase 3 audit: complete; errors=0; report={report_path}")
+    return 0
 
 
 def _path_arg(value: str) -> Path:
@@ -1484,30 +1727,84 @@ def build_parser() -> argparse.ArgumentParser:
     nino34_daily_p.set_defaults(func=cmd_build_nino34_daily_index)
 
     nino34_ref_p = sub.add_parser(
-        "download-nino34-reference",
-        help="Download NOAA PSL monthly Nino 3.4 reference index and detected peak labels.",
+        "build-nino34-sst-reference",
+        help="Build monthly Nino 3.4 reference and event peaks from the local daily OISST SST/SSTA table.",
     )
-    nino34_ref_p.add_argument("--raw-path", default="data/raw/cpc_noaa/nino34/nina34.anom.data")
-    nino34_ref_p.add_argument("--csv-path", default="data/processed/parquet/features/noaa_psl_nino34_monthly.csv")
-    nino34_ref_p.add_argument("--zarr-path", default="data/processed/zarr/features/noaa_psl_nino34_monthly.zarr")
-    nino34_ref_p.add_argument("--peaks-csv-path", default="data/processed/parquet/features/noaa_psl_nino34_reference_peaks.csv")
-    nino34_ref_p.add_argument("--peaks-zarr-path", default="data/processed/zarr/features/noaa_psl_nino34_reference_peaks.zarr")
-    nino34_ref_p.add_argument("--overwrite", action="store_true")
+    nino34_ref_p.add_argument("--daily-csv", default="data/processed/parquet/features/nino34_daily_oisst.csv")
+    nino34_ref_p.add_argument("--csv-path", default="data/processed/parquet/features/nino34_monthly_oisst.csv")
+    nino34_ref_p.add_argument("--zarr-path", default="data/processed/zarr/features/nino34_monthly_oisst.zarr")
+    nino34_ref_p.add_argument("--peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_event_reference.csv")
+    nino34_ref_p.add_argument("--peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_event_reference.zarr")
+    nino34_ref_p.add_argument("--event-threshold-c", type=float, default=0.5)
+    nino34_ref_p.add_argument("--min-duration-months", type=int, default=5)
+    nino34_ref_p.add_argument("--p90-percentile", type=float, default=90.0)
+    nino34_ref_p.add_argument("--p90-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p90_peaks.csv")
+    nino34_ref_p.add_argument("--p90-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p90_peaks.zarr")
+    nino34_ref_p.add_argument("--p90-plot-path", default="docs/assets/figures/nino34_oisst_p90_peaks.png")
+    nino34_ref_p.add_argument("--skip-p90-analysis", action="store_true")
     nino34_ref_p.add_argument("--dry-run", action="store_true")
-    nino34_ref_p.set_defaults(func=cmd_download_nino34_reference)
+    nino34_ref_p.set_defaults(func=cmd_build_nino34_sst_reference)
 
-    enso_peak_p = sub.add_parser(
-        "build-enso-peak-progression",
-        help="Build daily ENSO peak-progression matrix from OISST daily features and NOAA PSL peak labels.",
+    nino34_p90_p = sub.add_parser(
+        "build-nino34-p90-peaks",
+        help="Build Phase 3 OISST-derived monthly Nino 3.4 P90 peaks and a simple chart.",
     )
-    enso_peak_p.add_argument("--daily-csv", default="data/processed/parquet/features/nino34_daily_oisst.csv")
-    enso_peak_p.add_argument("--peaks-csv", default="data/processed/parquet/features/noaa_psl_nino34_reference_peaks.csv")
-    enso_peak_p.add_argument("--lead-days", type=int, action="append")
-    enso_peak_p.add_argument("--history-days", type=int, action="append")
-    enso_peak_p.add_argument("--output-zarr", default="data/processed/zarr/modeling/enso_peak_progression.zarr")
-    enso_peak_p.add_argument("--output-csv", default="data/processed/parquet/modeling/enso_peak_progression.csv")
-    enso_peak_p.add_argument("--dry-run", action="store_true")
-    enso_peak_p.set_defaults(func=cmd_build_enso_peak_progression)
+    nino34_p90_p.add_argument("--monthly-csv", default="data/processed/parquet/features/nino34_monthly_oisst.csv")
+    nino34_p90_p.add_argument("--percentile", type=float, default=90.0)
+    nino34_p90_p.add_argument("--peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p90_peaks.csv")
+    nino34_p90_p.add_argument("--peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p90_peaks.zarr")
+    nino34_p90_p.add_argument("--plot-path", default="docs/assets/figures/nino34_oisst_p90_peaks.png")
+    nino34_p90_p.add_argument("--dry-run", action="store_true")
+    nino34_p90_p.set_defaults(func=cmd_build_nino34_p90_peaks)
+
+    official_visuals_p = sub.add_parser(
+        "sync-official-nino34-visuals",
+        help="Mirror official NOAA/PSL Nino 3.4 charts for visual comparison only.",
+    )
+    official_visuals_p.add_argument("--output-dir", default="docs/assets/figures/official_nino34")
+    official_visuals_p.add_argument("--timeout-seconds", type=int, default=60)
+    official_visuals_p.add_argument("--dry-run", action="store_true")
+    official_visuals_p.set_defaults(func=cmd_sync_official_nino34_visuals)
+
+    phase3_p = sub.add_parser(
+        "build-phase3-diagnostics",
+        help="Build Phase 3 Nino 3.4 physical diagnostics from local OISST and daily ocean features.",
+    )
+    phase3_p.add_argument("--daily-nino34-csv", default="data/processed/parquet/features/nino34_daily_oisst.csv")
+    phase3_p.add_argument("--ocean-daily-root", default="data/processed/zarr/features/ocean_daily")
+    phase3_p.add_argument("--monthly-nino34-csv", default="data/processed/parquet/features/nino34_monthly_oisst.csv")
+    phase3_p.add_argument("--physical-signal-csv-path", default="data/processed/parquet/features/nino34_physical_signal.csv")
+    phase3_p.add_argument("--physical-signal-zarr-path", default="data/processed/zarr/features/nino34_physical_signal.zarr")
+    phase3_p.add_argument("--thermocline-zarr-path", default="data/processed/zarr/features/nino34_thermocline_diagnostics.zarr")
+    phase3_p.add_argument("--peak-signal-zarr-path", default="data/processed/zarr/features/nino34_peak_signal_comparison.zarr")
+    phase3_p.add_argument("--signal-slope-duration-zarr-path", default="data/processed/zarr/features/nino34_signal_slope_duration.zarr")
+    phase3_p.add_argument("--output-table-dir", default="data/processed/parquet/features")
+    phase3_p.add_argument("--physics-precalc-csv-path", default="data/processed/parquet/physics_precalc_timeseries.csv")
+    phase3_p.add_argument("--start-date")
+    phase3_p.add_argument("--end-date")
+    phase3_p.add_argument("--peak-year", type=int, action="append")
+    phase3_p.add_argument("--event-threshold-c", type=float, default=0.5)
+    phase3_p.add_argument("--tendency-window-days", type=int, action="append")
+    phase3_p.add_argument("--dry-run", action="store_true")
+    phase3_p.set_defaults(func=cmd_build_phase3_diagnostics)
+
+    phase3_audit_p = sub.add_parser(
+        "audit-phase3-diagnostics",
+        help="Verify Phase 3 diagnostics and item 3.10b artifacts.",
+    )
+    phase3_audit_p.add_argument("--physical-signal-csv-path", default="data/processed/parquet/features/nino34_physical_signal.csv")
+    phase3_audit_p.add_argument("--physical-signal-zarr-path", default="data/processed/zarr/features/nino34_physical_signal.zarr")
+    phase3_audit_p.add_argument("--thermocline-zarr-path", default="data/processed/zarr/features/nino34_thermocline_diagnostics.zarr")
+    phase3_audit_p.add_argument("--peak-signal-zarr-path", default="data/processed/zarr/features/nino34_peak_signal_comparison.zarr")
+    phase3_audit_p.add_argument("--signal-slope-duration-zarr-path", default="data/processed/zarr/features/nino34_signal_slope_duration.zarr")
+    phase3_audit_p.add_argument("--event-table-csv-path", default="data/processed/parquet/features/nino34_event_table_monthly.csv")
+    phase3_audit_p.add_argument("--peak-comparison-csv-path", default="data/processed/parquet/features/nino34_peak_comparison.csv")
+    phase3_audit_p.add_argument("--physics-precalc-csv-path", default="data/processed/parquet/physics_precalc_timeseries.csv")
+    phase3_audit_p.add_argument("--p90-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p90_peaks.csv")
+    phase3_audit_p.add_argument("--p90-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p90_peaks.zarr")
+    phase3_audit_p.add_argument("--p90-plot-path", default="docs/assets/figures/nino34_oisst_p90_peaks.png")
+    phase3_audit_p.add_argument("--report-path", default="data/audit/phase3_diagnostics_audit.json")
+    phase3_audit_p.set_defaults(func=cmd_audit_phase3_diagnostics)
 
     regrid_p = sub.add_parser("regrid-zarr", help="Regrid a Zarr cube to the common modeling grid.")
     regrid_p.add_argument("--input", required=True, help="Input Zarr path.")

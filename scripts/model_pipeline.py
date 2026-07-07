@@ -242,6 +242,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--validation-years", type=int, default=2)
     parser.add_argument("--test-years", type=int, default=1)
     parser.add_argument("--step-years", type=int, default=1)
+    parser.add_argument("--embargo-days", type=int, default=None)
     parser.add_argument("--predictor-strategy", choices=["mean", "flatten"], default="mean")
     parser.add_argument("--target-strategy", choices=["mean", "flatten"], default="mean")
     parser.add_argument("--regression-model", action="append", choices=["ridge", "rf", "xgboost", "lightgbm"])
@@ -278,6 +279,11 @@ def main(argv: list[str] | None = None) -> int:
             validation_years=args.validation_years,
             test_years=args.test_years,
             step_years=args.step_years,
+            embargo_days=(
+                args.embargo_days
+                if args.embargo_days is not None
+                else cfg["time"].get("validation_embargo_days", max(lags))
+            ),
         )
         if args.dry_run:
             print(f"predictor variables: {list(predictors.data_vars)}")
