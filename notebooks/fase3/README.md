@@ -1,4 +1,4 @@
-# Fase 3 - Notebooks 3A-3G
+# Fase 3 - Notebooks 3A-3I
 
 Implementacao executavel do protocolo de `docs/FASE3_RECOMENDACOES.md`.
 Todos os notebooks: (i) declaram a pergunta que respondem e a metodologia,
@@ -6,14 +6,28 @@ Todos os notebooks: (i) declaram a pergunta que respondem e a metodologia,
 (iii) gravam figuras e mapas em `data/processed/figures/fase3/`.
 Nenhuma figura sem saida numerica correspondente.
 
-## Pre-requisito (uma vez)
+## Pre-requisitos
 
 ```cmd
+.venv\Scripts\python scripts\data_pipeline.py build-nino34-daily-index
+.venv\Scripts\python scripts\data_pipeline.py build-nino34-sst-reference
+.venv\Scripts\python scripts\data_pipeline.py build-nino34-p90-peaks
+.venv\Scripts\python scripts\data_pipeline.py build-nino34-p95-peaks
+.venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
+.venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
 .venv\Scripts\python scripts\fase3_build_inputs.py
+.venv\Scripts\python -m pytest -q
 ```
 
-Materializa ATL3/ATL4/TNA/TSA, banda equatorial por longitude, SSH de eventos,
-DHW diario e o cache de mapas. Idempotente.
+`fase3_build_inputs.py` materializa ATL3/ATL4/TNA/TSA, banda equatorial por
+longitude, SSH de eventos, DHW diario, variantes DHW e o cache de mapas. Use
+`--force` quando OISST/oceano forem atualizados.
+
+Execucao headless completa:
+
+```cmd
+.venv\Scripts\python scripts\run_fase3_all.py
+```
 
 ## Notebooks (ordem de execucao)
 
@@ -27,9 +41,19 @@ DHW diario e o cache de mapas. Idempotente.
 | 3F | DHW agrega leitura alem de SSTA/WWV/OHC? Kelvin e visivel? | correlacao parcial por horizonte, Hovmoller SSH |
 | 3G | (extra) Como o ciclo de vida se relaciona com o DHW C-week? | metricas por fase de evento, composto duplo, escalonamento, mapa DHW-lon |
 | 3H | (extra) Que estado fisico precede o onset? A genese separa fortes de fracos? | compostos onset-alinhados, retrato precursor por classe, separacao Spearman |
+| 3I | Qual e a interpretacao integrada da Fase 3? Como comparar P90/P95 e 2026? | conclusoes executivas, tabela P90/P95, estado 2026, texto para parecer |
 
 **Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
-O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada.
+O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada;
+o 3I consolida a interpretacao, mas nao cria evidencia nova.
+
+## DHW
+
+O DHW de 12 semanas com limiar `>1 C` permanece por comparabilidade com a
+convencao CRW herdada. Para Nino 3.4, a metrica fisicamente mais alinhada ao
+evento e `dhw_26w_p90`: janela proxima ao e-folding observado da SSTA
+(~27 semanas) e limiar P90 diario derivado da propria OISST local. Ambas sao
+metricas de calor acumulado/severidade; nao devem ser chamadas de previsao.
 
 Kernel no VS Code: `Python 3 (.venv NINO26)`.
 Modulo compartilhado: `fase3_utils.py` (caminhos, matriz semanal, eventos, salvamento padrao).

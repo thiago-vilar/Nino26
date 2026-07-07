@@ -348,7 +348,8 @@ def save_nino34_sst_p90_plot(
             label=f"picos >= P{percentile:g}",
         )
 
-    ax.set_title("Nino 3.4 OISST mensal - picos acima do P90")
+    label = _percentile_label(percentile).upper()
+    ax.set_title(f"Nino 3.4 OISST mensal - picos acima do {label}")
     ax.set_ylabel("anomalia Nino 3.4 (C)")
     ax.set_xlabel("tempo")
     ax.grid(True, alpha=0.25)
@@ -383,12 +384,13 @@ def export_nino34_sst_p90_peak_analysis(
 
     peaks_csv_path.parent.mkdir(parents=True, exist_ok=True)
     peaks.to_csv(peaks_csv_path, index=False)
+    label = _percentile_label(percentile)
     dataframe_to_zarr(
         peaks,
         peaks_zarr_path,
         overwrite=True,
         attrs={
-            "artifact": "nino34_oisst_p90_peaks",
+            "artifact": f"nino34_oisst_{label}_peaks",
             "percentile": float(percentile),
             "percentile_threshold_c": threshold_c,
             "source_contract": "local OISST-derived Nino 3.4 monthly SSTA",

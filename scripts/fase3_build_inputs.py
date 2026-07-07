@@ -134,16 +134,30 @@ def build_ssh_events(force: bool) -> None:
 
 
 def build_dhw(force: bool) -> None:
+    """DHW principal (12 sem, limiar 1.0 C - convencao CRW herdada) + variantes
+    de sensibilidade: janelas 12/26 semanas x limiares 1.0 C (herdado) e P90
+    diario da propria serie (data-driven). A janela de 26 semanas aproxima o
+    e-folding da SSTA (~27 sem, notebook 3B), tornando o DHW uma integral na
+    escala do evento; o limiar P90 substitui a convencao de coral por um corte
+    derivado da propria base. A adequacao e decidida empiricamente no 3G."""
     out = FEAT / "nino34_dhw_daily.csv"
-    if out.exists() and not force:
+    out_var = FEAT / "nino34_dhw_variants.csv"
+    if out.exists() and out_var.exists() and not force:
         print("[skip] dhw ja materializado")
         return
     d = pd.read_csv(FEAT / "nino34_daily_oisst.csv", parse_dates=["time"])
     ssta = xr.DataArray(d["nino34_ssta"].values, coords={"time": d["time"].values}, dims=("time",))
-    dhw = degree_heating_weeks(ssta, threshold_c=1.0, window_weeks=12)
+    p90_daily = float(np.nanpercentile(d["nino34_ssta"].dropna(), 90.0))
+    base = degree_heating_weeks(ssta, threshold_c=1.0, window_weeks=12)
     pd.DataFrame({"time": d["time"], "nino34_ssta": d["nino34_ssta"],
-                  "nino34_dhw_12w_cweeks": dhw.values}).to_csv(out, index=False)
-    print(f"[ok] {out.relative_to(ROOT)}")
+                  "nino34_dhw_12w_cweeks": base.values}).to_csv(out, index=False)
+    var = pd.DataFrame({"time": d["time"], "nino34_ssta": d["nino34_ssta"]})
+    for wk in (12, 26):
+        for thr, tag in ((1.0, "1p0"), (p90_daily, "p90")):
+            var[f"dhw_{wk}w_{tag}"] = degree_heating_weeks(ssta, threshold_c=thr, window_weeks=wk).values
+    var.attrs = {}
+    var.to_csv(out_var, index=False)
+    print(f"[ok] {out.relative_to(ROOT)} e {out_var.relative_to(ROOT)} (p90_daily={p90_daily:.3f} C)")
 
 
 def build_map_cache(force: bool) -> None:

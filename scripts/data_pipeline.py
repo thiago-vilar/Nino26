@@ -157,7 +157,7 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print("13. diagnose-distributions: optional QC/EDA tail diagnostics")
     print("14. build-nino34-daily-index: daily OISST Nino 3.4 SST/SSTA trajectory")
     print("15. build-nino34-sst-reference: monthly Nino 3.4 reference derived from the local OISST daily SST")
-    print("16. build-nino34-p90-peaks: Phase 3 OISST-derived monthly P90 anomaly peaks and chart")
+    print("16. build-nino34-p90-peaks/build-nino34-p95-peaks: Phase 3 OISST-derived monthly P90/P95 anomaly peaks and charts")
     print("17. sync-official-nino34-visuals: mirror official NOAA/PSL Nino 3.4 charts for visual comparison only")
     print("18. build-phase3-diagnostics: Nino 3.4 physical diagnostics from local SST/ocean products")
     print("19. audit-phase3-diagnostics: verify Phase 3 outputs")
@@ -646,10 +646,11 @@ def cmd_build_nino34_p90_peaks(args: argparse.Namespace) -> int:
     peaks_zarr_path = _path_arg(args.peaks_zarr_path)
     plot_path = _path_arg(args.plot_path)
     audit = AuditLog()
-    task_id = "build_nino34_oisst_p90_peaks"
+    label = f"p{int(args.percentile)}" if float(args.percentile).is_integer() else f"p{args.percentile:g}".replace(".", "p")
+    task_id = f"build_nino34_oisst_{label}_peaks"
 
     if args.dry_run:
-        print("DRY RUN build local OISST Nino 3.4 P90 peak analysis")
+        print(f"DRY RUN build local OISST Nino 3.4 P{args.percentile:g} peak analysis")
         print(f"monthly_csv={monthly_csv}")
         print(f"percentile={args.percentile}")
         print(f"peaks_csv={peaks_csv_path}")
@@ -661,7 +662,7 @@ def cmd_build_nino34_p90_peaks(args: argparse.Namespace) -> int:
 
     audit.record(
         task_id=task_id,
-        dataset="nino34_oisst_p90_peaks",
+        dataset=f"nino34_oisst_{label}_peaks",
         status="started",
         monthly_csv=str(monthly_csv),
         percentile=args.percentile,
@@ -680,7 +681,7 @@ def cmd_build_nino34_p90_peaks(args: argparse.Namespace) -> int:
         )
         audit.record(
             task_id=task_id,
-            dataset="nino34_oisst_p90_peaks",
+            dataset=f"nino34_oisst_{label}_peaks",
             status="ok",
             peaks_csv_path=str(output.peaks_csv_path),
             peaks_zarr_path=str(output.peaks_zarr_path),
@@ -689,15 +690,15 @@ def cmd_build_nino34_p90_peaks(args: argparse.Namespace) -> int:
             threshold_c=output.threshold_c,
             peaks=output.peaks,
         )
-        print(f"nino34 p90 peaks csv: {output.peaks_csv_path}")
-        print(f"nino34 p90 peaks zarr: {output.peaks_zarr_path}")
-        print(f"nino34 p90 plot: {output.plot_path}")
-        print(f"nino34 p90 threshold: {output.threshold_c:.3f} C; peaks={output.peaks}")
+        print(f"nino34 {label} peaks csv: {output.peaks_csv_path}")
+        print(f"nino34 {label} peaks zarr: {output.peaks_zarr_path}")
+        print(f"nino34 {label} plot: {output.plot_path}")
+        print(f"nino34 {label} threshold: {output.threshold_c:.3f} C; peaks={output.peaks}")
         return 0
     except Exception as exc:
         audit.record(
             task_id=task_id,
-            dataset="nino34_oisst_p90_peaks",
+            dataset=f"nino34_oisst_{label}_peaks",
             status="error",
             error_type=type(exc).__name__,
             error=str(exc),
@@ -877,6 +878,7 @@ def cmd_audit_phase3_diagnostics(args: argparse.Namespace) -> int:
         _path_arg(args.peak_signal_zarr_path),
         _path_arg(args.signal_slope_duration_zarr_path),
         _path_arg(args.p90_peaks_zarr_path),
+        _path_arg(args.p95_peaks_zarr_path),
     ]
     csv_paths = [
         _path_arg(args.physical_signal_csv_path),
@@ -884,8 +886,9 @@ def cmd_audit_phase3_diagnostics(args: argparse.Namespace) -> int:
         _path_arg(args.peak_comparison_csv_path),
         _path_arg(args.physics_precalc_csv_path),
         _path_arg(args.p90_peaks_csv_path),
+        _path_arg(args.p95_peaks_csv_path),
     ]
-    plot_path = _path_arg(args.p90_plot_path)
+    plot_paths = [_path_arg(args.p90_plot_path), _path_arg(args.p95_plot_path)]
     report_path = _path_arg(args.report_path)
 
     report: dict[str, object] = {"zarr": {}, "csv": {}, "plot": {}, "errors": []}
@@ -912,10 +915,11 @@ def cmd_audit_phase3_diagnostics(args: argparse.Namespace) -> int:
         except Exception as exc:
             errors.append(f"invalid csv {path}: {type(exc).__name__}: {exc}")
 
-    if not plot_path.exists():
-        errors.append(f"missing plot: {plot_path}")
-    else:
-        report["plot"][str(plot_path)] = {"bytes": int(plot_path.stat().st_size)}
+    for plot_path in plot_paths:
+        if not plot_path.exists():
+            errors.append(f"missing plot: {plot_path}")
+        else:
+            report["plot"][str(plot_path)] = {"bytes": int(plot_path.stat().st_size)}
 
     report["errors"] = errors
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1757,6 +1761,18 @@ def build_parser() -> argparse.ArgumentParser:
     nino34_p90_p.add_argument("--dry-run", action="store_true")
     nino34_p90_p.set_defaults(func=cmd_build_nino34_p90_peaks)
 
+    nino34_p95_p = sub.add_parser(
+        "build-nino34-p95-peaks",
+        help="Build Phase 3 OISST-derived monthly Nino 3.4 P95 peaks for super-event comparison.",
+    )
+    nino34_p95_p.add_argument("--monthly-csv", default="data/processed/parquet/features/nino34_monthly_oisst.csv")
+    nino34_p95_p.add_argument("--percentile", type=float, default=95.0)
+    nino34_p95_p.add_argument("--peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p95_peaks.csv")
+    nino34_p95_p.add_argument("--peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p95_peaks.zarr")
+    nino34_p95_p.add_argument("--plot-path", default="docs/assets/figures/nino34_oisst_p95_peaks.png")
+    nino34_p95_p.add_argument("--dry-run", action="store_true")
+    nino34_p95_p.set_defaults(func=cmd_build_nino34_p90_peaks)
+
     official_visuals_p = sub.add_parser(
         "sync-official-nino34-visuals",
         help="Mirror official NOAA/PSL Nino 3.4 charts for visual comparison only.",
@@ -1803,6 +1819,9 @@ def build_parser() -> argparse.ArgumentParser:
     phase3_audit_p.add_argument("--p90-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p90_peaks.csv")
     phase3_audit_p.add_argument("--p90-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p90_peaks.zarr")
     phase3_audit_p.add_argument("--p90-plot-path", default="docs/assets/figures/nino34_oisst_p90_peaks.png")
+    phase3_audit_p.add_argument("--p95-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p95_peaks.csv")
+    phase3_audit_p.add_argument("--p95-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p95_peaks.zarr")
+    phase3_audit_p.add_argument("--p95-plot-path", default="docs/assets/figures/nino34_oisst_p95_peaks.png")
     phase3_audit_p.add_argument("--report-path", default="data/audit/phase3_diagnostics_audit.json")
     phase3_audit_p.set_defaults(func=cmd_audit_phase3_diagnostics)
 

@@ -48,6 +48,23 @@ def load_dhw() -> pd.DataFrame:
     return df.set_index("time").sort_index()
 
 
+def load_dhw_variants() -> pd.DataFrame:
+    """Variantes de sensibilidade do DHW: janelas 12/26 sem x limiar 1.0C/P90 diario."""
+    df = pd.read_csv(FEAT / "nino34_dhw_variants.csv", parse_dates=["time"])
+    return df.set_index("time").sort_index()
+
+
+def load_p90_peaks() -> pd.DataFrame:
+    return pd.read_csv(FEAT / "nino34_oisst_p90_peaks.csv",
+                       parse_dates=["event_start", "event_end", "peak_time"])
+
+
+def load_p95_peaks() -> pd.DataFrame:
+    """Picos P95 (limiar ~1.58 C): recorte 'super/strong' comparavel ao P90."""
+    return pd.read_csv(FEAT / "nino34_oisst_p95_peaks.csv",
+                       parse_dates=["event_start", "event_end", "peak_time"])
+
+
 def load_atmo() -> pd.DataFrame:
     df = pd.read_csv(FEAT / "era5_nino34_atmo_cache.csv", parse_dates=["time"])
     return df.set_index("time").sort_index()
@@ -104,7 +121,8 @@ def weekly_matrix() -> pd.DataFrame:
     }
     base = phys[list(cols)].rename(columns=cols)
     atl = load_atlantic()[["atl3_ssta", "atl4_ssta", "tna_ssta", "tsa_ssta"]]
-    dhw = load_dhw()[["nino34_dhw_12w_cweeks"]].rename(columns={"nino34_dhw_12w_cweeks": "dhw_12w"})
+    dhwv = load_dhw_variants()
+    dhw = pd.DataFrame({"dhw_12w": dhwv["dhw_12w_1p0"], "dhw_26w_p90": dhwv["dhw_26w_p90"]})
     atmo = load_atmo()
     tau = tau_x_proxy(atmo["atm_10m_u_component_of_wind"]).to_frame()
     daily = base.join([atl, dhw, tau], how="outer")
@@ -118,7 +136,8 @@ def sources_note() -> pd.DataFrame:
         ("nino34_ssta", "OISST v2.1 local", "1981-09+", "C"),
         ("d20_m / ohc_* / wwv / tilt_m / ssh_m / sss", "UFS 1981-92 (ponte) -> GLORYS12 1993+ -> GLO12 cauda", "sensibilidade 1993+", "m / J m-2 / m3 / m / m / psu"),
         ("atl3/atl4/tna/tsa_ssta", "OISST v2.1 global local (fix nino.py)", "1981-09+", "C"),
-        ("dhw_12w", "derivado da SSTA OISST (limiar 1C, 12 semanas)", "valido 1981-11-23+", "C-weeks"),
+        ("dhw_12w", "derivado da SSTA OISST (limiar 1C, 12 sem - convencao CRW)", "valido 1981-11+", "C-weeks"),
+        ("dhw_26w_p90", "derivado da SSTA OISST (limiar P90 diario 1.07C, 26 sem - escala do evento)", "valido 1982-03+", "C-weeks"),
         ("tau_x_proxy_nino34_pa", "ERA5 u10 caixa Nino 3.4 (proxy; protocolo pede Nino 4)", "1981+", "Pa"),
     ], columns=["variavel", "fonte", "janela_real", "unidade"])
 
