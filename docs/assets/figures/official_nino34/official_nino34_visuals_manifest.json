@@ -1,0 +1,39 @@
+{
+  "created_at_utc": "2026-07-04T12:46:01.657753+00:00",
+  "source_contract": "official graphics for visual comparison only; local OISST remains the metric source",
+  "pipeline_role": "excluded_from_phase3_metrics_events_p90_and_diagnostics",
+  "visuals": [
+    {
+      "name": "noaa_psl_nino34_timeseries",
+      "url": "https://psl.noaa.gov/enso/dashboard/img/nino34.png",
+      "source_page": "https://psl.noaa.gov/enso/dashboard.html",
+      "output_name": "noaa_psl_nino34_timeseries.png",
+      "description": "NOAA/PSL official Nino 3.4 SST anomaly dashboard time-series graphic.",
+      "output_path": "C:\\DEV\\NINO26\\docs\\assets\\figures\\official_nino34\\noaa_psl_nino34_timeseries.png",
+      "source_contract": "official NOAA/PSL graphic mirrored for visual comparison only",
+      "pipeline_role": "visual_reference_only_not_metric_not_label_not_model_input",
+      "metric_source": false,
+      "fetched_at_utc": "2026-07-04T12:46:00.835043+00:00",
+      "size_bytes": 54543,
+      "sha256": "6994e2f91c0b151ea1eec6719e81c8679032d6d1690636bedc158efc09fce319",
+      "exists": true,
+      "content_type": "image/png"
+    },
+    {
+      "name": "noaa_psl_nino34_event_panel",
+      "url": "https://psl.noaa.gov/enso/dashboard/img/nino34longpanel.png",
+      "source_page": "https://psl.noaa.gov/enso/dashboard.html",
+      "output_name": "noaa_psl_nino34_event_panel.png",
+      "description": "NOAA/PSL official Nino 3.4 current event versus historical event panel.",
+      "output_path": "C:\\DEV\\NINO26\\docs\\assets\\figures\\official_nino34\\noaa_psl_nino34_event_panel.png",
+      "source_contract": "official NOAA/PSL graphic mirrored for visual comparison only",
+      "pipeline_role": "visual_reference_only_not_metric_not_label_not_model_input",
+      "metric_source": false,
+      "fetched_at_utc": "2026-07-04T12:46:01.657753+00:00",
+      "size_bytes": 111527,
+      "sha256": "d6966d4f51de36f9457c0be8a889d5be0cc5a951a6f248862890987cb9d51633",
+      "exists": true,
+      "content_type": "image/png"
+    }
+  ]
+}

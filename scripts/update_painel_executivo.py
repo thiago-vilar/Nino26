@@ -208,10 +208,10 @@ def data_status_rows() -> list[list[str]]:
     return [
         ["CHIRPS raw", years_summary(chirps_raw, 1981, 2026), "base de chuva"],
         ["CHIRPS Zarr", years_summary(chirps_zarr, 1981, 2026), "processado"],
-        ["CHIRPS regrid", years_summary(chirps_regrid, 1981, 2026), "pronto para modelagem"],
+        ["CHIRPS regrid", years_summary(chirps_regrid, 1981, 2026), "mantido fora do escopo ativo da Fase 3"],
         ["OISST raw", years_summary(oisst_raw, 1981, 2026), "SST/SSTA diaria"],
         ["OISST Zarr", years_summary(oisst_zarr, 1981, 2026), "processado"],
-        ["OISST regrid", years_summary(oisst_regrid, 1981, 2026), "pronto para modelagem"],
+        ["OISST regrid", years_summary(oisst_regrid, 1981, 2026), "pronto para diagnostico fisico"],
         ["CTD/WOD raw", years_summary(ctd_raw, 1981, 2025), "cache bruto preservado"],
         ["CTD/WOD Zarr", years_summary(ctd_zarr, 1981, 2025), "anos sem perfil valido ficam registrados"],
         [
@@ -272,8 +272,6 @@ def storage_rows() -> list[list[str]]:
 
 def phase_status_rows() -> list[list[str]]:
     data_rows = {row[0]: row[1] for row in data_status_rows()}
-    model_dirs = zarr_dirs(ROOT / "data/processed/zarr/modeling")
-    docs_index = ROOT / "docs/index.html"
     ocean_audit_path = ROOT / "data/audit/ocean_phase2_audit.json"
     ocean_audit: dict[str, object] = {}
     if ocean_audit_path.exists():
@@ -286,15 +284,23 @@ def phase_status_rows() -> list[list[str]]:
         if ocean_audit.get("status") == "complete"
         else f"Em aberto: auditoria oceanica integrada registra {ocean_audit.get('error_count', 'nao executado')} pendencias."
     )
+    phase3_audit_path = ROOT / "data/audit/phase3_diagnostics_audit.json"
+    phase3_audit: dict[str, object] = {}
+    if phase3_audit_path.exists():
+        try:
+            phase3_audit = json.loads(phase3_audit_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            phase3_audit = {}
+    phase3_errors = phase3_audit.get("errors") or []
+    phase3_status = (
+        "Concluida: diagnosticos fisicos do Nino 3.4 gerados com OISST local e auditados sem erros; sem rotulo externo e sem ML."
+        if phase3_audit and not phase3_errors
+        else f"Em aberto: auditoria da Fase 3 registra {len(phase3_errors) if phase3_audit else 'nao executado'} pendencias."
+    )
     statuses = {
         1: "Concluida para a base operacional: CHIRPS, OISST, ERA5 e oceano UFS/GLORYS12 estao locais; validacoes in situ preservam as lacunas observadas.",
         2: phase2_status,
-        3: "Proxima etapa: oceano diario e ERA5 estao consolidados; CTD/TAO/Argo entram como validacao in situ sem preenchimento artificial de lacunas.",
-        4: "Planejada: entra apos Fase 3 produzir variaveis candidatas e alvos regionais confiaveis.",
-        5: f"Refatorada em 5A OISST diario + picos NOAA PSL e 5B Nino3.4 -> clusters de pixels; stores locais: {', '.join(p.name for p in model_dirs) or 'nenhum'}.",
-        6: "Planejada como 6A/6B/6C: CNN espacial nativa, memoria espaco-temporal ENSO e decoder neural Nino3.4 -> clusters/P90 Brasil; CMIP6 so como fallback condicional.",
-        7: "Esqueleto local existe." if docs_index.exists() else "docs/index.html ausente.",
-        8: "Exploratoria: pesos/dados Ham2019 ficam isolados da Fase 6 para testes de compatibilidade, inferencia congelada e skill comparativo.",
+        3: phase3_status,
     }
     rows: list[list[str]] = []
     for phase in PHASES:
@@ -372,8 +378,8 @@ def build_markdown() -> str:
             [
                 ["Atualizado em", now_sp()],
                 ["Maquina", f"{platform.node() or 'indisponivel'} ({platform.system()} {platform.release()})"],
-                ["Periodo alvo", "1981-01-01 ate latest_available por fonte"],
-                ["Fase operacional", "Fases 1 e 2 concluidas; Fase 3 e a proxima etapa; Fase 5 refatorada em 5A/5B; Fase 6 nativa 6A/6B/6C; Fase 8 separada para Ham2019 exploratorio"],
+                ["Periodo alvo", "1981-latest para superficie/chuva/atmosfera; subsuperficie com janelas reais por fonte"],
+                ["Fase operacional", "Fases 1-3 concluidas e auditadas; Fase 4 (triagem estatistica) pausada ate a validacao integral das Fases 1-3, conforme docs/CRONOGRAMA.md"],
                 ["Git", f"{git_head}; mudancas locais: {git_changes}"],
                 ["Disco livre", format_bytes(usage.free)],
                 ["Auditoria", f"{len(audit)} eventos; " + (", ".join(f"{k}: {v}" for k, v in sorted(status_counts.items())) or "sem status")],
@@ -406,34 +412,7 @@ def build_markdown() -> str:
         "",
         "- Manter ORAS5 como memoria mensal independente; nunca promover seus valores para observacoes diarias.",
         "- Preservar a auditoria concluida de continuidade, D20/OHC/WWV/Tilt e das transicoes UFS->GLORYS e GLORYS multiyear->operacional.",
-        "- Iniciar a Fase 3 com diagnosticos Nino 3.4: anomalias, termoclina, volume/grau, slope e duracao do sinal.",
-        "- Baixar a referencia NOAA PSL mensal e gerar a serie diaria OISST Nino3.4/SSTA.",
-        "- Gerar a Fase 5A: matriz diaria de progressao ate pico El Nino/Super El Nino com validacao por evento.",
-        "- Depois, gerar a Fase 5B: matriz Nino3.4 -> eventos climaticos por clusters de pixels do Brasil.",
-        "- Planejar/implementar a Fase 6A: CNN espacial nativa ao padrao NINO-BRASIL, sem depender dos pesos externos.",
-        "- Planejar/implementar a Fase 6B: modelo de memoria espaco-temporal para progressao nao linear ate o pico ENSO.",
-        "- Planejar/implementar a Fase 6C: decoder neural de teleconexoes por cluster, priorizando metricas `P90` e `P10`.",
-        "- Usar CMIP6/pre-treino/fine-tuning apenas se 6A/6B/6C nao superarem climatologia, persistencia e Fase 5.",
-        "- Manter Ham2019 apenas na Fase 8: inventario de pesos, compatibilidade de tensores, inferencia congelada e relatorio exploratorio separado.",
-        "",
-        "## Rodape tecnico",
-        "",
-        f"- Workspace: {ROOT}",
-        f"- Arquivo local: {OUTPUT_PATH.relative_to(ROOT)}",
-        "- Atualizar painel:",
-        "```cmd",
-        r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\update_painel_executivo.py",
-        "```",
-        "",
-    ]
-    return "\n".join(lines)
-
-
-def main() -> int:
-    OUTPUT_PATH.write_text(build_markdown(), encoding="utf-8")
-    print(f"painel executivo atualizado: {OUTPUT_PATH}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+        "- Regerar a Fase 3, quando necessario, com `build-nino34-daily-index`, `build-nino34-sst-reference`, `build-nino34-p90-peaks`, `build-phase3-diagnostics` e `audit-phase3-diagnostics`.",
+        "- Usar apenas SST/SSTA OISST local para referencia mensal, eventos e picos P90; nenhum rotulo ENSO externo entra no fluxo ativo.",
+        "- Reportar analises subsuperficiais com sensibilidade 1993+ e 2000+; nao vender cobertura subsuperficial homogenea desde 1981.",
+        "- Fases 1-3 encerram em par

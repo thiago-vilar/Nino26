@@ -10,13 +10,14 @@ Este documento define, de forma operacional, quais bases serao baixadas, quais v
 
 ## 1. Regras fixas
 
-- Periodo do projeto: `1981-01-01` ate o ultimo dado disponivel por fonte.
-- Frequencia mestre da modelagem: diaria.
+- Periodo mestre do projeto: `1981-01-01` ate o ultimo dado disponivel por fonte, sem assumir que todas as variaveis existem de forma homogenea desde 1981.
+- Janelas reais obrigatorias: CHIRPS/OISST/ERA5 sustentam 1981-latest; GLORYS12 diario comeca em 1993; Argo e TAO/TRITON sao validacao in situ com cobertura util mais forte pos-2000; NOAA UFS 1981-1992 fica segregado como ponte/benchmark.
+- Frequencia mestre do diagnostico: diaria.
 - Downloads grandes devem ser executados por ano ou por mes, nunca como bloco unico.
 - Todo dado bruto entra por `data/raw/`; ERA5/GLORYS12 podem usar raw como cache temporario e apagar o arquivo pesado depois do Zarr validado.
 - Todo dado temporario ou extraido fica em `data/interim/`.
-- Todo dado tratado para modelagem fica em `data/processed/`.
-- Saidas tabulares de modelagem e diagnostico ficam em stores `.zarr` sob `data/processed/zarr/`.
+- Todo dado tratado para diagnostico fica em `data/processed/`.
+- Saidas tabulares de diagnostico ficam em stores `.zarr` sob `data/processed/zarr/`.
 - Todo produto multidimensional tratado deve ser salvo em `.zarr`.
 - Toda etapa critica deve registrar evento em `data/audit/ledger.jsonl`.
 - A latencia de cada fonte deve ser registrada no ledger; `--end-year` e opcional e e limitado por `latest_available`.
@@ -61,6 +62,47 @@ east_pacific_brazil:
 ```
 
 O dominio atmosferico e dividido em dois blocos para evitar erro no cruzamento do antimeridiano.
+
+### 2.4 Controles Atlantico tropical e IOD
+
+Uso: covariaveis obrigatorias/recomendadas para teleconexao de chuva no Brasil,
+evitando atribuir ao Pacifico variancia associada ao Atlantico tropical.
+
+```text
+ATL4: 3S a 3N, 50W a 25W
+ATL3: 3S a 3N, 20W a 0E
+TNA: 5.5N a 23.5N, 57.5W a 15W
+TSA: 20S a 0, 30W a 10E
+IOD oeste: 10S a 10N, 50E a 70E
+IOD leste: 10S a 0, 90E a 110E
+```
+
+Os indices SST podem ser derivados do OISST global ja baixado. ERA5 nessas
+caixas e opcional para testes de ponte atmosferica.
+
+`ATL4` e o controle prioritario para o Nordeste por representar o Atlantico
+equatorial oeste, mais proximo da costa brasileira. `ATL3` permanece no projeto
+como indice da Atlantic Nino/cold tongue e como candidato principal entre
+ATL3/ATL4 para precursores ENSO; ATL4 fica como sensibilidade e controle
+regional.
+
+### 2.5 DHW da via equatorial
+
+Uso: testar se o calor superficial acumulado em escala semanal adiciona
+informacao a SSTA instantanea e ao bloco de recarga WWV/OHC.
+
+```text
+Nino 3.4: 5S-5N, 170W-120W
+Nino 4: 5S-5N, 160E-150W
+Guia equatorial: 2S-2N, 120E-80W
+Guia oeste/leste: corte em 155W
+```
+
+DHW e derivado do OISST/SSTA diario, em C-semana, com janela padrao de 12
+semanas e sensibilidades de 26 e 52 semanas. A ordem e obrigatoria: calcular
+HotSpots e acumular o DHW na resolucao diaria; so depois reduzir para a semana
+canonica de 7 dias por maximo ou media, conforme o alvo. A serie so e valida
+apos completar a janela de acumulacao.
 
 ## 3. Estrutura local
 
@@ -109,6 +151,11 @@ data/
 Fontes:
 - NOAA UFS Marine Reanalysis, analise diaria, usada em 1981-1992.
 - Copernicus Marine GLORYS12V1, media diaria, usada desde 1993.
+
+Contrato cientifico: GLORYS12 e a fonte diaria subsuperficial principal a partir
+de 1993. NOAA UFS 1981-1992 nao deve ser misturado como se fosse observacao
+homogenea; ele entra separado como ponte historica/benchmark e exige indicador
+de fonte em qualquer matriz.
 
 Variaveis fundamentais: temperatura potencial por profundidade, salinidade por profundidade e nivel do mar. D20, OHC 0-100/0-300/0-700/300-700 m, WWV em m3 e inclinacao da termoclina sao derivados localmente, sem copiar valores mensais para dias.
 
@@ -340,18 +387,19 @@ campos defasados por lag
 serie diaria Nino 3.4: data/processed/zarr/features/nino34_daily_oisst.zarr
 ```
 
-### 4.4.1 NOAA PSL indice mensal Nino 3.4
+### 4.4.1 Referencia mensal Nino 3.4 derivada do OISST local
 
-Fonte: NOAA Physical Sciences Laboratory / NCEI.
-Produto: Nino 3.4 anomaly index, NOAA ERSST v6.
-Link: https://psl.noaa.gov/data/correlation/nina34.anom.data
-Uso: referencia oficial mensal para rotular eventos e picos El Nino/Super El Nino.
+Fonte: `nino34_daily_oisst.csv`, derivado do NOAA OISST diario ja baixado.
+Produto: media mensal local de SST/SSTA Nino 3.4.
+Uso: rotular eventos, comparar picos e calcular P90 dentro da mesma base de SST
+do projeto.
 
 Variaveis derivadas pelo projeto:
 
 ```text
-nino34_anom_c
-nino34_anom_3mo_mean_c
+nino34_sst_c
+nino34_ssta_c
+nino34_ssta_3mo_mean_c
 event_start
 event_end
 peak_time
@@ -362,16 +410,42 @@ peak_class
 Destino local:
 
 ```text
-data/raw/cpc_noaa/nino34/nina34.anom.data
-data/processed/zarr/features/noaa_psl_nino34_monthly.zarr
-data/processed/zarr/features/noaa_psl_nino34_reference_peaks.zarr
+data/processed/parquet/features/nino34_monthly_oisst.csv
+data/processed/zarr/features/nino34_monthly_oisst.zarr
+data/processed/parquet/features/nino34_oisst_event_reference.csv
+data/processed/zarr/features/nino34_oisst_event_reference.zarr
+data/processed/parquet/features/nino34_oisst_p90_peaks.csv
+data/processed/zarr/features/nino34_oisst_p90_peaks.zarr
+docs/assets/figures/nino34_oisst_p90_peaks.png
 ```
 
 Regra metodologica:
 
 ```text
-NOAA PSL mensal = rotulo/referencia de pico.
-OISST diario = trajetoria dinamica que o modelo aprende.
+OISST diario = fonte de verdade do Nino 3.4.
+Referencia mensal = agregacao local da propria serie OISST diaria.
+Item 3.10b da Fase 3 = calcular o P90 da anomalia mensal OISST local, destacar
+o pico de cada sequencia acima desse P90 e gerar CSV/Zarr/PNG auditaveis.
+```
+
+### 4.4.2 Graficos oficiais Nino 3.4 para comparativo visual
+
+Fonte: NOAA/PSL ENSO dashboard.  
+Uso: comparativo visual externo no parecer da Fase 3.  
+Restricao: nao entra em metricas, rotulos, eventos, P90 ou diagnosticos.
+
+Destino local:
+
+```text
+docs/assets/figures/official_nino34/noaa_psl_nino34_timeseries.png
+docs/assets/figures/official_nino34/noaa_psl_nino34_event_panel.png
+docs/assets/figures/official_nino34/official_nino34_visuals_manifest.json
+```
+
+Comando:
+
+```powershell
+python scripts\data_pipeline.py sync-official-nino34-visuals
 ```
 
 ### 4.5 ERA5 single levels
@@ -380,6 +454,10 @@ Fonte: ECMWF / Copernicus Climate Data Store.
 Produto: ERA5 single levels.  
 Link: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels  
 Uso: superficie, fluxos e umidade integrada da ponte atmosferica.
+
+Ressalva cientifica: ERA5 entra como dinamica atmosferica e ponte fisica; nao
+e fonte primaria de precipitacao no Brasil. O alvo oficial de chuva permanece
+CHIRPS.
 
 Variaveis solicitadas pelo script no CDS:
 
@@ -684,9 +762,11 @@ Uma base so deve ser considerada pronta quando:
 CHIRPS: 1981-latest_available, diario, 0.25 grau nas Fases 1 a 7; 0.05 grau reservado para experimento futuro de alta resolucao
 NOAA OISST: 1981-latest_available, diario, 0.25 grau, SST/SSTA principal
 CTD NOAA WOD: 1981-latest_available, perfis irregulares, filtrados no Pacifico
-TAO/TRITON/Argo: validacao in situ baixavel por ERDDAP; bruto em CSV anual, ETL Zarr posterior
-ERA5: 1981-latest_available, subdiario baixado em 4 horarios e agregado depois para diario
-NOAA UFS: 1981-1992 no projeto, analise diaria nativa, ponte para memoria subsuperficial
+TAO/TRITON: validacao in situ baixavel por ERDDAP; cobertura historica irregular antes do array completo
+Argo: validacao in situ pos-1999, mais forte apos os anos 2000
+ERA5: 1981-latest_available, subdiario baixado em 4 horarios e agregado depois para diario; dinamica atmosferica, nao chuva oficial
+NOAA UFS: 1981-1992 no projeto, analise diaria nativa, ponte/benchmark segregado para memoria subsuperficial
 GLORYS12V1: 1993-latest_available, media diaria, fonte principal para memoria subsuperficial
+ATL4/ATL3/TNA/TSA/IOD: derivados do OISST global como covariaveis de teleconexao
 IBGE: cartografia estatica
 ```

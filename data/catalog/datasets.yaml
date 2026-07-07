@@ -57,7 +57,7 @@ noaa_ufs_marine_reanalysis:
   spatial_resolution: "nominal 1 degree"
   period_start: "1979-01-01"
   period_end: "2019-12-31"
-  project_role: "daily ocean bridge for 1981-1992"
+  project_role: "segregated daily ocean bridge/benchmark for 1981-1992; do not mix as homogeneous observed subsurface training data"
   raw_path: "remote ZIP; selected members streamed without downloading the 320 GB archive"
   processed_path: "data/processed/zarr/ocean_daily/noaa_ufs/<year>/noaa_ufs_equatorial_pacific_<year>_daily.zarr"
   notes: "The full archive is not cached. Daily ocean members are selected remotely, cropped to 5S-5N/120E-80W/depth<=800m, and appended to annual compressed Zarr stores. Analysis features stop at 700m."
@@ -241,24 +241,25 @@ noaa_oisst:
   latency_days: 7
   raw_path: "data/raw/cpc_noaa/oisst"
   processed_path: "data/processed/zarr/noaa_oisst.zarr"
-  notes: "Primary daily SST/SSTA source. Project master period is 1981-latest available by source; record internal source gaps without silent filling."
+  notes: "Primary daily SST/SSTA source. Also derives ATL4/ATL3/TNA/TSA and IOD/DMI covariates for Brazil teleconnection controls; ATL4 is prioritized for Northeast Brazil. Project master period is 1981-latest available by source; record internal source gaps without silent filling."
 
-noaa_psl_nino34_anom:
-  name: "NOAA PSL Nino 3.4 anomaly index"
-  institution: "NOAA Physical Sciences Laboratory / NCEI"
-  source_url: "https://psl.noaa.gov/data/correlation/nina34.anom.data"
-  license: "NOAA public data; cite PSL/NCEI product page"
-  version: "ERSST v6"
+nino34_monthly_oisst:
+  name: "Local OISST-derived monthly Nino 3.4 index"
+  institution: "NINO-BRASIL processing from NOAA OISST v2.1"
+  source_url: "https://www.ncei.noaa.gov/products/optimum-interpolation-sst"
+  license: "NOAA public data; cite OISST product page"
+  version: "derived from OISST v2.1"
   variables:
-    - nino34_anom_c
-    - nino34_anom_3mo_mean_c
+    - nino34_sst_c
+    - nino34_ssta_c
+    - nino34_ssta_3mo_mean_c
   temporal_resolution: "monthly"
-  spatial_resolution: "Nino 3.4 index"
-  period_start: "1948-01-01"
+  spatial_resolution: "Nino 3.4 box from daily OISST"
+  period_start: "1981-01-01"
   period_end: "latest_available"
-  raw_path: "data/raw/cpc_noaa/nino34/nina34.anom.data"
-  processed_path: "data/processed/zarr/features/noaa_psl_nino34_monthly.zarr"
-  notes: "Used as official monthly peak/event reference labels. Dynamic model features use daily OISST-derived Nino 3.4 SSTA."
+  raw_path: "data/raw/cpc_noaa/oisst"
+  processed_path: "data/processed/zarr/features/nino34_monthly_oisst.zarr"
+  notes: "Active Phase 3 monthly reference derived from local downloaded OISST only."
 
 noaa_olr:
   name: "NOAA interpolated OLR"
