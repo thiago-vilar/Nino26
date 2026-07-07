@@ -3,13 +3,13 @@
 **Projeto NINO-BRASIL · Oceanografia Física UFPE · Thiago Vilar**
 **Data:** 2026-07-07 · **Escopo deste relatório:** revisão, higienização, reexecução e análise das Fases 1, 2 e 3.
 
-Este relatório consolida a reexecução das Fases 1 a 3 a partir dos dados já baixados localmente, com foco no que cada etapa responde cientificamente e nas justificativas das soluções adotadas na organização dos dados. A Fase 4 (triagem estatística chuva–ENOS) permanece deliberadamente pausada: por decisão de escopo, ela só será retomada quando as Fases 1 a 3 estiverem integralmente corretas e auditadas — condição que este trabalho verifica.
+Este relatório consolida a reexecução das Fases 1 a 3 a partir dos dados já baixados localmente, com foco no que cada etapa responde cientificamente e nas justificativas das soluções adotadas na organização dos dados. A Fase 4 (triagem estatística chuva–ENOS) permanece deliberadamente pausada: por decisão de escopo, ela só será retomada quando as Fases 1 a 3 estiverem auditadas sem erros conhecidos — condição que este trabalho verifica.
 
 ## 1. Situação executiva
 
 | Fase | O que responde | Estado | Evidência auditável |
 |---|---|---|---|
-| 1 — Base local e ingestão | Temos dados suficientes, reprodutíveis e com procedência para diagnosticar o Pacífico? | Concluída | CHIRPS/OISST/ERA5 1981–2026 sem lacunas internas; oceano UFS/GLORYS12/ORAS5 e in situ locais |
+| 1 — Base local e ingestão | Temos dados suficientes, reprodutíveis e com procedência para diagnosticar o Pacífico? | Concluída | CHIRPS/OISST cobrem 1981–2026; ERA5 processado cobre 1981–2025 sem lacunas internas, com disponibilidade operacional indicada para 2026 conforme latência; oceano UFS/GLORYS12/ORAS5 e in situ locais |
 | 2 — Padronização, anomalias, Zarr/regrid | Os dados brutos viram cubos comparáveis, sem vazamento de climatologia e com fontes emendadas de forma honesta? | Concluída | Auditoria oceânica `status=complete`, `errors=0`; 51 linhas de auditoria de transição de fonte |
 | 3 — Diagnóstico físico do Niño 3.4 | Como o sinal do Niño 3.4 nasce, cresce, atinge pico e decai, e quais relações físicas são defensáveis sem rótulo externo? | Concluída e reexecutada | `phase3_diagnostics_audit.json` com `errors: []`; 16.353 dias, 538 meses, 12 eventos, 11 picos P90 |
 
@@ -27,7 +27,7 @@ Coerência de fases foi corrigida na fonte: `scripts/update_painel_executivo.py`
 
 **Pergunta:** a base de dados sustenta um diagnóstico físico do Pacífico equatorial, com procedência e reprodutibilidade?
 
-**O que foi feito e por quê.** A ingestão separa superfície/atmosfera (que sustentam 1981–presente) da subsuperfície (que tem janelas reais por fonte). CHIRPS (chuva), OISST (SST/SSTA diária) e ERA5 (superfície e níveis de pressão) cobrem 1981–2026 sem lacunas internas. A memória subsuperficial é emendada de forma explícita: NOAA UFS como ponte histórica 1981–1992, GLORYS12 diário como fonte principal desde 1993 e uma cauda operacional GLO12 apenas de análise (previsões excluídas); ORAS5 mensal entra como memória independente e nunca é promovido a observação diária. As validações in situ (CTD/WOD, TAO/TRITON, Argo) preservam suas lacunas reais em vez de preenchê-las artificialmente.
+**O que foi feito e por quê.** A ingestão separa superfície/atmosfera (que sustentam 1981–presente) da subsuperfície (que tem janelas reais por fonte). CHIRPS (chuva) e OISST (SST/SSTA diária) cobrem 1981–2026 sem lacunas internas; o ERA5 processado (superfície e níveis de pressão) cobre 1981–2025 fechado, com disponibilidade operacional de 2026 acompanhada conforme a latência da fonte. A memória subsuperficial é emendada de forma explícita: NOAA UFS como ponte histórica 1981–1992, GLORYS12 diário como fonte principal desde 1993 e uma cauda operacional GLO12 apenas de análise (previsões excluídas); ORAS5 mensal entra como memória independente e nunca é promovido a observação diária. As validações in situ (CTD/WOD, TAO/TRITON, Argo) preservam suas lacunas reais em vez de preenchê-las artificialmente.
 
 **Justificativa da solução.** A decisão central da Fase 1 foi recusar a narrativa de "cobertura homogênea desde 1981". Vender subsuperfície contínua desde 1981 seria cientificamente falso porque GLORYS12 começa em 1993; por isso toda análise subsuperficial deve reportar sensibilidade 1993+ e 2000+. Lacunas do CTD (anos como 1993, 1998, 2004–2005, 2013–2014, 2017, 2020–2022, 2024–2025) ficam registradas, não imputadas.
 
@@ -69,8 +69,4 @@ Comandos que regeneram a Fase 3 a partir da base local (na máquina de origem, d
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-p90-peaks
 .venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
-.venv\Scripts\python scripts\audit_ocean_phase2.py --glorys-my-end 2026-05-26 --operational-end 2026-06-19 --oras-end 2026-05-01 --overlap-year 1993 --overlap-year 1994 --overlap-year 1995
-.venv\Scripts\python scripts\update_painel_executivo.py
-```
-
-Verificação: `.venv\Scripts\python -m pytest` (54 testes).
+.venv\Scripts\python scripts\audit_ocean_phase2.py --glorys-my-end 2026-05-26 --opera
