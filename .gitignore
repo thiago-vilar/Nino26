@@ -38,3 +38,6 @@ tmp/
 
 # Config local do editor
 .vscode/
+
+# notebooks corrompidos arquivados localmente
+notebooks/fase3/_broken/

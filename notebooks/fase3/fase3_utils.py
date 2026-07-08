@@ -124,7 +124,9 @@ def weekly_matrix() -> pd.DataFrame:
     # atlanticos foram removidos: controles inter-bacia sao materia da Fase 4
     # (teleconexao Brasil), nao do diagnostico fisico do Pacifico.
     dhwv = load_dhw_variants()
-    dhw = pd.DataFrame({"dhw_12w": dhwv["dhw_12w_1p0"], "dhw_26w_p90": dhwv["dhw_26w_p90"]})
+    # DHW principal = acumulo de C-week a partir do limiar P90 diario (~1.07 C),
+    # janela 12 semanas (decisao do usuario; substitui o limiar fixo 1.0 C herdado do CRW).
+    dhw = pd.DataFrame({"dhw_12w": dhwv["dhw_12w_p90"], "dhw_26w_p90": dhwv["dhw_26w_p90"]})
     atmo = load_atmo()
     tau = tau_x_proxy(atmo["atm_10m_u_component_of_wind"]).to_frame()
     daily = base.join([dhw, tau], how="outer")
@@ -152,17 +154,31 @@ def save_table(df: pd.DataFrame, name: str, index: bool = True) -> Path:
     path = STATS / name
     df.to_csv(path, index=index)
     print(f"[tabela] {path.relative_to(ROOT)}")
+
     return path
 
 
-def save_fig(fig, name: str) -> Path:
+def save_fig(fig, name):
+    """Salva figura de forma robusta a inconsistencias do FS montado:
+    escreve num arquivo local temporario e copia para FIGS com ate 5 tentativas."""
+    import tempfile, shutil, time
     path = FIGS / name
-    fig.savefig(path, dpi=150, bbox_inches="tight")
+    tmp = Path(tempfile.gettempdir()) / name
+    fig.savefig(tmp, dpi=150, bbox_inches="tight")
+    last = None
+    for _ in range(5):
+        try:
+            shutil.copyfile(tmp, path)
+            if path.stat().st_size > 0:
+                break
+        except OSError as exc:
+            last = exc; time.sleep(0.4)
+    else:
+        if last: raise last
     print(f"[figura] {path.relative_to(ROOT)}")
     return path
 
 
-# Metadados canonicos das caixas geograficas (fonte: configs/project.yaml)
 CAIXAS = {
     "nino34": "Nino 3.4 (5S-5N, 170W-120W)",
     "equatorial": "Pacifico equatorial (2S-2N, 120E-280E)",
@@ -170,11 +186,6 @@ CAIXAS = {
 
 
 def stamp_caption(fig, *, variavel, area, periodo, fonte, n=None, extra=None):
-    """Carimba rodape descritivo padrao em qualquer figura da Fase 3.
-
-    variavel: nome+unidade; area: usar CAIXAS['nino34'/'equatorial'] ou texto;
-    periodo: janela temporal; fonte: origem do dado; n: amostras/eventos.
-    """
     partes = [f"Variavel: {variavel}", f"Area: {area}", f"Periodo: {periodo}", f"Fonte: {fonte}"]
     if n:
         partes.append(f"n={n}")

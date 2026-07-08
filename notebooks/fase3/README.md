@@ -38,22 +38,4 @@ Execucao headless completa:
 | 3C | O que antecede o pico do Nino 3.4, e com quantas semanas? | ranking preliminar de lags, heatmap, mapa lon x lag |
 | 3D | O que sobrevive a N_eff + FDR + IC95? | testes completos, ranking significativo, forest plot, mapa FDR |
 | 3E | O sinal vale em 1993-2009 E 2010-presente? | tabela de estabilidade, scatter r1 x r2, mapas por subperiodo |
-| 3F | DHW agrega leitura alem de SSTA/WWV/OHC? Kelvin e visivel? | correlacao parcial por horizonte, Hovmoller SSH |
-| 3G | (extra) Como o ciclo de vida se relaciona com o DHW C-week? | metricas por fase de evento, composto duplo, escalonamento, mapa DHW-lon |
-| 3H | (extra) Que estado fisico precede o onset? A genese separa fortes de fracos? | compostos onset-alinhados, retrato precursor por classe, separacao Spearman |
-| 3I | Qual e a interpretacao integrada da Fase 3? Como comparar P90/P95 e 2026? | conclusoes executivas, tabela P90/P95, estado 2026, texto para parecer |
-
-**Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
-O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada;
-o 3I consolida a interpretacao, mas nao cria evidencia nova.
-
-## DHW
-
-O DHW de 12 semanas com limiar `>1 C` permanece por comparabilidade com a
-convencao CRW herdada. Para Nino 3.4, a metrica fisicamente mais alinhada ao
-evento e `dhw_26w_p90`: janela proxima ao e-folding observado da SSTA
-(~27 semanas) e limiar P90 diario derivado da propria OISST local. Ambas sao
-metricas de calor acumulado/severidade; nao devem ser chamadas de previsao.
-
-Kernel no VS Code: `Python 3 (.venv NINO26)`.
-Modulo compartilhado: `fase3_utils.py` (caminhos, matriz semanal, eventos, salvamento padrao).
+| 3F | DHW agrega leitura alem de SSTA/WWV/OHC? Kelvin e visivel? | correlacao parcial por horizonte, Hov
