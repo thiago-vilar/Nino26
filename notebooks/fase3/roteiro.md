@@ -68,6 +68,11 @@ eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 | 3K | Quais variaveis explicam crescimento pre-pico? | Sintese multivariada; nao substitui 3D/3E. |
 | 3I | Qual e o veredito integrado? | Texto e tabelas finais para o parecer. |
 
+Convencao de longitude nas figuras 3A/3C/3D/3E/3F: o eixo x e invertido para
+leitura leste->oeste. A esquerda fica o Pacifico leste (80W/280E); a direita
+fica o Pacifico oeste (120E). A faixa cinza/tracejada marca as longitudes do
+Nino 3.4, 170W-120W.
+
 ## 5. DHW correto para Nino 3.4
 
 `dhw_cweek_p90` e a unica metrica DHW da Fase 3: acumulo de C-week acima do

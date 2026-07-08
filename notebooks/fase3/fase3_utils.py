@@ -118,7 +118,7 @@ def load_eqband_weekly() -> pd.DataFrame:
     df = pd.read_parquet(FEAT / "equatorial_pacific_ssta_weekly_by_lon.parquet")
     df.index = pd.to_datetime(df.index)
     df.columns = df.columns.astype(float)
-    return df
+    return df.loc[:, (df.columns >= 120) & (df.columns <= 280)]
 
 
 def load_ssh_events() -> pd.DataFrame:
@@ -175,11 +175,42 @@ def weekly_matrix() -> pd.DataFrame:
 
 def sources_note() -> pd.DataFrame:
     return pd.DataFrame([
-        ("nino34_ssta", "OISST v2.1 local", "1981-09+", "C"),
-        ("d20_m / ohc_* / wwv / tilt_m / ssh_m / sss", "UFS 1981-92 (ponte) -> GLORYS12 1993+ -> GLO12 cauda", "sensibilidade 1993+", "m / J m-2 / m3 / m / m / psu"),
-        ("dhw_cweek_p90", "derivado da SSTA OISST (limiar P90 diario 1.07C, acumulo 12 sem)", "valido 1981-11+", "C-weeks"),
-        ("tau_x_proxy_nino34_pa", "ERA5 u10 caixa Nino 3.4 (proxy; protocolo pede Nino 4)", "1981+", "Pa"),
-    ], columns=["variavel", "fonte", "janela_real", "unidade"])
+        (
+            "nino34_ssta",
+            "OISST v2.1 local",
+            "anomalia diaria 1991-2020, agregada para W-SUN",
+            "1981-09+",
+            "C",
+        ),
+        (
+            "ssta_equatorial_lon_hovmoller",
+            "OISST v2.1 local",
+            "anomalia diaria por longitude 1991-2020, faixa 2S-2N",
+            "1981-09+",
+            "C",
+        ),
+        (
+            "d20_m / ohc_* / wwv / tilt_m / ssh_m / sss",
+            "UFS 1981-92 (ponte) -> GLORYS12 1993+ -> GLO12 cauda",
+            "valor fisico/indice original; nao e anomalia climatologica na matriz semanal",
+            "sensibilidade 1993+",
+            "m / J m-2 / m3 / m / m / psu",
+        ),
+        (
+            "dhw_cweek_p90",
+            "derivado da SSTA OISST (limiar P90 diario 1.07C, acumulo 12 sem)",
+            "derivado de anomalia; acumulo positivo em C-weeks",
+            "valido 1981-11+",
+            "C-weeks",
+        ),
+        (
+            "tau_x_proxy_nino34_pa",
+            "ERA5 u10 caixa Nino 3.4 (proxy; protocolo pede Nino 4)",
+            "proxy fisico calculado de u10; nao e anomalia climatologica",
+            "1981+",
+            "Pa",
+        ),
+    ], columns=["variavel", "fonte", "forma", "janela_real", "unidade"])
 
 
 def add_event_shading(ax, events: pd.DataFrame, color="#f4c7c3", alpha=0.5):
@@ -263,8 +294,9 @@ def lon_label(lon: float) -> str:
     return f"{int(round(360 - lon))}W"
 
 
-def format_lon_axis(ax, *, xlabel: str = "Longitude (graus; 0-360)") -> None:
-    ticks = [120, 160, 190, 240, 280]
+def format_lon_axis(ax, *, xlabel: str = "Longitude (leste -> oeste; graus 0-360 invertidos)") -> None:
+    ticks = [280, 240, 190, 160, 120]
+    ax.set_xlim(280, 120)
     ax.set_xticks(ticks)
     ax.set_xticklabels([lon_label(t) for t in ticks], fontsize=8)
     ax.set_xlabel(xlabel)
@@ -278,7 +310,7 @@ def add_nino34_lon_band(ax, *, label: bool = True) -> None:
         ax.text(
             215,
             0.985,
-            "Nino 3.4\n190E-240E",
+            "Nino 3.4\n170W-120W",
             transform=ax.get_xaxis_transform(),
             ha="center",
             va="top",

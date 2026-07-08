@@ -20,7 +20,7 @@ Nenhuma figura sem saida numerica correspondente.
 ```
 
 `fase3_build_inputs.py` materializa ATL3/ATL4/TNA/TSA, banda equatorial por
-longitude, SSH de eventos, DHW diario, variantes DHW e o cache de mapas. Use
+longitude, SSH de eventos, DHW diario canonico e o cache de mapas. Use
 `--force` quando OISST/oceano forem atualizados.
 
 Execucao headless completa:
@@ -47,6 +47,13 @@ Execucao headless completa:
 **Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
 O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada;
 o 3I consolida a interpretacao, mas nao cria evidencia nova.
+
+## Convencao de longitude
+
+Nas figuras longitudinais da Fase 3, o eixo x e invertido para leitura
+leste->oeste: esquerda = Pacifico leste (80W/280E) e direita = Pacifico oeste
+(120E). A faixa cinza/tracejada marca as longitudes do Nino 3.4, 170W-120W
+(240E-190E na convencao 0-360).
 
 ## DHW
 

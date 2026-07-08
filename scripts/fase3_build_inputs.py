@@ -6,7 +6,7 @@ stores da Fase 3):
 1. features/tropical_atlantic_sst_daily.csv  - ATL3/ATL4/TNA/TSA SST + SSTA
    (climatologia dia-do-ano 1991-2020, janela 15 d - mesma convencao Nino 3.4)
 2. features/equatorial_pacific_ssta_weekly_by_lon.parquet - SSTA semanal
-   (W-SUN) da banda 2S-2N por longitude (120E-290E)
+   (W-SUN) da banda 2S-2N por longitude (120E-280E)
 3. features/ssh_equatorial_daily_by_lon_events.parquet - SSH 1S-1N por
    longitude nos anos de evento (Kelvin)
 4. features/nino34_dhw_daily.csv - DHW 12 semanas (limiar 1 C, acumulado diario)
@@ -75,7 +75,7 @@ def build_atlantic_and_band(force: bool) -> None:
         ds = open_oisst_year(year)
         sst = ds["sst"]
         atl_frames.append(tropical_atlantic_sst_indices(sst).to_dataframe().reset_index())
-        band = sst.sel(lat=slice(-2, 2), lon=slice(120, 290)).mean("lat").to_pandas()
+        band = sst.sel(lat=slice(-2, 2), lon=slice(120, 280)).mean("lat").to_pandas()
         band.columns = [f"{c:.3f}" for c in band.columns]
         band_frames.append(band)
         ds.close()
