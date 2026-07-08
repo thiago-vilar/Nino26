@@ -78,13 +78,13 @@ ARTIFACTS = [
     Artifact(
         "dhw_variantes_nino34",
         FEAT / "nino34_dhw_variants.csv",
-        "DHW Nino 3.4 por HotSpot >=0.5C; Fase 3 publica dhw_cweek_0p5_12w",
+        "DHW Nino 3.4 por HotSpot >=0.5C; gate de 12 semanas consecutivas; Fase 3 publica dhw_cweek_0p5_12w",
         "time",
         "D",
         1,
         expected_start="1981-09-01",
         stale_after_days=21,
-        key_cols=("dhw_cweek_0p5_12w", "oni_12w_mean_c", "elnino_thermal_persistent_20w"),
+        key_cols=("dhw_cweek_0p5_12w", "ssta_run_ge_0p5_weeks", "dhw_gate_12w_active"),
     ),
     Artifact(
         "matriz_semanal_fase3",

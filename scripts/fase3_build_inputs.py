@@ -9,7 +9,8 @@ stores da Fase 3):
    (W-SUN) da banda 2S-2N por longitude (120E-280E)
 3. features/ssh_equatorial_daily_by_lon_events.parquet - SSH 1S-1N por
    longitude nos anos de evento (Kelvin)
-4. features/nino34_dhw_daily.csv - DHW ONI local 12 semanas (HotSpot >=0.5 C)
+4. features/nino34_dhw_daily.csv - DHW Nino 3.4 gated 12 semanas
+   (HotSpot >=0.5 C; reporta apos 12 semanas diarias consecutivas)
 5. interim/fase3_map_cache/*.nc - campos mensais Nov/Dez 1991-2020 + picos
    (mapas compostos do 3B)
 
@@ -137,10 +138,10 @@ def build_dhw(force: bool) -> None:
     """DHW Nino 3.4 oficializado para a Fase 3.
 
     Regra: HotSpot diario = SSTA quando SSTA >=0.5 C; valores menores viram
-    zero. O DHW e a soma movel em 12 semanas, expressa em C-weeks. A validacao
-    temporal adicional usa a media movel de 12 semanas da SSTA e marca
-    consolidacao quando essa media fica >=0.5 C por pelo menos 20 semanas
-    consecutivas.
+    zero. O DHW bruto e a soma movel em 12 semanas, expressa em C-weeks. A
+    metrica oficial da Fase 3 so e reportada depois que a SSTA diaria permanece
+    >=0.5 C por 12 semanas consecutivas. Essa restricao substitui os auxiliares
+    antigos ssta12w/persist20w nas analises preditivas.
     """
     out = FEAT / "nino34_dhw_daily.csv"
     out_var = FEAT / "nino34_dhw_variants.csv"
@@ -150,28 +151,35 @@ def build_dhw(force: bool) -> None:
     d = pd.read_csv(FEAT / "nino34_daily_oisst.csv", parse_dates=["time"])
     ssta = xr.DataArray(d["nino34_ssta"].values, coords={"time": d["time"].values}, dims=("time",))
     ssta_values = d["nino34_ssta"].to_numpy(dtype=float)
+    ssta_ge = np.isfinite(ssta_values) & (ssta_values >= 0.5)
+    run_days = np.zeros(ssta_ge.shape, dtype=int)
+    current = 0
+    for i, ok in enumerate(ssta_ge):
+        current = current + 1 if ok else 0
+        run_days[i] = current
+    gate_active = run_days >= 84
     hotspot = np.where(ssta_values >= 0.5, ssta_values, 0.0)
-    dhw = degree_heating_weeks(ssta, threshold_c=0.5, window_weeks=12)
+    dhw_raw = degree_heating_weeks(ssta, threshold_c=0.5, window_weeks=12)
+    dhw = degree_heating_weeks(ssta, threshold_c=0.5, window_weeks=12, require_consecutive_weeks=12)
     mean12 = thermal_window_mean(ssta, window_weeks=12)
-    mean_ge = pd.Series(mean12.values >= 0.5, index=d.index).fillna(False)
-    run_days = mean_ge.groupby((mean_ge != mean_ge.shift(fill_value=False)).cumsum()).cumcount() + 1
-    run_days = run_days.where(mean_ge, 0).astype(int)
     table = pd.DataFrame(
         {
             "time": d["time"],
             "nino34_ssta": d["nino34_ssta"],
             "hotspot_ge_0p5_c": hotspot,
+            "ssta_ge_0p5_daily": ssta_ge.astype(int),
+            "ssta_run_ge_0p5_days": run_days,
+            "ssta_run_ge_0p5_weeks": np.round(run_days / 7.0, 2),
+            "dhw_gate_12w_active": gate_active.astype(int),
             "dhw_cweek_0p5_12w": dhw.values,
+            "dhw_cweek_0p5_12w_raw": dhw_raw.values,
+            "hotspot_after_12w_gate_c": np.where(gate_active, hotspot, 0.0),
             "oni_12w_mean_c": mean12.values,
-            "oni_12w_ge_0p5": mean_ge.astype(int).values,
-            "oni_12w_run_ge_0p5_days": run_days.values,
-            "oni_12w_run_ge_0p5_weeks": (run_days / 7.0).round(2).values,
-            "elnino_thermal_persistent_20w": (run_days >= 140).astype(int).values,
         }
     )
     table.to_csv(out, index=False)
     table.to_csv(out_var, index=False)
-    print(f"[ok] {out.relative_to(ROOT)} e {out_var.relative_to(ROOT)} (HotSpot >=0.5 C; janela=12 sem; persistencia=20 sem)")
+    print(f"[ok] {out.relative_to(ROOT)} e {out_var.relative_to(ROOT)} (HotSpot >=0.5 C; gate=12 sem consecutivas; janela=12 sem)")
 
 
 def build_map_cache(force: bool) -> None:

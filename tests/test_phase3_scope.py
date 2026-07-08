@@ -77,8 +77,11 @@ class Phase3ScopeTests(unittest.TestCase):
         try:
             self.u.format_lon_axis(ax)
             self.assertEqual(tuple(ax.get_xlim()), (120.0, 280.0))
-            self.assertEqual(list(ax.get_xticks()), [120, 160, 200, 240, 280])
-            self.assertEqual([tick.get_text() for tick in ax.get_xticklabels()], ["120E", "160E", "160W", "120W", "80W"])
+            self.assertEqual(list(ax.get_xticks()), [120, 140, 160, 180, 200, 220, 240, 260, 280])
+            self.assertEqual(
+                [tick.get_text() for tick in ax.get_xticklabels()],
+                ["120E", "140E", "160E", "180", "160W", "140W", "120W", "100W", "80W"],
+            )
         finally:
             plt.close(fig)
 

@@ -25,20 +25,39 @@ def degree_heating_weeks(
     window_weeks: int = 12,
     time_name: str = "time",
     samples_per_week: float | None = None,
+    require_consecutive_weeks: int | None = None,
 ) -> xr.DataArray:
     """Compute Nino 3.4 Degree Heating Weeks from daily SST anomalies.
 
     The NINO26 DHW protocol is anchored to the El Nino thermal threshold:
     daily HotSpot = SSTA when SSTA >= ``threshold_c``; values below the
-    threshold are discarded as background variability. The rolling 12-week
-    accumulation is then expressed in degree C-weeks.
+    threshold are discarded as background variability. The rolling accumulation
+    is expressed in degree C-weeks. When ``require_consecutive_weeks`` is set,
+    the accumulation is reported only after that many consecutive weeks with
+    daily SSTA >= ``threshold_c``.
     """
     if window_weeks < 1:
         raise ValueError("window_weeks must be positive.")
+    if require_consecutive_weeks is not None and require_consecutive_weeks < 1:
+        raise ValueError("require_consecutive_weeks must be positive when provided.")
     spw = samples_per_week or infer_samples_per_week(ssta[time_name])
     window_samples = max(1, int(round(window_weeks * spw)))
     hotspot = xr.where(ssta >= threshold_c, ssta, 0.0)
-    dhw = hotspot.rolling({time_name: window_samples}, min_periods=window_samples).sum() / spw
+    raw_dhw = hotspot.rolling({time_name: window_samples}, min_periods=window_samples).sum() / spw
+    dhw = raw_dhw
+    gate_samples: int | None = None
+    if require_consecutive_weeks is not None:
+        if ssta.ndim != 1:
+            raise ValueError("require_consecutive_weeks is supported only for 1D time series.")
+        gate_samples = max(1, int(round(require_consecutive_weeks * spw)))
+        valid = np.asarray((ssta >= threshold_c).fillna(False).values, dtype=bool)
+        run = np.zeros(valid.shape, dtype=np.int64)
+        current = 0
+        for i, ok in enumerate(valid):
+            current = current + 1 if ok else 0
+            run[i] = current
+        run_da = xr.DataArray(run, coords=ssta.coords, dims=ssta.dims, name="hotspot_consecutive_samples")
+        dhw = xr.where(run_da >= gate_samples, raw_dhw, 0.0).where(raw_dhw.notnull())
     dhw.attrs.update(
         {
             "units": "degree_C_weeks",
@@ -47,6 +66,13 @@ def degree_heating_weeks(
             "window_weeks": int(window_weeks),
             "samples_per_week": float(spw),
             "valid_after_weeks": int(window_weeks),
+            "require_consecutive_weeks": int(require_consecutive_weeks or 0),
+            "gate_samples": int(gate_samples or 0),
+            "gate_rule": (
+                "DHW reported only after consecutive daily SSTA >= threshold_c"
+                if require_consecutive_weeks is not None
+                else "none"
+            ),
         }
     )
     return dhw.rename(f"dhw_{window_weeks}w")

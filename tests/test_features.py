@@ -246,6 +246,32 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual(dhw.attrs["units"], "degree_C_weeks")
         self.assertEqual(dhw.attrs["hotspot_rule"], "SSTA if SSTA >= threshold_c else 0")
 
+    def test_degree_heating_weeks_can_require_consecutive_hotspot_gate(self) -> None:
+        time = pd.date_range("2001-01-01", periods=21, freq="D")
+        values = np.r_[np.full(13, 2.0), 0.0, np.full(7, 2.0)]
+        ssta = xr.DataArray(values, coords={"time": time}, dims=("time",))
+
+        dhw = degree_heating_weeks(
+            ssta,
+            threshold_c=1.0,
+            window_weeks=2,
+            require_consecutive_weeks=2,
+        )
+
+        self.assertTrue(np.isnan(float(dhw.isel(time=12))))
+        self.assertEqual(float(dhw.isel(time=13)), 0.0)
+        self.assertEqual(float(dhw.isel(time=20)), 0.0)
+        self.assertEqual(dhw.attrs["require_consecutive_weeks"], 2)
+
+        continuous = xr.DataArray(np.full(14, 2.0), coords={"time": time[:14]}, dims=("time",))
+        gated = degree_heating_weeks(
+            continuous,
+            threshold_c=1.0,
+            window_weeks=2,
+            require_consecutive_weeks=2,
+        )
+        self.assertAlmostEqual(float(gated.isel(time=13)), 4.0)
+
     def test_thermal_window_mean_uses_same_12_week_basis(self) -> None:
         time = pd.date_range("2001-01-01", periods=14, freq="D")
         ssta = xr.DataArray(np.arange(time.size, dtype=float), coords={"time": time}, dims=("time",))

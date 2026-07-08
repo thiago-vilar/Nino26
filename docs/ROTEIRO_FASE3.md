@@ -1,135 +1,111 @@
-# Roteiro de execução da Fase 3 (3A–3G)
+# Roteiro de execucao e leitura - Fase 3
 
-**Projeto NINO-BRASIL · Diagnóstico físico do Niño 3.4 · atualizado em 2026-07-07**
+Projeto NINO-BRASIL - Diagnostico fisico do Nino 3.4  
+Atualizado em 2026-07-08.
 
-Escopo: executar e interpretar o protocolo 3A–3G no VS Code, a partir dos dados
-locais, sem rótulo ENSO externo e sem ML. Regra transversal: **notebook não
-materializa dado** — só lê o que o pipeline gravou; **figura ilustra, tabela decide**.
+## 1. Objetivo da Fase 3
 
----
+A Fase 3 identifica, com dados locais e rastreaveis, quais variaveis fisicas do
+Pacifico explicam o aquecimento maximo do Nino 3.4 antes, durante e depois dos
+eventos El Nino. Ela ainda nao e uma previsao numerica do pico de 2026: ela
+prepara os candidatos, lags e ressalvas para uma futura validacao walk-forward.
 
-## 1. Pré-requisitos (uma única vez)
+Regra transversal: figura ilustra, tabela decide.
+
+## 2. Execucao completa
 
 ```cmd
 cd /d C:\DEV\NINO26
 
-:: 1. Base da Fase 3 (se os stores ainda nao existem ou apos atualizar OISST)
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-daily-index
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-sst-reference
 .venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
-
-:: 2. Insumos dos notebooks (ATL, banda equatorial, SSH eventos, DHW, mapas)
 .venv\Scripts\python scripts\fase3_build_inputs.py --force
 
-:: 3. Sanidade
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3A_indices_fisicos_semanais.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3B_alvo_eventos_ciclo_vida.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3C_precursores_lags.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3D_rigor_estatistico.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3E_estabilidade_subperiodos.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3F_dhw_kelvin.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3G_ciclo_vida_dhw.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3H_genese_precursores_classe.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3I_interpretacao_integrada.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3K_pca_crescimento.ipynb --inplace --ExecutePreprocessor.timeout=1200
+
+.venv\Scripts\python scripts\audit_phase3_temporal_integrity.py
 .venv\Scripts\python -m pytest -q
 ```
 
-Critérios de partida: auditoria da Fase 3 com `errors: []`
-(`data\audit\phase3_diagnostics_audit.json`) e testes verdes. Se a auditoria
-acusar erro, **não** prossiga para os notebooks.
+## 3. Criterios metodologicos fixos
 
-## 2. Execução dos notebooks (VS Code)
+Evento El Nino local: media movel de 3 meses da SSTA Nino 3.4 >= +0.5 C por
+pelo menos 5 estacoes moveis sobrepostas. A classificacao usa o pico dessa
+media:
 
-Kernel: **Python 3 (.venv NINO26)**. Em cada notebook: *Run All*; entre
-notebooks: *Restart Kernel* (garante que cada um depende só do disco).
+| Classe | Pico ONI local |
+|---|---|
+| fraco | 0.5 C <= pico < 1.0 C |
+| moderado | 1.0 C <= pico < 1.5 C |
+| forte | 1.5 C <= pico < 2.0 C |
+| muito_forte / super | pico >= 2.0 C |
 
-| Ordem | Notebook | Depende de | Grava (principais) |
-|---|---|---|---|
-| 1 | `3A_indices_fisicos_semanais` | pré-requisitos | `features/phase3_indices_semanais.csv`, cobertura |
-| 2 | `3B_alvo_eventos_ciclo_vida` | 3A | taxas, trajetórias compostas, persistência, mapa composto |
-| 3 | `3C_precursores_lags` | 3A | `phase3C_precursor_ranking.csv`, mapa lon×lag |
-| 4 | `3D_rigor_estatistico` | 3A, 3C | `phase3D_ranking_significativo.csv`, mapa FDR |
-| 5 | `3E_estabilidade_subperiodos` | 3D | `phase3E_estabilidade.csv` |
-| 6 | `3F_dhw_kelvin` | 3A | `phase3F_dhw_redundancia.csv`, Hovmöller SSH |
-| 7 | `3G_ciclo_vida_dhw` | 3A | `phase3G_eventos_dhw.csv`, escalonamento |
+DHW oficial da Fase 3: `dhw_cweek_0p5_12w`.
 
-Se editar o 3A (nova variável, nova janela), reexecute a cadeia inteira 3A→3G.
-Se acrescentar variável ou lag "só para testar", ela entra na família do FDR:
-ajuste a varredura no 3C/3D e reexecute — nunca teste fora da família.
+1. HotSpot diario = SSTA diaria quando SSTA >= +0.5 C; valores menores viram 0.
+2. Acumulo movel = soma de 12 semanas, em C-weeks.
+3. O valor so e reportado depois de 12 semanas diarias consecutivas com SSTA >= +0.5 C.
+4. `oni_12w_mean_c` fica apenas como auditoria, nao como preditor publico.
 
-Tabelas de decisão: `data\processed\parquet\statistics\phase3*.csv`.
+## 4. Como ler cada notebook
+
+| Notebook | Pergunta | Leitura executiva |
+|---|---|---|
+| 3A | Quais variaveis existem, quais sao anomalias e qual a cobertura? | SSTA e tau_x sao anomalias; DHW deriva da SSTA; D20/OHC/WWV/tilt/SSH sao indices fisicos originais. |
+| 3B | Qual e a memoria da SSTA e o ciclo de vida dos eventos? | A autocorrelacao e o baseline de persistencia que qualquer previsao deve superar. |
+| 3C | Quais variaveis lideram a SSTA em lag bruto? | Triagem ordenada por maior abs(r); lag positivo = precursor antecede a SSTA alvo. |
+| 3D | O que sobrevive a N_eff, IC95 e FDR? | Primeiro filtro defensavel; forest plot mostra r, lag, N_eff e IC95. |
+| 3E | O sinal e estavel antes/depois de 2010? | Estavel entra no parecer; instavel entra como ressalva de regime. |
+| 3F | DHW e Kelvin agregam leitura fisica? | DHW e memoria/severidade; SLA/SSH Hovmoller e evidencia qualitativa de propagacao Kelvin. |
+| 3G | DHW mede severidade e como 2025/26 se compara? | Compara eventos fortes/super com a formacao atual; atual e alinhado ao ultimo dado, pois o pico futuro e desconhecido. |
+| 3H | A genese separa classes NOAA? | Mostra onset e ciclo alinhado ao pico real para todos, moderados, fortes e super. |
+| 3I | Qual conjunto antecipa o aquecimento maximo? | Tabela e figura `phase3I_conjunto_antecipacao_pico` separam precursor, estado e severidade. |
+| 3K | Quais dimensoes fisicas sao redundantes? | PCA evita contar D20/OHC/SSH/WWV/tilt como evidencias independentes. |
+
+## 5. Eixos e coordenadas
+
+Nos Hovmollers e mapas longitude-lag, o eixo x segue a referencia oficial
+oeste para leste: 120E, 140E, 160E, 180, 160W, 140W, 120W, 100W, 80W. A faixa
+Nino 3.4 fica sombreada em 170W-120W. O eixo y dos mapas longitude-lag e lag em
+semanas antes da SSTA alvo; 0 e simultaneo, 26 e cerca de 6 meses, 52 e cerca
+de 1 ano.
+
+## 6. Saidas principais
+
 Figuras: `data\processed\figures\fase3\`.
 
-## 3. Diretrizes de interpretação
+Tabelas decisorias:
 
-### 3.1 Regra de corte (inegociável)
+```text
+data\processed\parquet\statistics\phase3A_cobertura_variaveis.csv
+data\processed\parquet\statistics\phase3C_ranking_lags.csv
+data\processed\parquet\statistics\phase3D_ranking_significativo.csv
+data\processed\parquet\statistics\phase3E_estabilidade.csv
+data\processed\parquet\statistics\phase3G_mapa_dhw_lon_eventos_forte_super.csv
+data\processed\parquet\statistics\phase3H_ciclo_vida_classes_pico.csv
+data\processed\parquet\statistics\phase3I_conjunto_antecipacao_pico.csv
+data\processed\parquet\statistics\phase3I_estado_2026.csv
+```
 
-Uma relação só entra no parecer se sobrevive ao **3D** (FDR α=0,05 com N_eff
-+ IC95 excluindo zero) **e** ao **3E** (mesmo sinal e p<0,05 em 1993–2009 e em
-2010–presente). DHW tem regra extra (3F): só entra se a correlação parcial,
-controlando SSTA/WWV/OHC, permanecer significativa.
+## 7. Parecer defensavel
 
-### 3.2 Como ler cada saída
+O bloco de recarga/subsuperficie e o eixo fisico central: D20, SSH, OHC, WWV e
+tilt descrevem o reservatorio oceanico que permite amplificar a SSTA. `tau_x`
+anomalo representa o acoplamento vento-superficie. DHW confirma persistencia e
+severidade acumulada, mas nao substitui as variaveis dinamicas para antecipar o
+pico.
 
-**3A — cobertura.** `pct_valido` < 95% numa variável pede investigação antes
-de usá-la. Subsuperfície: qualquer conclusão deve citar a ressalva 1993+
-(emenda UFS→GLORYS12). O τx é *proxy* (caixa Niño 3.4, não Niño 4): interprete
-fase temporal, nunca magnitude.
-
-**3B — ciclo de vida.** O e-folding (≈27 semanas) é o *baseline de
-persistência*: qualquer skill futuro só é interessante além desse horizonte.
-Assimetria crescimento/decaimento e separação precoce dos super eventos
-(~6 meses antes do pico) são as leituras centrais. No mapa composto, confira
-que o máximo cai dentro/adjacente à caixa — se não cair, o alvo está mal posto.
-
-**3C — triagem.** É ordenação, não evidência. Use para formar hipóteses:
-quem lidera (r alto em lag>0), de onde vem (mapa lon×lag com inclinação
-oeste→leste = propagação física). Lag 0 alto significa coincidência, não
-precursão — só lags positivos contam como antecedência.
-
-**3D — rigor.** Compare sempre `n` com `n_eff`: quedas de ~1.700 para ~25
-são esperadas e explicam por que r=0,5 pode ser fraco. Leia o IC95 antes do
-p-valor: intervalo largo que quase toca zero = evidência frágil mesmo se
-"significativo". No mapa FDR, importa o *padrão espacial* que sobrevive, não
-pixels isolados.
-
-**3E — estabilidade.** Relação instável não é lixo: é *achado* (ex.: WWV
-perde lead pós-2010, coerente com a literatura — nossos dados reproduzem isso
-de forma independente). Reporte instáveis como limitação de regime, não os
-esconda. Diferenças grandes entre os mapas dos subperíodos pedem cautela com
-qualquer extrapolação para o presente.
-
-**3F — DHW/Kelvin.** A parcial responde "o DHW é só SSTA reembalada?".
-Significativa em +4 semanas e não em +12 = memória curta, não precursor de
-longo lead. No Hovmöller SSH, a leitura é direcional e qualitativa (faixas
-positivas migrando oeste→leste em semanas = Kelvin downwelling); não estime
-velocidades sem método dedicado.
-
-**3G — severidade.** DHW pica *depois* da SSTA (+4 a +11 semanas): é
-integrador. Use DHW_max como métrica de severidade acumulada — distingue
-eventos de mesmo pico e durações diferentes (r=0,975 com intensidade). O mapa
-DHW-lon é aproximação semanal: cite o caveat sempre que usá-lo.
-
-### 3.3 Armadilhas conhecidas
-
-1. **Colinearidade do bloco de recarga**: tilt, SSH, OHC e D20 medem estados
-   correlacionados do mesmo bloco físico. Não some suas evidências como se
-   fossem independentes; no parecer, reporte o bloco e o melhor representante.
-2. **Coincidência ≠ precursão**: r alto em lag 0 (tilt, DHW) descreve o estado
-   simultâneo; para antecedência, olhe D20 (~15 sem) e WWV (~20 sem, instável).
-3. **Autocorrelação disfarça acaso**: nunca cite r sem o N_eff correspondente.
-4. **Janela atual (2025/26)**: o evento em curso aparece nos dados (onset→peak,
-   SSTA ~1,4 °C em jun/2026), mas está *incompleto* — não entra em compostos
-   nem estatísticas de evento até ter fim registrado.
-5. **Não promova a Fase 3 a previsão**: os leads medidos justificam a Fase 5,
-   mas nenhuma frase do parecer deve implicar skill preditivo ainda.
-
-### 3.4 Estado defensável atual (referência rápida)
-
-| Conclusão | Suporte |
-|---|---|
-| Recarga (tilt/SSH/OHC/D20) lidera o Niño 3.4; D20 com ~15 sem de antecedência | 3C+3D+3E |
-| WWV tinha lead (~20 sem) mas perdeu significância pós-2010 | 3E |
-| Atlântico não explica o Niño 3.4 (só ATL4 fraco/negativo como controle) | 3D+3E |
-| DHW tem conteúdo próprio de curto prazo (+4 sem) e mede severidade acumulada | 3F+3G |
-| Kelvin visível nos eventos históricos e na janela 2025/26 | 3F |
-
-## 4. Encerramento e atualização
-
-Após qualquer reexecução completa: `.venv\Scripts\python scripts\update_painel_executivo.py`
-e commit das mudanças de código/notebooks (dados não são versionados).
-Próximo marco além da Fase 3: parecer consolidado (possível "3H") e, somente
-após validação integral das Fases 1–3, retomada da Fase 4 conforme
-`docs/CRONOGRAMA.md`.
+Para 2025/26, escreva "formacao/aquecimento em curso" enquanto o pico futuro
+nao for observado e validado. A Fase 3 nao deve prometer projecao numerica; ela
+entrega a base fisica para a etapa futura de previsao.

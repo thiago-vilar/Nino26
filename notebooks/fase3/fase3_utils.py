@@ -220,9 +220,10 @@ def weekly_matrix() -> pd.DataFrame:
     # (teleconexao Brasil), nao do diagnostico fisico do Pacifico.
     dhwv = load_dhw_variants()
     # DHW principal = HotSpot diario da anomalia SSTA >=0.5 C, acumulado em
-    # janela movel de 12 semanas. A flag de persistencia exige 20 semanas
-    # consecutivas de media movel 12 semanas >=0.5 C.
-    dhw = dhwv[["dhw_cweek_0p5_12w", "oni_12w_mean_c", "elnino_thermal_persistent_20w"]].copy()
+    # 12 semanas e publicado somente apos 12 semanas diarias consecutivas
+    # acima do limiar. Os auxiliares antigos ssta12w/persist20w ficam fora da
+    # matriz preditiva para nao virarem "variaveis fisicas" artificiais.
+    dhw = dhwv[["dhw_cweek_0p5_12w"]].copy()
     atmo = load_atmo()
     tau_raw = zonal_wind_stress_proxy(atmo["atm_10m_u_component_of_wind"])
     tau = daily_doy_anomaly(tau_raw).rename("tau_x_anom_nino34_pa").to_frame()
@@ -257,17 +258,10 @@ def sources_note() -> pd.DataFrame:
         ),
         (
             "dhw_cweek_0p5_12w",
-            "derivado da SSTA OISST (HotSpot diario >=0.5C, acumulo 12 sem)",
-            "anomalias <0.5C descartadas; soma positiva em C-weeks",
+            "derivado da SSTA OISST (HotSpot diario >=0.5C; gate de 12 sem)",
+            "anomalias <0.5C descartadas; acumulo 12 sem so reportado apos 12 semanas diarias consecutivas >=0.5C",
             "valido 1981-11+",
             "C-weeks",
-        ),
-        (
-            "oni_12w_mean_c / elnino_thermal_persistent_20w",
-            "derivado da SSTA OISST",
-            "media movel 12 semanas e flag >=0.5C por 20 semanas consecutivas",
-            "valido 1981-11+",
-            "C / 0-1",
         ),
         (
             "tau_x_anom_nino34_pa",
@@ -328,9 +322,7 @@ VAR_LABELS = {
     "wwv": "WWV Pacifico equatorial (m3)",
     "tilt_m": "Tilt da termoclina (m)",
     "ssh_m": "SSH Nino 3.4 (m)",
-    "dhw_cweek_0p5_12w": "DHW C-week >=0.5C (12 sem)",
-    "oni_12w_mean_c": "Media SSTA 12 sem (C)",
-    "elnino_thermal_persistent_20w": "Persistencia termica 20 sem",
+    "dhw_cweek_0p5_12w": "DHW gated >=0.5C (C-week, 12 sem)",
     "tau_x_anom_nino34_pa": "tau_x anom. Nino 3.4 (Pa)",
 }
 
@@ -342,9 +334,7 @@ VAR_SHORT = {
     "wwv": "WWV",
     "tilt_m": "Tilt",
     "ssh_m": "SSH",
-    "dhw_cweek_0p5_12w": "DHW >=0.5C",
-    "oni_12w_mean_c": "SSTA 12w",
-    "elnino_thermal_persistent_20w": "Persist. 20w",
+    "dhw_cweek_0p5_12w": "DHW gated",
     "tau_x_anom_nino34_pa": "tau_x anom.",
 }
 
@@ -363,12 +353,25 @@ def lon_label(lon: float) -> str:
     return f"{int(round(360 - lon))}W"
 
 
-def format_lon_axis(ax, *, xlabel: str = "Longitude oficial (W/E; oeste -> leste)") -> None:
-    ticks = [120, 160, 200, 240, 280]
+def format_lon_axis(ax, *, xlabel: str = "Longitude oficial (120E -> 80W; oeste para leste)") -> None:
+    ticks = [120, 140, 160, 180, 200, 220, 240, 260, 280]
     ax.set_xlim(120, 280)
     ax.set_xticks(ticks)
-    ax.set_xticklabels([lon_label(t) for t in ticks], fontsize=8)
+    ax.set_xticklabels([lon_label(t) for t in ticks], fontsize=7.5)
     ax.set_xlabel(xlabel)
+
+
+def format_lag_axis(ax, *, max_lag: int | None = None) -> None:
+    """Padroniza eixo vertical de mapas longitude-lag."""
+    if max_lag is None:
+        lo, hi = ax.get_ylim()
+        max_lag = int(round(max(lo, hi)))
+    ticks = [t for t in range(0, max_lag + 1, 13)]
+    if ticks[-1] != max_lag:
+        ticks.append(max_lag)
+    ax.set_yticks(ticks)
+    ax.set_ylabel("Lag do precursor (semanas antes da SSTA alvo)")
+    ax.set_ylim(max_lag, 0)
 
 
 def add_nino34_lon_band(ax, *, label: bool = True) -> None:
@@ -406,6 +409,22 @@ def add_note(ax, text: str, *, loc: str = "lower right") -> None:
         fontsize=7.5,
         bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "#888", "alpha": 0.86},
     )
+
+
+def weekly_longitude_dhw_after_12w(eq_weekly: pd.DataFrame, *, threshold: float = 0.5) -> pd.DataFrame:
+    """Aproximacao semanal do DHW longitudinal com gate de 12 semanas.
+
+    A metrica diaria oficial fica em Nino 3.4. Para mapas por longitude, esta
+    aproximacao semanal usa SSTA semanal da faixa 2S-2N: HotSpot quando
+    SSTA >= threshold, acumulado em 12 semanas, reportado somente apos 12
+    semanas semanais consecutivas acima do limiar naquela longitude.
+    """
+    hot = eq_weekly.where(eq_weekly >= threshold, 0.0)
+    raw = hot.rolling(12, min_periods=12).sum()
+    gate = (eq_weekly >= threshold).rolling(12, min_periods=12).sum() >= 12
+    out = raw.where(gate, 0.0).where(raw.notnull())
+    out.index = pd.to_datetime(out.index)
+    return out
 
 
 def stamp_caption(fig, *, variavel, area, periodo, fonte, n=None, extra=None):
