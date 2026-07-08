@@ -413,7 +413,7 @@ def build_markdown() -> str:
         "- Manter ORAS5 como memoria mensal independente; nunca promover seus valores para observacoes diarias.",
         "- Preservar a auditoria concluida de continuidade, D20/OHC/WWV/Tilt e das transicoes UFS->GLORYS e GLORYS multiyear->operacional.",
         "- Regerar a Fase 3, quando necessario, com `build-nino34-daily-index`, `build-nino34-sst-reference`, `build-phase3-diagnostics`, `audit-phase3-diagnostics`, `fase3_build_inputs.py --force` e `run_fase3_all.py`.",
-        "- Usar SST/SSTA OISST local para referencia mensal, eventos NOAA/ONI locais, classes fraco/moderado/forte/muito_forte e DHW `dhw_cweek_0p5_12w`; nenhum rotulo ENSO externo entra como metrica ativa.",
+        "- Usar SST/SSTA OISST local para referencia mensal, eventos NOAA/ONI locais e classes fraco/moderado/forte/muito_forte; nenhum rotulo ENSO externo entra como metrica ativa.",
         "- Reportar analises subsuperficiais com sensibilidade 1993+ e 2000+; nao vender cobertura subsuperficial homogenea desde 1981.",
         "- Fases 1-3 encerram em parecer fisico auditavel; a Fase 4 (docs/CRONOGRAMA.md e docs/FASE4_PLANO.md) so e retomada apos validacao integral das Fases 1-3, e ML/redes neurais permanecem condicionados aos gates G1-G4.",
         "",

@@ -20,7 +20,7 @@ O eixo padrao da Fase 4 e **semanal de 7 dias** (`week_ending_sunday`).
 
 | Nivel | Uso | Fontes compativeis |
 |---|---|---|
-| Diario | insumo bruto, acumulacao do DHW, velocidade de fase Kelvin | OISST, CHIRPS, ERA5, GLORYS12 |
+| Diario | insumo bruto e velocidade de fase Kelvin | OISST, CHIRPS, ERA5, GLORYS12 |
 | Semanal | eixo canonico de precursores, correlacao defasada e teleconexao | derivado do diario |
 | Mensal | excecao para serie nativamente mensal e sensibilidade | ORAS5, Argo em grade, WOD, NOAA PSL/ONI |
 

@@ -16,11 +16,11 @@ Convencao: `3A1` = Fase 3, notebook A, figura 1.
 | 3D | 3D2_mapa_lon_lag_fdr.png | Mapa FDR | Mostra regioes longitude-lag que sobrevivem ao controle estatistico. | phase3D_testes_completos.csv |
 | 3E | 3E1_scatter_estabilidade.png | Estabilidade | Compara correlacoes 1993-2009 vs 2010-presente. | phase3E_estabilidade.csv |
 | 3E | 3E2_mapa_lon_lag_subperiodos.png | Subperiodos | Testa se o padrao longitudinal se repete em regimes diferentes. | phase3E_estabilidade.csv |
-| 3F | 3F1_dhw_serie.png | DHW serie | Mostra DHW canonico como severidade acumulada/persistencia. | phase3F_dhw_redundancia.csv |
-| 3F | 3F2_hovmoller_ssh_kelvin.png | Kelvin SSH | Diagnostico visual de propagacao por SLA/SSH em eventos fortes. | phase3F_dhw_redundancia.csv |
-| 3G | 3G1_composto_ssta_dhw.png | SSTA x DHW | Compara aquecimento e calor acumulado por classe NOAA/ONI. | phase3G_composto_ssta_dhw_classes_noaa.csv |
-| 3G | 3G2_escalonamento_dhw.png | Escalonamento DHW | Relaciona DHW maximo com pico e duracao do evento. | phase3G_escalonamento.csv |
-| 3G | 3G3_mapa_dhw_lon.png | DHW longitude | Compara fortes/super historicos com a formacao atual 2025/26. | phase3G_mapa_dhw_lon_eventos_forte_super.csv |
+| 3F | 3F1_hovmoller_sla_kelvin.png | Kelvin por SLA | Diagnostico visual de propagacao oeste-leste por SLA/SSH em eventos fortes. | phase3F_kelvin_eventos_resumo.csv |
+| 3F | 3F2_taux_sla_eventos.png | Vento e SLA | Resume tau_x_anom na Nino 3.4 junto ao sinal de SLA por evento. | phase3F_kelvin_eventos_resumo.csv |
+| 3G | 3G1_composto_ssta_noaa.png | SSTA por classe | Compara a evolucao termica media por classe NOAA/ONI. | phase3G_composto_ssta_classes_noaa.csv |
+| 3G | 3G2_escalonamento_ssta.png | Escalonamento termico | Relaciona pico ONI local, duracao e taxas de crescimento/decaimento. | phase3G_escalonamento_ssta.csv |
+| 3G | 3G3_mapa_ssta_lon.png | SSTA longitude | Compara fortes/super historicos com a formacao atual 2025/26 por longitude. | phase3G_mapa_ssta_lon_eventos_forte_super.csv |
 | 3H | 3H1_compostos_onset.png | Onset por classe | Mostra quais variaveis se separam na genese dos eventos. | phase3H_estado_precursor_por_classe.csv |
 | 3H | 3H2_ciclo_vida.png | Ciclo de vida | Resume genese, crescimento, pico e decaimento com variaveis em z-score. | phase3H_ciclo_vida_media.csv |
 | 3I | 3I1_sintese_parecer.png | Sintese do parecer | Organiza quais evidencias entram, entram com ressalva ou ficam fora. | phase3I_conclusoes_decisao.csv |

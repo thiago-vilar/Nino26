@@ -76,17 +76,6 @@ ARTIFACTS = [
         key_cols=("atm_10m_u_component_of_wind", "atm_mean_sea_level_pressure"),
     ),
     Artifact(
-        "dhw_variantes_nino34",
-        FEAT / "nino34_dhw_variants.csv",
-        "DHW Nino 3.4 por HotSpot >=0.5C; gate de 12 semanas consecutivas; Fase 3 publica dhw_cweek_0p5_12w",
-        "time",
-        "D",
-        1,
-        expected_start="1981-09-01",
-        stale_after_days=21,
-        key_cols=("dhw_cweek_0p5_12w", "ssta_run_ge_0p5_weeks", "dhw_gate_12w_active"),
-    ),
-    Artifact(
         "matriz_semanal_fase3",
         FEAT / "phase3_indices_semanais.csv",
         "Matriz canonica semanal W-SUN dos notebooks",
@@ -95,7 +84,7 @@ ARTIFACTS = [
         7,
         expected_start="1981-01-04",
         stale_after_days=28,
-        key_cols=("nino34_ssta", "d20_m", "ohc_0_300", "wwv", "ssh_m", "dhw_cweek_0p5_12w"),
+        key_cols=("nino34_ssta", "d20_m", "ohc_0_300", "wwv", "ssh_m", "tau_x_anom_nino34_pa"),
     ),
     Artifact(
         "pacifico_equatorial_lon_weekly",

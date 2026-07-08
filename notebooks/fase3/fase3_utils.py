@@ -42,17 +42,6 @@ def load_atlantic() -> pd.DataFrame:
     return df.set_index("time").sort_index()
 
 
-def load_dhw() -> pd.DataFrame:
-    df = pd.read_csv(FEAT / "nino34_dhw_daily.csv", parse_dates=["time"])
-    return df.set_index("time").sort_index()
-
-
-def load_dhw_variants() -> pd.DataFrame:
-    """Arquivo bruto de DHW; a Fase 3 publica apenas `dhw_cweek_0p5_12w`."""
-    df = pd.read_csv(FEAT / "nino34_dhw_variants.csv", parse_dates=["time"])
-    return df.set_index("time").sort_index()
-
-
 def load_atmo() -> pd.DataFrame:
     df = pd.read_csv(FEAT / "era5_nino34_atmo_cache.csv", parse_dates=["time"])
     return df.set_index("time").sort_index()
@@ -218,16 +207,10 @@ def weekly_matrix() -> pd.DataFrame:
     # Escopo Fase 3 = diagnostico fisico do Pacifico (Nino 3.4). Indices
     # atlanticos foram removidos: controles inter-bacia sao materia da Fase 4
     # (teleconexao Brasil), nao do diagnostico fisico do Pacifico.
-    dhwv = load_dhw_variants()
-    # DHW principal = HotSpot diario da anomalia SSTA >=0.5 C, acumulado em
-    # 12 semanas e publicado somente apos 12 semanas diarias consecutivas
-    # acima do limiar. Os auxiliares antigos ssta12w/persist20w ficam fora da
-    # matriz preditiva para nao virarem "variaveis fisicas" artificiais.
-    dhw = dhwv[["dhw_cweek_0p5_12w"]].copy()
     atmo = load_atmo()
     tau_raw = zonal_wind_stress_proxy(atmo["atm_10m_u_component_of_wind"])
     tau = daily_doy_anomaly(tau_raw).rename("tau_x_anom_nino34_pa").to_frame()
-    daily = base.join([dhw, tau], how="outer")
+    daily = base.join([tau], how="outer")
     weekly = to_weekly(daily)
     weekly.index.name = "week_ending_sunday"
     return weekly
@@ -255,13 +238,6 @@ def sources_note() -> pd.DataFrame:
             "valor fisico/indice original; nao e anomalia climatologica na matriz semanal",
             "sensibilidade 1993+",
             "m / J m-2 / m3 / m / m",
-        ),
-        (
-            "dhw_cweek_0p5_12w",
-            "derivado da SSTA OISST (HotSpot diario >=0.5C; gate de 12 sem)",
-            "anomalias <0.5C descartadas; acumulo 12 sem so reportado apos 12 semanas diarias consecutivas >=0.5C",
-            "valido 1981-11+",
-            "C-weeks",
         ),
         (
             "tau_x_anom_nino34_pa",
@@ -322,7 +298,6 @@ VAR_LABELS = {
     "wwv": "WWV Pacifico equatorial (m3)",
     "tilt_m": "Tilt da termoclina (m)",
     "ssh_m": "SSH Nino 3.4 (m)",
-    "dhw_cweek_0p5_12w": "DHW gated >=0.5C (C-week, 12 sem)",
     "tau_x_anom_nino34_pa": "tau_x anom. Nino 3.4 (Pa)",
 }
 
@@ -334,7 +309,6 @@ VAR_SHORT = {
     "wwv": "WWV",
     "tilt_m": "Tilt",
     "ssh_m": "SSH",
-    "dhw_cweek_0p5_12w": "DHW gated",
     "tau_x_anom_nino34_pa": "tau_x anom.",
 }
 
@@ -409,22 +383,6 @@ def add_note(ax, text: str, *, loc: str = "lower right") -> None:
         fontsize=7.5,
         bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "#888", "alpha": 0.86},
     )
-
-
-def weekly_longitude_dhw_after_12w(eq_weekly: pd.DataFrame, *, threshold: float = 0.5) -> pd.DataFrame:
-    """Aproximacao semanal do DHW longitudinal com gate de 12 semanas.
-
-    A metrica diaria oficial fica em Nino 3.4. Para mapas por longitude, esta
-    aproximacao semanal usa SSTA semanal da faixa 2S-2N: HotSpot quando
-    SSTA >= threshold, acumulado em 12 semanas, reportado somente apos 12
-    semanas semanais consecutivas acima do limiar naquela longitude.
-    """
-    hot = eq_weekly.where(eq_weekly >= threshold, 0.0)
-    raw = hot.rolling(12, min_periods=12).sum()
-    gate = (eq_weekly >= threshold).rolling(12, min_periods=12).sum() >= 12
-    out = raw.where(gate, 0.0).where(raw.notnull())
-    out.index = pd.to_datetime(out.index)
-    return out
 
 
 def peak_precursor_value(weekly: pd.DataFrame, var: str, peak_time, lead_weeks: int, halfwin: int = 2) -> float:

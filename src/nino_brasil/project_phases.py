@@ -35,7 +35,7 @@ PHASES: tuple[ProjectPhase, ...] = (
         3,
         "nino34_physical_signal_diagnostics",
         "Diagnostico fisico do sinal Nino 3.4",
-        "Escala diaria/semanal; eventos e P90 derivados da propria SST OISST baixada; diagnosticos de SSTA, D20, OHC, WWV, termoclina, DHW e Kelvin.",
+        "Escala diaria/semanal; eventos e P90 derivados da propria SST OISST baixada; diagnosticos de SSTA, D20, OHC, WWV, termoclina e Kelvin.",
         "Parecer fisico auditavel da evolucao do Nino 3.4, sem rotulo externo e sem modelagem/ML.",
     ),
 )

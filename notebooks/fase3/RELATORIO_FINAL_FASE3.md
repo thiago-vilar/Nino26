@@ -1,6 +1,6 @@
 # Relatorio final interpretativo - Fase 3 NINO26
 
-Gerado em: 2026-07-08 16:40
+Gerado em: 2026-07-08 18:28
 
 ## Veredito executivo
 
@@ -13,11 +13,10 @@ bloco de **recarga/subsuperficie**:
 - `tau_x_anom_nino34_pa`: acoplamento vento-superficie; anomalias de oeste favorecem downwelling Kelvin e aquecimento.
 - `ohc_0_700`, `tilt_m` e `d20_m`: confirmam profundidade/inclinacao da termoclina e memoria subsuperficial.
 - `wwv`: variavel fisica classica de recarga basinwide; entra com ressalva local porque perdeu significancia em 2010-presente.
-- `dhw_cweek_0p5_12w`: nao e precursor longo; mede persistencia e severidade acumulada apos o aquecimento se consolidar.
 
 ## Integridade temporal dos dados
 
-Resumo da auditoria: **ok=7, warning=3**. Alertas `warning` indicam defasagem ou
+Resumo da auditoria: **ok=7, warning=2**. Alertas `warning` indicam defasagem ou
 cobertura a acompanhar; `error` indicaria quebra de integridade regular.
 
 | artifact | scope | expected_freq | start | end | rows | freshness_days | max_key_null_pct | status | notes |
@@ -26,8 +25,7 @@ cobertura a acompanhar; `error` indicaria quebra de integridade regular.
 | oisst_mensal_nino34 | fase3 | MS | 1981-09-01 | 2026-06-01 | 538 | 37 | 0.37 | ok |  |
 | sinal_fisico_nino34 | fase3 | D | 1981-09-01 | 2026-06-09 | 16353 | 29 | 0.0 | warning | defasagem 29d > 21d |
 | era5_atmo_nino34 | fase3 | D | 1981-01-01 | 2026-06-30 | 16617 | 8 | 0.0 | ok |  |
-| dhw_variantes_nino34 | fase3 | D | 1981-09-01 | 2026-06-09 | 16353 | 29 | 0.51 | warning | defasagem 29d > 21d |
-| matriz_semanal_fase3 | fase3 | W-SUN | 1981-01-04 | 2026-07-05 | 2375 | 3 | 2.11 | ok |  |
+| matriz_semanal_fase3 | fase3 | W-SUN | 1981-01-04 | 2026-07-05 | 2375 | 3 | 1.6 | ok |  |
 | pacifico_equatorial_lon_weekly | fase3 | W-SUN | 1981-09-06 | 2026-06-14 | 2337 | 24 | 0.0 | ok |  |
 | ssh_kelvin_eventos | fase3 | event_windows | 1997-01-01 | 2026-07-07 | 2810 | 1 | 0.0 | ok |  |
 | atlantico_tropical_legacy | legacy | D | 1981-09-01 | 2026-06-09 | 16353 | 29 | 0.0 | ok |  |
@@ -84,19 +82,18 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | ssh_m | 6 | 0.755 | 0.781 | 0.0002 | 0.757 | 0.0005 | True |
 | ohc_0_300 | 6 | 0.738 | 0.745 | 0.0011 | 0.728 | 0.0019 | True |
 | ohc_0_700 | 6 | 0.701 | 0.713 | 0.0015 | 0.689 | 0.0024 | True |
-| dhw_cweek_0p5_12w | 0 | 0.638 | 0.524 | 0.0135 | 0.724 | 0.0031 | True |
 | d20_m | 15 | 0.545 | 0.546 | 0.0323 | 0.527 | 0.0404 | True |
 | wwv | 20 | 0.516 | 0.558 | 0.0479 | 0.483 | 0.1095 | False |
 | tau_x_anom_nino34_pa | 1 | 0.478 | 0.475 | 0.0 | 0.525 | 0.0 | True |
 
 ## Classes NOAA/ONI locais
 
-| grupo | rotulo_curto | rotulo | definicao | n_eventos | oni_pico_medio_c | oni_pico_min_c | oni_pico_max_c | duracao_media_estacoes_oni | crescimento_medio_c_mes | decaimento_medio_c_mes | dhw_pico_ssta_medio_c_weeks | dhw_maximo_medio_c_weeks | defasagem_pico_dhw_media_sem |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| fraco | Fraco | El Nino fraco (0.5 <= ONI < 1.0 C) | pico da media movel de 3 meses na Nino 3.4 entre +0.5 e +0.9 C | 4 | 0.858 | 0.652 | 0.968 | 6.0 | 0.224 | -0.027 | 0.0 | 3.95 | 3.75 |
-| moderado | Moderado | El Nino moderado (1.0 <= ONI < 1.5 C) | pico da media movel de 3 meses na Nino 3.4 entre +1.0 e +1.4 C | 2 | 1.212 | 1.211 | 1.213 | 12.0 | 0.11 | -0.098 | 0.0 | 15.0 | 10.5 |
-| forte | Forte | El Nino forte (1.5 <= ONI < 2.0 C) | pico da media movel de 3 meses na Nino 3.4 entre +1.5 e +1.9 C | 3 | 1.706 | 1.586 | 1.907 | 10.67 | 0.247 | -0.192 | 6.67 | 20.85 | 8.0 |
-| muito_forte | Muito forte | El Nino muito forte / super (ONI >= 2.0 C) | pico da media movel de 3 meses na Nino 3.4 igual ou acima de +2.0 C | 3 | 2.286 | 2.12 | 2.592 | 13.67 | 0.245 | -0.367 | 24.75 | 27.69 | 8.33 |
+| grupo | rotulo_curto | rotulo | definicao | n_eventos | oni_pico_medio_c | oni_pico_min_c | oni_pico_max_c | duracao_media_estacoes_oni | crescimento_medio_c_mes | decaimento_medio_c_mes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| fraco | Fraco | El Nino fraco (0.5 <= ONI < 1.0 C) | pico da media movel de 3 meses na Nino 3.4 entre +0.5 e +0.9 C | 4 | 0.858 | 0.652 | 0.968 | 6.0 | 0.224 | -0.027 |
+| moderado | Moderado | El Nino moderado (1.0 <= ONI < 1.5 C) | pico da media movel de 3 meses na Nino 3.4 entre +1.0 e +1.4 C | 2 | 1.212 | 1.211 | 1.213 | 12.0 | 0.11 | -0.098 |
+| forte | Forte | El Nino forte (1.5 <= ONI < 2.0 C) | pico da media movel de 3 meses na Nino 3.4 entre +1.5 e +1.9 C | 3 | 1.706 | 1.586 | 1.907 | 10.67 | 0.247 | -0.192 |
+| muito_forte | Muito forte | El Nino muito forte / super (ONI >= 2.0 C) | pico da media movel de 3 meses na Nino 3.4 igual ou acima de +2.0 C | 3 | 2.286 | 2.12 | 2.592 | 13.67 | 0.245 | -0.367 |
 
 ## O que cada notebook responde
 
@@ -107,8 +104,8 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3C | Faz triagem bruta de lags preditivos. | Pergunta: quem antecede a SSTA e com quantas semanas? | Ranking bruto guia, mas nao basta sem rigor. |
 | 3D | Aplica N_eff, FDR e IC95. | Pergunta: o que sobrevive ao controle estatistico? | Reduz falsos positivos e define evidencias robustas. |
 | 3E | Testa estabilidade entre subperiodos. | Pergunta: o sinal vale antes e depois de 2010? | WWV fica com ressalva; OHC/SSH/tilt seguem fortes. |
-| 3F | Avalia DHW e leitura qualitativa de Kelvin. | Pergunta: calor acumulado agrega informacao? | DHW mede severidade; Kelvin e diagnostico visual, nao detector automatico. |
-| 3G | Compara DHW por classe e com 2025/26. | Pergunta: como severidade acumulada escala com eventos? | DHW ajuda a comparar persistencia e intensidade acumulada. |
+| 3F | Avalia leitura qualitativa de ondas de Kelvin por SLA/SSH e vento. | Pergunta: ha propagacao dinamica compativel com Kelvin? | Kelvin e diagnostico visual/dinamico, nao detector automatico. |
+| 3G | Compara SSTA por classe NOAA/ONI e com 2025/26. | Pergunta: como intensidade, duracao e propagacao longitudinal se organizam? | SSTA por classe mostra escala termica sem metricas acumuladas auxiliares. |
 | 3H | Mostra genese e ciclo de vida fisico. | Pergunta: o estado pre-onset separa classes? | Recarga cresce antes do pico e descarrega depois. |
 | 3K | Reduz variaveis por PCA e testa skill. | Pergunta: quais variaveis sao redundantes? | PC1/OHC0-300 representa eixo de recarga com parcimonia. |
 | 3I | Integra parecer e nested LOO. | Pergunta: quais variaveis predizem o pico e como ler 2025/26? | Entrega projecao condicional exploratoria, nao operacional. |
@@ -129,11 +126,11 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3D | 3D2_mapa_lon_lag_fdr.png | Mapa FDR | Mostra regioes longitude-lag que sobrevivem ao controle estatistico. | phase3D_testes_completos.csv | True | True |
 | 3E | 3E1_scatter_estabilidade.png | Estabilidade | Compara correlacoes 1993-2009 vs 2010-presente. | phase3E_estabilidade.csv | True | True |
 | 3E | 3E2_mapa_lon_lag_subperiodos.png | Subperiodos | Testa se o padrao longitudinal se repete em regimes diferentes. | phase3E_estabilidade.csv | True | True |
-| 3F | 3F1_dhw_serie.png | DHW serie | Mostra DHW canonico como severidade acumulada/persistencia. | phase3F_dhw_redundancia.csv | True | True |
-| 3F | 3F2_hovmoller_ssh_kelvin.png | Kelvin SSH | Diagnostico visual de propagacao por SLA/SSH em eventos fortes. | phase3F_dhw_redundancia.csv | True | True |
-| 3G | 3G1_composto_ssta_dhw.png | SSTA x DHW | Compara aquecimento e calor acumulado por classe NOAA/ONI. | phase3G_composto_ssta_dhw_classes_noaa.csv | True | True |
-| 3G | 3G2_escalonamento_dhw.png | Escalonamento DHW | Relaciona DHW maximo com pico e duracao do evento. | phase3G_escalonamento.csv | True | True |
-| 3G | 3G3_mapa_dhw_lon.png | DHW longitude | Compara fortes/super historicos com a formacao atual 2025/26. | phase3G_mapa_dhw_lon_eventos_forte_super.csv | True | True |
+| 3F | 3F1_hovmoller_sla_kelvin.png | Kelvin por SLA | Diagnostico visual de propagacao oeste-leste por SLA/SSH em eventos fortes. | phase3F_kelvin_eventos_resumo.csv | True | True |
+| 3F | 3F2_taux_sla_eventos.png | Vento e SLA | Resume tau_x_anom na Nino 3.4 junto ao sinal de SLA por evento. | phase3F_kelvin_eventos_resumo.csv | True | True |
+| 3G | 3G1_composto_ssta_noaa.png | SSTA por classe | Compara a evolucao termica media por classe NOAA/ONI. | phase3G_composto_ssta_classes_noaa.csv | True | True |
+| 3G | 3G2_escalonamento_ssta.png | Escalonamento termico | Relaciona pico ONI local, duracao e taxas de crescimento/decaimento. | phase3G_escalonamento_ssta.csv | True | True |
+| 3G | 3G3_mapa_ssta_lon.png | SSTA longitude | Compara fortes/super historicos com a formacao atual 2025/26 por longitude. | phase3G_mapa_ssta_lon_eventos_forte_super.csv | True | True |
 | 3H | 3H1_compostos_onset.png | Onset por classe | Mostra quais variaveis se separam na genese dos eventos. | phase3H_estado_precursor_por_classe.csv | True | True |
 | 3H | 3H2_ciclo_vida.png | Ciclo de vida | Resume genese, crescimento, pico e decaimento com variaveis em z-score. | phase3H_ciclo_vida_media.csv | True | True |
 | 3I | 3I1_sintese_parecer.png | Sintese do parecer | Organiza quais evidencias entram, entram com ressalva ou ficam fora. | phase3I_conclusoes_decisao.csv | True | True |
@@ -158,9 +155,8 @@ acoplamento com a atmosfera: anomalias de oeste reduzem/alteram os alisios,
 favorecem ondas Kelvin de downwelling e aprofundam a termoclina no centro-leste
 do Pacifico. O WWV e teoricamente central no oscilador de recarga, mas nesta
 implementacao local fica menos estavel nos subperiodos; por isso entra com
-ressalva. O DHW e util para severidade acumulada e comparacao de eventos, mas
-por construcao responde depois de persistencia termica e nao deve ser vendido
-como precursor principal do pico.
+ressalva. A Fase 3 nao usa metricas acumuladas artificiais como preditoras:
+o foco interpretativo fica em SSTA, recarga/subsuperficie e acoplamento do vento.
 
 ## Interpretacao para pessoas comuns
 
@@ -169,6 +165,4 @@ ve por cima, mas o pico depende do calor ja guardado embaixo e de como o vento
 empurra esse calor pelo Pacifico. As melhores pistas sao: quanto calor ha nos
 primeiros 300 m, se o nivel do mar/coluna d'agua indica recarga, se a termoclina
 esta mais profunda/inclinada e se o vento esta ajudando o calor a ir para leste.
-Quando essas pistas aparecem juntas, a chance de um pico maior aumenta. O DHW
-mede por quanto tempo o aquecimento ficou acumulando; ele confirma severidade,
-mas nao e a primeira pista.
+Quando essas pistas aparecem juntas, a chance de um pico maior aumenta.

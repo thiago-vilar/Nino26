@@ -83,7 +83,6 @@ time:
     daily:
       role:
         - "raw_input_store"
-        - "dhw_accumulation_before_weekly_resample"
         - "kelvin_phase_speed_estimation_from_d20_ssh_hovmoller"
       compatible_sources: ["noaa_oisst", "chirps", "era5", "glorys12"]
     weekly:
@@ -202,8 +201,7 @@ modeling:
   phase_3_diagnostics:
     temporal_resolution: "weekly"
     weekly_anchor: "week_ending_sunday"
-    daily_inputs_for_accumulation:
-      - "dhw"
+    daily_inputs_for_diagnostics:
       - "kelvin_phase_speed_hovmoller"
     common_analysis_window: "1993-01-01/latest_available"
     surface_only_sensitivity_window: "1982-01-01/latest_available"
@@ -217,7 +215,7 @@ modeling:
       C_precursors: "precursores fisicos do pico do Nino 3.4, lead semanal e forca"
       D_rigor: "N_eff, teste-t, IC95 Fisher-z e FDR"
       E_stability: "repeticao por subperiodos 1993-2009 e 2010-presente"
-      F_dhw_kelvin: "hipotese DHW e ondas de Kelvin: DHW diario->semanal, redundancia contra WWV/SSTA e direcao causal"
+      F_kelvin_sla: "ondas de Kelvin, SLA/SSH equatorial e anomalia zonal de vento"
     predictor_cut_rule: "variables are retained only for the Phase 3 physical report; no downstream ML scope is active"
     weekly_lag_weeks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 32, 36, 40, 44, 48, 52, 60, 68, 78]
     monthly_lag_months_legacy_labeling_only: [0, 1, 2, 3, 4, 5, 6, 9, 12, 15, 18]
@@ -228,62 +226,6 @@ modeling:
     persistence_matrix_shape: "12_initial_months_x_12_leads"
     event_definition: "local OISST-derived Nino 3.4 3-month mean >= 0.5 C for at least 5 months"
     raw_acceleration_policy: "discard raw second-difference acceleration; use 3-month smoothed growth/decay rates"
-    dhw_hypothesis:
-      enabled: true
-      name: "equatorial_degree_heating_weeks"
-      notebook: "3F"
-      accumulation_order: "compute_daily_hotspot_dhw_first_then_resample_to_weekly"
-      weekly_reduction_default: "max"
-      valid_after_weeks: 12
-      base_window: "1993-01-01/latest_available"
-      surface_only_sensitivity_window: "1982-01-01/latest_available"
-      boxes:
-        nino34:
-          latitude_min: -5.0
-          latitude_max: 5.0
-          longitude_min: -170.0
-          longitude_max: -120.0
-          longitude_convention: "-180_180"
-        nino4:
-          latitude_min: -5.0
-          latitude_max: 5.0
-          longitude_min: 160.0
-          longitude_max: 210.0
-          longitude_convention: "0_360"
-        equatorial_guide:
-          latitude_min: -2.0
-          latitude_max: 2.0
-          longitude_min: 120.0
-          longitude_max: 280.0
-          longitude_convention: "0_360"
-        west_equatorial_guide:
-          latitude_min: -2.0
-          latitude_max: 2.0
-          longitude_min: 120.0
-          longitude_max: 205.0
-          longitude_convention: "0_360"
-        east_equatorial_guide:
-          latitude_min: -2.0
-          latitude_max: 2.0
-          longitude_min: 205.0
-          longitude_max: 280.0
-          longitude_convention: "0_360"
-      thresholds:
-        - {name: "fixed_plus_1c", value_c: 1.0}
-        - {name: "local_percentile", percentile: 90}
-        - {name: "seasonal_climatology_relative", value_c: 1.0}
-      accumulation_windows_weeks: [12, 26, 52]
-      partial_correlation_controls:
-        required: ["wwv", "nino34_ssta"]
-        sensitivity: ["ohc_0_300", "ohc_0_700", "tau_x_nino4", "wwb"]
-      redundancy_checks:
-        - "compare DHW timing/amplitude against nino34_ssta"
-        - "compare DHW timing/amplitude against WWV/OHC recharge state"
-      acceptance_rule: "DHW is reported only as a physical diagnostic if it is not redundant with SSTA and recharge-state timing"
-      kelvin_causality_checks:
-        - "DHW_west_leads_downwelling_kelvin_activity"
-        - "DHW_east_following_kelvin_arrival_flags_consequence_not_cause"
-        - "conditional_test_against_WWB_and_current_thermocline_state"
     atlantic_precursor_policy:
       atl3_enso_direction: "negative expected for ATL3 leading Nino 3.4 at 6-12 months"
       atl3_jja_variant: true
@@ -308,10 +250,6 @@ modeling:
       lag_correlacoes: "data/processed/parquet/features/phase3_lag_correlacoes.csv"
       fases_recarga: "data/processed/parquet/features/phase3_fases_recarga.csv"
       estabilidade_subperiodos: "data/processed/parquet/features/phase3_estabilidade_subperiodos.csv"
-      dhw_indices: "data/processed/parquet/features/phase3f_dhw_indices_semanais.csv"
-      dhw_partial_correlations: "data/processed/parquet/features/phase3f_dhw_partial_correlations.csv"
-      dhw_redundancy_checks: "data/processed/parquet/features/phase3f_dhw_redundancy_checks.csv"
-      dhw_physical_incremental_summary: "data/processed/parquet/features/phase3f_dhw_physical_incremental_summary.csv"
       kelvin_leadlag: "data/processed/parquet/features/phase3f_kelvin_leadlag.csv"
     item_3_10b_nino34_p90_anomaly:
       enabled: true

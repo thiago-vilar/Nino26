@@ -13,7 +13,7 @@ Este README e a porta de entrada do projeto. Os documentos longos ficam em `docs
 | Comandos de download | [docs/RUNBOOK_DOWNLOADS.md](docs/RUNBOOK_DOWNLOADS.md) | Sequencia operacional para CHIRPS, OISST, ERA5, oceano diario, CTD/WOD e validacao in situ. |
 | Oceano originalmente diario | [docs/RUNBOOK_OCEAN_DAILY.md](docs/RUNBOOK_OCEAN_DAILY.md) | Fontes, contrato cientifico, numero de requisicoes e retomada UFS/GLORYS12. |
 | Fechamento da Fase 2 oceanica | [docs/RUNBOOK_FASE2_OCEANO.md](docs/RUNBOOK_FASE2_OCEANO.md) | Execucao completa UFS, GLORYS/GLO12, ORAS5 mensal e auditorias. |
-| Fase 3 fisica | [docs/FASE3_RECOMENDACOES.md](docs/FASE3_RECOMENDACOES.md) | Diagnostico fisico Nino 3.4 com OISST local, eventos derivados da propria SST, subsuperficie, DHW e Kelvin. |
+| Fase 3 fisica | [docs/FASE3_RECOMENDACOES.md](docs/FASE3_RECOMENDACOES.md) | Diagnostico fisico Nino 3.4 com OISST local, eventos derivados da propria SST, subsuperficie e Kelvin. |
 | Metodologia cientifica | [docs/METODOLOGIA.md](docs/METODOLOGIA.md) | Regras de climatologia, anomalias, diagnosticos fisicos e auditoria ate a Fase 3. |
 | Fontes de dados | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | Variaveis, dominios, caminhos de raw/interim/processed e politica de armazenamento. |
 | Pareceres e paineis | [docs/PARECERES](docs/PARECERES) | Pareceres tecnicos recebidos e paineis descritivos derivados deles. |
@@ -46,7 +46,7 @@ como comparativo visual, nunca como metrica, rotulo ou entrada do pipeline.
 | SST/SSTA principal | NOAA OISST diario. |
 | Indice ENSO | Eventos sao derivados da propria SST/SSTA OISST baixada com criterio termico NOAA/ONI local: media movel de 3 meses >= +0,5 C por 5 estacoes moveis; intensidade por pico ONI local fraco/moderado/forte/muito forte. |
 | Memoria subsuperficial | GLORYS12 diario desde 1993 como fonte diaria principal; ORAS5 mensal independente; NOAA UFS 1981-1992 fica segregado como ponte/benchmark, nao como serie observacional homogenea. |
-| Resolucao temporal | Diario para insumo bruto, DHW e Kelvin; semanal de 7 dias como eixo canonico de analise; mensal apenas para series nativamente mensais/sensibilidade. |
+| Resolucao temporal | Diario para insumo bruto e Kelvin; semanal de 7 dias como eixo canonico de analise; mensal apenas para series nativamente mensais/sensibilidade. |
 | Validacao in situ | CTD/WOD, TAO/TRITON e Argo validam D20/OHC/termoclina onde houver cobertura; nao substituem os cubos gridded. |
 | Modelagem/ML | Fora do escopo ativo. As Fases 1-3 encerram no parecer fisico auditavel; Fases 4-8 seguem docs/CRONOGRAMA.md e so avancam apos validacao das Fases 1-3 e gates G1-G4. |
 

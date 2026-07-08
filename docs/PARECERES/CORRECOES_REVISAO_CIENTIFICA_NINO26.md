@@ -16,9 +16,9 @@ correcoes obrigatorias.
 | Atlantico tropical omitido | Adicionados dominios `ATL4`, `ATL3`, `TNA`, `TSA`, IOD oeste/leste; `ATL4` fica prioritario para Nordeste/teleconexao regional, enquanto `ATL3` fica primario para precursores ENSO; criados indices em `features/nino.py`; Fase 4/5B exigem comparacao Pacifico-only vs Pacifico+Atlantico. |
 | Skill por mes/estacao e barreira de primavera | Configuracao e metodologia exigem skill por mes de inicializacao e estacao-alvo. |
 | Benchmarks obrigatorios | Configuracao exige climatologia, persistencia amortecida, oscilador de recarga simples e plume dinamico/operacional quando disponivel. |
-| Fase 3F DHW + Kelvin | A Fase 3 foi reestruturada em 3A-3F; o DHW ficou absorvido como 3F, com acumulacao diaria antes da reducao semanal, correlacao parcial contra WWV/SSTA e modelos aninhados walk-forward. |
+| Fase 3F Kelvin/SLA/vento | A Fase 3 foi reestruturada em 3A-3K; o 3F agora descreve ondas de Kelvin, SLA/SSH equatorial e anomalia zonal de vento, sem metrica acumulada superficial. |
 | Fase 4 4A-4D | A Fase 4 foi reorganizada para alvo chuva no Brasil: 4A regionalizacao, 4B correlacao/regressao, 4C modos acoplados e 4D atribuicao Pacifico vs Atlantico, composicoes, estabilidade e gate para ML. |
-| Politica temporal | Formalizada a hierarquia diario -> semanal -> mensal: diario para insumo/DHW/Kelvin, semanal como eixo canonico de analise, mensal apenas para series nativas/sensibilidade. |
+| Politica temporal | Formalizada a hierarquia diario -> semanal -> mensal: diario para insumo/Kelvin, semanal como eixo canonico de analise, mensal apenas para series nativas/sensibilidade. |
 
 ## Arquivos tocados
 

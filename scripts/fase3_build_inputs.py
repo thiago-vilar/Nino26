@@ -9,9 +9,7 @@ stores da Fase 3):
    (W-SUN) da banda 2S-2N por longitude (120E-280E)
 3. features/ssh_equatorial_daily_by_lon_events.parquet - SSH 1S-1N por
    longitude nos anos de evento (Kelvin)
-4. features/nino34_dhw_daily.csv - DHW Nino 3.4 gated 12 semanas
-   (HotSpot >=0.5 C; reporta apos 12 semanas diarias consecutivas)
-5. interim/fase3_map_cache/*.nc - campos mensais Nov/Dez 1991-2020 + picos
+4. interim/fase3_map_cache/*.nc - campos mensais Nov/Dez 1991-2020 + picos
    (mapas compostos do 3B)
 
 Uso: .venv\\Scripts\\python scripts\\fase3_build_inputs.py
@@ -31,7 +29,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from nino_brasil.data.anomalies import daily_anomaly, dayofyear_climatology
-from nino_brasil.features.dhw import degree_heating_weeks, thermal_window_mean
 from nino_brasil.features.nino import tropical_atlantic_sst_indices
 
 FEAT = ROOT / "data/processed/parquet/features"
@@ -134,54 +131,6 @@ def build_ssh_events(force: bool) -> None:
     print(f"[ok] {out.relative_to(ROOT)} {ssh.shape}")
 
 
-def build_dhw(force: bool) -> None:
-    """DHW Nino 3.4 oficializado para a Fase 3.
-
-    Regra: HotSpot diario = SSTA quando SSTA >=0.5 C; valores menores viram
-    zero. O DHW bruto e a soma movel em 12 semanas, expressa em C-weeks. A
-    metrica oficial da Fase 3 so e reportada depois que a SSTA diaria permanece
-    >=0.5 C por 12 semanas consecutivas. Essa restricao substitui os auxiliares
-    antigos ssta12w/persist20w nas analises preditivas.
-    """
-    out = FEAT / "nino34_dhw_daily.csv"
-    out_var = FEAT / "nino34_dhw_variants.csv"
-    if out.exists() and out_var.exists() and not force:
-        print("[skip] dhw ja materializado")
-        return
-    d = pd.read_csv(FEAT / "nino34_daily_oisst.csv", parse_dates=["time"])
-    ssta = xr.DataArray(d["nino34_ssta"].values, coords={"time": d["time"].values}, dims=("time",))
-    ssta_values = d["nino34_ssta"].to_numpy(dtype=float)
-    ssta_ge = np.isfinite(ssta_values) & (ssta_values >= 0.5)
-    run_days = np.zeros(ssta_ge.shape, dtype=int)
-    current = 0
-    for i, ok in enumerate(ssta_ge):
-        current = current + 1 if ok else 0
-        run_days[i] = current
-    gate_active = run_days >= 84
-    hotspot = np.where(ssta_values >= 0.5, ssta_values, 0.0)
-    dhw_raw = degree_heating_weeks(ssta, threshold_c=0.5, window_weeks=12)
-    dhw = degree_heating_weeks(ssta, threshold_c=0.5, window_weeks=12, require_consecutive_weeks=12)
-    mean12 = thermal_window_mean(ssta, window_weeks=12)
-    table = pd.DataFrame(
-        {
-            "time": d["time"],
-            "nino34_ssta": d["nino34_ssta"],
-            "hotspot_ge_0p5_c": hotspot,
-            "ssta_ge_0p5_daily": ssta_ge.astype(int),
-            "ssta_run_ge_0p5_days": run_days,
-            "ssta_run_ge_0p5_weeks": np.round(run_days / 7.0, 2),
-            "dhw_gate_12w_active": gate_active.astype(int),
-            "dhw_cweek_0p5_12w": dhw.values,
-            "dhw_cweek_0p5_12w_raw": dhw_raw.values,
-            "hotspot_after_12w_gate_c": np.where(gate_active, hotspot, 0.0),
-            "oni_12w_mean_c": mean12.values,
-        }
-    )
-    table.to_csv(out, index=False)
-    table.to_csv(out_var, index=False)
-    print(f"[ok] {out.relative_to(ROOT)} e {out_var.relative_to(ROOT)} (HotSpot >=0.5 C; gate=12 sem consecutivas; janela=12 sem)")
-
-
 def build_map_cache(force: bool) -> None:
     MAPC.mkdir(parents=True, exist_ok=True)
     jobs = [(y, m) for y in range(1991, 2021) for m in (11, 12)] + PEAKS
@@ -201,7 +150,6 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--force", action="store_true", help="refaz mesmo se ja existir")
     args = ap.parse_args()
-    build_dhw(args.force)
     build_atlantic_and_band(args.force)
     build_ssh_events(args.force)
     build_map_cache(args.force)

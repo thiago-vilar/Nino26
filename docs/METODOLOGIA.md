@@ -79,9 +79,8 @@ diarias ja processadas:
 - D20 e tendencia da termoclina.
 - OHC por camadas.
 - WWV.
-- SSH/SSS quando disponiveis.
+- SSH quando disponivel.
 - Tilt da termoclina e slope.
-- DHW como acumulacao diaria antes de reducao semanal.
 
 O objetivo e produzir um parecer fisico auditavel sobre formacao, memoria,
 persistencia e pico do sinal Nino 3.4. O resultado nao e um preditor para ML; e

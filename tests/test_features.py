@@ -16,7 +16,6 @@ if str(SRC) not in sys.path:
 
 from nino_brasil.data.anomalies import daily_anomaly, fit_daily_climatology, standardized_anomaly
 from nino_brasil.features.distributions import fit_power_law_tail
-from nino_brasil.features.dhw import degree_heating_weeks, equatorial_dhw_indices, thermal_window_mean
 from nino_brasil.features.nino import (
     atl3_sst_index,
     atl4_sst_index,
@@ -234,86 +233,6 @@ class FeatureTests(unittest.TestCase):
         atl = tropical_atlantic_sst_indices(sst)
         self.assertTrue({"atl3_sst", "atl4_sst", "tna_sst", "tsa_sst"}.issubset(set(atl.data_vars)))
         self.assertAlmostEqual(float(iod_sst_index(sst)), -40.0, places=6)
-
-    def test_degree_heating_weeks_accumulates_daily_hotspots_as_c_weeks(self) -> None:
-        time = pd.date_range("2001-01-01", periods=14, freq="D")
-        ssta = xr.DataArray(np.full(time.size, 2.0), coords={"time": time}, dims=("time",))
-
-        dhw = degree_heating_weeks(ssta, threshold_c=1.0, window_weeks=2)
-
-        self.assertTrue(np.isnan(float(dhw.isel(time=12))))
-        self.assertAlmostEqual(float(dhw.isel(time=13)), 4.0)
-        self.assertEqual(dhw.attrs["units"], "degree_C_weeks")
-        self.assertEqual(dhw.attrs["hotspot_rule"], "SSTA if SSTA >= threshold_c else 0")
-
-    def test_degree_heating_weeks_can_require_consecutive_hotspot_gate(self) -> None:
-        time = pd.date_range("2001-01-01", periods=21, freq="D")
-        values = np.r_[np.full(13, 2.0), 0.0, np.full(7, 2.0)]
-        ssta = xr.DataArray(values, coords={"time": time}, dims=("time",))
-
-        dhw = degree_heating_weeks(
-            ssta,
-            threshold_c=1.0,
-            window_weeks=2,
-            require_consecutive_weeks=2,
-        )
-
-        self.assertTrue(np.isnan(float(dhw.isel(time=12))))
-        self.assertEqual(float(dhw.isel(time=13)), 0.0)
-        self.assertEqual(float(dhw.isel(time=20)), 0.0)
-        self.assertEqual(dhw.attrs["require_consecutive_weeks"], 2)
-
-        continuous = xr.DataArray(np.full(14, 2.0), coords={"time": time[:14]}, dims=("time",))
-        gated = degree_heating_weeks(
-            continuous,
-            threshold_c=1.0,
-            window_weeks=2,
-            require_consecutive_weeks=2,
-        )
-        self.assertAlmostEqual(float(gated.isel(time=13)), 4.0)
-
-    def test_thermal_window_mean_uses_same_12_week_basis(self) -> None:
-        time = pd.date_range("2001-01-01", periods=14, freq="D")
-        ssta = xr.DataArray(np.arange(time.size, dtype=float), coords={"time": time}, dims=("time",))
-
-        mean = thermal_window_mean(ssta, window_weeks=2)
-
-        self.assertTrue(np.isnan(float(mean.isel(time=12))))
-        self.assertAlmostEqual(float(mean.isel(time=13)), 6.5)
-
-    def test_equatorial_dhw_indices_emit_expected_weekly_boxes(self) -> None:
-        time = pd.date_range("2001-01-01", periods=21, freq="D")
-        lat = np.array([-5.0, 0.0, 5.0])
-        lon = np.array([120.0, 180.0, 205.0, 240.0, 280.0])
-        values = np.full((time.size, lat.size, lon.size), 2.0)
-        ssta = xr.DataArray(values, coords={"time": time, "lat": lat, "lon": lon}, dims=("time", "lat", "lon"))
-
-        ds = equatorial_dhw_indices(ssta, threshold_c=1.0, window_weeks=2)
-
-        self.assertIn("equatorial_guide_dhw_2w", ds)
-        self.assertIn("west_equatorial_guide_dhw_2w", ds)
-        self.assertIn("east_equatorial_guide_dhw_2w", ds)
-        self.assertGreaterEqual(ds.sizes["time"], 3)
-
-    def test_equatorial_dhw_accumulates_daily_before_weekly_reduction(self) -> None:
-        time = pd.date_range("2001-01-01", periods=14, freq="D")
-        lat = np.array([-5.0, 0.0, 5.0])
-        lon = np.array([190.0, 215.0, 240.0])
-        values = np.zeros((time.size, lat.size, lon.size), dtype=float)
-        values[6, :, :] = 8.0
-        ssta = xr.DataArray(values, coords={"time": time, "lat": lat, "lon": lon}, dims=("time", "lat", "lon"))
-
-        ds = equatorial_dhw_indices(ssta, threshold_c=1.0, window_weeks=1, weekly_reduction="max")
-
-        weekly_peak = float(ds["nino34_dhw_1w"].max(skipna=True))
-        self.assertAlmostEqual(weekly_peak, 8.0 / 7.0)
-        self.assertEqual(
-            ds["nino34_dhw_1w"].attrs["accumulation_resolution"],
-            "native_daily_before_weekly_resample",
-        )
-
-
-
 
 class LongitudeBoundaryRegressionTests(unittest.TestCase):
     def test_atl3_on_offset_grid_without_lon_zero_cell(self) -> None:

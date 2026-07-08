@@ -5,7 +5,7 @@ Substitui e consolida: parecer da Fase 3 e recomendacoes por escrito.
 ## 1. Escala Temporal Da Fase 3
 
 A Fase 3 passa a ter **escala operacional semanal**. A matriz principal,
-correlacoes, persistencia, DHW e checagens fisicas sao calculados por semana
+correlacoes, persistencia e checagens fisicas sao calculados por semana
 (`week_ending_sunday`). A escala mensal continua apenas para:
 
 - resumir a propria SSTA OISST diaria baixada;
@@ -17,11 +17,8 @@ Janelas:
 | Escopo | Janela | Uso |
 |---|---|---|
 | Comum da Fase 3 | 1993-presente | Compara superficie e subsuperficie na mesma base, limitada por GLORYS12 |
-| So superficie | 1982-presente | Sensibilidade OISST/SSTA/DHW sem subsuperficie |
+| So superficie | 1982-presente | Sensibilidade OISST/SSTA sem subsuperficie |
 | Estabilidade | 1993-2009 e 2010-presente | Testa mudanca de regime/lead |
-
-DHW so e valido apos a janela de acumulacao. No caso padrao de 12 semanas, a
-serie efetiva comeca cerca de 3 meses apos o primeiro dado.
 
 ## 2. Perguntas Dos Notebooks
 
@@ -32,19 +29,17 @@ fisicas sao defensaveis em um parecer auditavel.
 
 | Notebook | Pergunta | Metodo | Saida de decisao |
 |---|---|---|---|
-| **3A - Indices** | Quais series fisicas descrevem o sistema ENOS? | Matriz semanal de SSTA, WWV, D20, OHC, termoclina, SSH, DHW C-week >=0,5 C e `tau_x_anom`. | `indices_semanais` com cobertura, fonte e unidade. |
+| **3A - Indices** | Quais series fisicas descrevem o sistema ENOS? | Matriz semanal de SSTA, WWV, D20, OHC, termoclina, SSH e `tau_x_anom`. | `indices_semanais` com cobertura, fonte e unidade. |
 | **3B - Alvo** | Como os eventos nascem, crescem, atingem pico e decaem? | Eventos mensais derivados da SSTA OISST local, trajetoria semanal do Nino 3.4, taxas de crescimento/decaimento e persistencia. | Tabela de eventos, fases do evento e matriz de memoria. |
 | **3C - Precursores** | O que antecede o pico do Nino 3.4? | Correlacoes defasadas semanais, preditor liderando, lags 0-78 semanas. | Ranking preliminar de lead e forca. |
 | **3D - Rigor** | O que sobrevive estatisticamente? | `N_eff`, teste-t, IC95 Fisher-z e FDR sobre o conjunto total de testes. | Ranking filtrado por significancia robusta. |
 | **3E - Estabilidade** | O sinal vale antes e depois da mudanca recente de regime? | Repetir 3C/3D em 1993-2009 e 2010-presente. | Apenas relacoes estaveis seguem para o parecer final. |
-| **3F - DHW + Kelvin** | Calor superficial integrado acrescenta leitura fisica alem de SSTA e WWV/OHC? | HotSpots diarios -> DHW diario -> reducao semanal; redundancia contra SSTA/WWV/OHC e Hovmoller D20/SSH para direcao Kelvin. | DHW entra no parecer apenas se tiver coerencia fisica e nao for redundante. |
+| **3F - Kelvin/SLA** | A dinamica equatorial mostra propagacao compativel com ondas Kelvin? | Hovmoller SLA/SSH e `tau_x_anom` por janela de evento. | Evidencia dinamica entra como diagnostico fisico, nao como detector automatico. |
 
 **Regra de corte:** so entra no parecer final da Fase 3 o que sobrevive a D **e** E.
-Para DHW, ha uma regra extra: so entra se a leitura fisica nao for redundante com
-SSTA e com o estado de recarga WWV/OHC.
+O 3F e evidencia dinamica qualitativa; nao cria variavel preditora nova.
 
-**Limite de escopo:** o projeto ativo para na Fase 3. O antigo apendice DHW fica
-absorvido como **3F**. Nao ha etapa ativa de ML, redes neurais ou teleconexao
+**Limite de escopo:** o projeto ativo para na Fase 3. Nao ha etapa ativa de ML, redes neurais ou teleconexao
 Brasil neste recorte.
 
 ## 3. Regioes
@@ -71,56 +66,27 @@ executiva.
 8. **Estabilidade (E):** repetir correlacoes defasadas por subperiodo; mudanca no lead do WWV reproduz McPhaden (2012) e entra como limite fisico do parecer.
 9. **Colinearidade:** D20 ~= OHC ~= WWV ~= SSH/tilt em parte do sinal; escolher representantes por estabilidade estatistica e interpretabilidade fisica, sem contar o mesmo bloco como evidencias independentes.
 
-## 5. Notebook 3F - Hipotese DHW E Ondas De Kelvin
+## 5. Notebook 3F - Ondas De Kelvin Por SLA/SSH E Vento
 
-O DHW (Degree Heating Weeks) e a acumulacao, em C-semana, de anomalias de TSM
-acima de um limiar dentro de uma janela movel. A hipotese testada nao e "SST
-importa"; e se **calor de superficie integrado no tempo** adiciona informacao
-alem de SSTA instantanea e do bloco de recarga WWV/OHC.
+A hipotese testada em 3F e dinamica: se a banda equatorial mostra faixas de SLA
+positivo propagando de oeste para leste, coerentes com ondas Kelvin de
+downwelling, e se essa leitura e acompanhada por anomalias de oeste em
+`tau_x_anom`.
 
-### 5.1 Construir O Indice DHW Da Via Equatorial
+### 5.1 Hovmoller SLA/SSH
 
-- Ordem obrigatoria: calcular HotSpots e DHW na resolucao diaria; so depois
-  reduzir para a semana canonica de 7 dias.
-- Caixa principal: Nino 3.4 (5N-5S, 170W-120W); mapas longitudinais usam a
-  banda diagnostica 2S-2N, 120E-80W.
-- Metrica publicada unica: `dhw_cweek_0p5_12w`.
-- Limiar: HotSpot diario entra no somatorio apenas quando SSTA Nino 3.4 >= +0,5 C.
-- Janela: 12 semanas para preservar a leitura C-week de calor recente; a
-  validacao temporal auxiliar exige media movel de 12 semanas >= +0,5 C por
-  20 semanas consecutivas; nao publicar janelas concorrentes na Fase 3.
-- Unidade: C-semana.
+- Usar SSH/SLA na faixa equatorial 2S-2N, 120E-80W.
+- Mostrar longitude oficial 120E -> 80W; Nino 3.4 sombreado em 170W-120W.
+- Remover a media da janela por longitude para destacar SLA local.
+- Interpretar faixas inclinadas oeste->leste como evidencia qualitativa de
+  propagacao Kelvin.
 
-Formula operacional:
+### 5.2 Coerencia Com Vento
 
-```text
-DHW_diario(t) = soma_movel(SSTA_diaria(t) se SSTA_diaria(t) >= 0,5 C, senao 0, janela_dias) / 7
-DHW_semanal = max_ou_media_semanal(DHW_diario)
-```
-
-### 5.2 Correlacao Parcial Contra Preditores Estabelecidos
-
-Teste principal:
-
-```text
-DHW(t) -> pico futuro do Nino 3.4
-controlando por WWV e SSTA instantanea
-```
-
-Se a correlacao parcial desaparece, DHW e redundante com recarga/SSTA. Se
-sobrevive a `N_eff`, IC95 e FDR, ele e candidato a sinal novo.
-
-### 5.3 Redundancia Contra SSTA E Recarga
-
-Sem ML neste escopo. O DHW e avaliado como diagnostico fisico: ele precisa ter
-temporizacao coerente, nao ser apenas uma reembalagem da SSTA instantanea, e nao
-contradizer o estado de recarga indicado por WWV/OHC.
-
-### 5.4 Direcao Causal Com Ondas De Kelvin
-
-- DHW oeste deve anteceder atividade de Kelvin/downwelling se for precursor.
-- DHW leste seguindo a chegada da onda indica consequencia, nao causa.
-- Controlar rajadas de vento de oeste (`WWB`) e estado atual da termoclina.
+- `tau_x_anom` positivo indica anomalia de oeste no proxy local.
+- A leitura e mais forte quando SLA positivo no centro-leste aparece junto de
+  anomalias de oeste antes/durante o crescimento do evento.
+- O resultado e diagnostico fisico, nao uma declaracao operacional automatica.
 
 ## 6. Testes De Sanidade
 
@@ -129,8 +95,8 @@ Falha nesses itens e tratada como bug de pipeline antes de virar interpretacao c
 1. Lead otimo WWV -> Nino 3.4 em aproximadamente 6-9 meses; WWV-W > WWV total.
 2. Persistencia despenca cruzando maio-junho.
 3. `tau_x_anom` deve ser interpretado como vento/acoplamento, nao como definicao de El Nino.
-4. DHW de 12 semanas so tem valor valido apos 12 semanas de acumulacao.
-5. DHW so e aceito no parecer se acrescentar leitura fisica nao redundante sobre SSTA e WWV/OHC.
+4. Mapas longitudinais devem manter longitude oficial 120E -> 80W, com Nino 3.4 sombreado.
+5. A evidencia de Kelvin deve ser descrita como qualitativa/diagnostica.
 
 ## 7. Saidas Auditaveis
 
@@ -146,10 +112,6 @@ data/processed/parquet/features/phase3_eventos.csv
 data/processed/parquet/features/phase3_persistencia_semanal.csv
 data/processed/parquet/features/phase3_fases_recarga.csv
 data/processed/parquet/features/phase3_estabilidade_subperiodos.csv
-data/processed/parquet/features/phase3f_dhw_indices_semanais.csv
-data/processed/parquet/features/phase3f_dhw_partial_correlations.csv
-data/processed/parquet/features/phase3f_dhw_redundancy_checks.csv
-data/processed/parquet/features/phase3f_dhw_physical_incremental_summary.csv
 data/processed/parquet/features/phase3f_kelvin_leadlag.csv
 data/processed/parquet/features/nino34_monthly_oisst.csv
 data/processed/parquet/statistics/phase3C_lag_correlacoes.csv

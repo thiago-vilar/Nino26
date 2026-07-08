@@ -24,7 +24,7 @@ sequencia cresce (`3A2`, `3A3` etc.). O catalogo interpretativo fica em
 ```
 
 `fase3_build_inputs.py` materializa banda equatorial por longitude, SSH de
-eventos, DHW diario canonico e o cache de mapas. Use
+eventos e o cache de mapas. Use
 `--force` quando OISST/oceano forem atualizados.
 
 Execucao headless completa:
@@ -42,14 +42,14 @@ Execucao headless completa:
 | 3C | O que antecede o pico do Nino 3.4, e com quantas semanas? | ranking preliminar de lags, heatmap, mapa lon x lag |
 | 3D | O que sobrevive a N_eff + FDR + IC95? | testes completos, ranking significativo, forest plot, mapa FDR |
 | 3E | O sinal vale em 1993-2009 E 2010-presente? | tabela de estabilidade, scatter r1 x r2, mapas por subperiodo |
-| 3F | DHW agrega leitura alem de SSTA/WWV/OHC? Kelvin e visivel? | correlacao parcial por horizonte, Hovmoller SSH |
-| 3G | (extra) Como o ciclo de vida se relaciona com o DHW C-week? | metricas por fase de evento, composto SSTA/DHW por classe NOAA, escalonamento, mapa DHW-lon |
+| 3F | Kelvin e visivel na dinamica SLA/SSH + vento? | Hovmoller SLA/SSH, resumo por evento e tau_x |
+| 3G | (extra) Como SSTA por classe se organiza e como 2025/26 se compara? | composto SSTA por classe, escalonamento termico, mapa SSTA-lon |
 | 3H | (extra) Que estado fisico precede o onset? A genese separa classes NOAA? | compostos onset-alinhados por classe, retrato precursor por classe, separacao Spearman |
 | 3K | (extra) Quais variaveis explicam o crescimento pre-pico? | PCA, loadings e conjunto indispensavel para crescimento |
 | 3I | Qual e a interpretacao integrada da Fase 3? Como ler classes NOAA e 2026? | conclusoes executivas, classificacao NOAA, medias por classe, nested LOO, estado 2026, texto para parecer |
 
 **Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
-O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada;
+O 3F e diagnostico dinamico de Kelvin; o 3G caracteriza o alvo termico SSTA;
 o 3I consolida a interpretacao, mas nao cria evidencia nova.
 
 ## Referencias oficiais de longitude
@@ -67,13 +67,6 @@ esquerda = Pacifico oeste (120E), centro = longitudes Nino 3.4 (170W-120W),
 direita = Pacifico leste (80W). A notacao interna de arquivos pode usar
 longitude numerica continua, mas relatorios e figuras devem mostrar apenas W/E.
 
-## DHW
-
-O DHW canonico da Fase 3 e `dhw_cweek_0p5_12w`: soma em C-weeks apenas dos
-HotSpots diarios com SSTA Nino 3.4 >= +0,5 C, acumulados em janela movel de 12
-semanas. A validacao termica auxiliar exige `oni_12w_mean_c >= +0,5 C` por pelo
-menos 20 semanas consecutivas. A Fase 3 nao publica janelas DHW concorrentes.
-
 Classificacao executiva: evento El Nino exige media movel de 3 meses da SSTA
 Nino 3.4 >= +0,5 C por 5 estacoes moveis sobrepostas. A intensidade e o pico
 dessa media: `fraco` [0,5;1,0), `moderado` [1,0;1,5), `forte` [1,5;2,0) e
@@ -82,7 +75,7 @@ principalmente `tau_x_anom_nino34_pa`; a declaracao oficial continua sendo
 competencia do CPC/NOAA.
 
 As tabelas de referencia ficam em `phase3B_grupos_classes_noaa.csv`,
-`phase3G_composto_ssta_dhw_classes_noaa.csv`,
+`phase3G_composto_ssta_classes_noaa.csv`,
 `phase3H_grupos_classes_noaa.csv` e `phase3I_classificacao_noaa_oni.csv`.
 
 ## Vento

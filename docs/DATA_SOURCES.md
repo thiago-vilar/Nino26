@@ -86,24 +86,6 @@ como indice da Atlantic Nino/cold tongue e como candidato principal entre
 ATL3/ATL4 para precursores ENSO; ATL4 fica como sensibilidade e controle
 regional.
 
-### 2.5 DHW da via equatorial
-
-Uso: testar se o calor superficial acumulado em escala semanal adiciona
-informacao a SSTA instantanea e ao bloco de recarga WWV/OHC.
-
-```text
-Nino 3.4: 5S-5N, 170W-120W
-Nino 4: 5S-5N, 160E-150W
-Guia equatorial: 2S-2N, 120E-80W
-Guia oeste/leste: corte em 155W
-```
-
-DHW e derivado do OISST/SSTA diario, em C-semana, com janela padrao de 12
-semanas e sensibilidades de 26 e 52 semanas. A ordem e obrigatoria: calcular
-HotSpots e acumular o DHW na resolucao diaria; so depois reduzir para a semana
-canonica de 7 dias por maximo ou media, conforme o alvo. A serie so e valida
-apos completar a janela de acumulacao.
-
 ## 3. Estrutura local
 
 ```text
