@@ -160,3 +160,24 @@ def save_fig(fig, name: str) -> Path:
     fig.savefig(path, dpi=150, bbox_inches="tight")
     print(f"[figura] {path.relative_to(ROOT)}")
     return path
+
+
+# Metadados canonicos das caixas geograficas (fonte: configs/project.yaml)
+CAIXAS = {
+    "nino34": "Nino 3.4 (5S-5N, 170W-120W)",
+    "equatorial": "Pacifico equatorial (2S-2N, 120E-280E)",
+}
+
+
+def stamp_caption(fig, *, variavel, area, periodo, fonte, n=None, extra=None):
+    """Carimba rodape descritivo padrao em qualquer figura da Fase 3.
+
+    variavel: nome+unidade; area: usar CAIXAS['nino34'/'equatorial'] ou texto;
+    periodo: janela temporal; fonte: origem do dado; n: amostras/eventos.
+    """
+    partes = [f"Variavel: {variavel}", f"Area: {area}", f"Periodo: {periodo}", f"Fonte: {fonte}"]
+    if n:
+        partes.append(f"n={n}")
+    if extra:
+        partes.append(extra)
+    fig.text(0.5, -0.04, " | ".join(partes), ha="center", va="top", fontsize=6.5, color="#444", wrap=True)
