@@ -58,15 +58,15 @@ eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 | Notebook | Pergunta | Decisao |
 |---|---|---|
 | 3A | Quais series fisicas existem e em que janela real? | Variavel com baixa cobertura ou fonte emendada entra com ressalva. |
-| 3B | Como eventos crescem, picam e decaem? | O e-folding da SSTA define o baseline de persistencia. |
+| 3B | Como eventos crescem, picam e decaem? | Leia sempre as 3 medias: P90 forte, P95 super e todos >P90; o e-folding da SSTA define o baseline de persistencia. |
 | 3C | Quais variaveis parecem liderar o Nino 3.4? | Triagem; nao cite como evidencia final. |
 | 3D | O que sobrevive a N_eff, IC95 e FDR? | Primeiro filtro para o parecer. |
 | 3E | O que e estavel em 1993-2009 e 2010-presente? | Segundo filtro; instavel vira limite de regime. |
 | 3F | DHW tem informacao propria? Kelvin aparece? | DHW so entra se parcial sobreviver; Kelvin e leitura qualitativa. |
-| 3G | DHW mede severidade acumulada? | Use somente `dhw_cweek_p90` por evento. |
-| 3H | A genese separa `forte_p90` de `super_p95`? | Descritivo; prepara hipoteses para Fase 5. |
+| 3G | DHW mede severidade acumulada? | Use somente `dhw_cweek_p90` e compare as 3 medias de evento. |
+| 3H | A genese separa `forte_p90` de `super_p95`? | Descritivo nas 3 medias; prepara hipoteses para Fase 5. |
 | 3K | Quais variaveis explicam crescimento pre-pico? | Sintese multivariada; nao substitui 3D/3E. |
-| 3I | Qual e o veredito integrado? | Texto e tabelas finais para o parecer. |
+| 3I | Qual e o veredito integrado? | Texto e tabelas finais, incluindo as 3 medias executivas. |
 
 Referencias oficiais NOAA/CPC usadas na leitura:
 
@@ -99,9 +99,17 @@ data\processed\parquet\statistics\phase3I_picos_p90_p95_comparacao.csv
 
 Use `forte_p90` para eventos com pico mensal >P90 e <P95. Use `super_p95`
 para eventos com pico mensal >P95. Eventos abaixo ou iguais a P90 ficam
-registrados em tabela de descarte, mas nao entram em compostos por classe. A
-media executiva dos eventos >P90 fica em
-`data\processed\parquet\statistics\phase3I_media_eventos_gt_p90.csv`.
+registrados em tabela de descarte, mas nao entram em compostos por classe.
+
+Regra fixa de leitura por medias/compostos, nesta ordem:
+
+1. `forte_p90`: media dos eventos P90 forte (>P90 e <P95).
+2. `super_p95`: media dos eventos P95 super (>P95).
+3. `eventos_gt_p90`: media conjunta de todos os eventos >P90.
+
+A tabela final fica em
+`data\processed\parquet\statistics\phase3I_tres_medias_elnino.csv`; o arquivo
+`phase3I_media_eventos_gt_p90.csv` permanece por compatibilidade.
 
 ## 7. Vento e tau_x
 

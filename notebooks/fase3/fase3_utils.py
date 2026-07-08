@@ -114,6 +114,63 @@ def events_p90_p95() -> pd.DataFrame:
     return add_p90_p95_classification(load_events()).query("elegivel_p90_p95").copy()
 
 
+ELNINO_MEAN_GROUPS = (
+    {
+        "grupo": "forte_p90",
+        "rotulo_curto": "P90 forte",
+        "rotulo": "Media P90 forte (>P90 e <P95)",
+        "definicao": "eventos com pico mensal >P90 e <P95",
+        "color": "#e65100",
+        "linestyle": "--",
+        "linewidth": 1.7,
+    },
+    {
+        "grupo": "super_p95",
+        "rotulo_curto": "P95 super",
+        "rotulo": "Media P95 super (>P95)",
+        "definicao": "eventos com pico mensal >P95",
+        "color": "#b71c1c",
+        "linestyle": "--",
+        "linewidth": 1.7,
+    },
+    {
+        "grupo": "eventos_gt_p90",
+        "rotulo_curto": "Todos >P90",
+        "rotulo": "Media todos os El Ninos >P90",
+        "definicao": "todos os eventos elegiveis acima do P90, combinando forte_p90 e super_p95",
+        "color": "#111827",
+        "linestyle": "-",
+        "linewidth": 2.4,
+    },
+)
+ELNINO_MEAN_GROUP_ORDER = tuple(item["grupo"] for item in ELNINO_MEAN_GROUPS)
+
+
+def elnino_mean_group_table() -> pd.DataFrame:
+    """Tabela de referencia das tres medias executivas solicitadas."""
+    return pd.DataFrame(ELNINO_MEAN_GROUPS).copy()
+
+
+def elnino_mean_groups(events: pd.DataFrame | None = None) -> dict[str, pd.DataFrame]:
+    """Retorna as tres medias executivas sempre na ordem P90, P95, todos >P90."""
+    ev = events_p90_p95() if events is None else events.copy()
+    return {
+        "forte_p90": ev.query("classe_p90_p95 == 'forte_p90'").copy(),
+        "super_p95": ev.query("classe_p90_p95 == 'super_p95'").copy(),
+        "eventos_gt_p90": ev.copy(),
+    }
+
+
+def elnino_group_style(group: str) -> dict:
+    row = elnino_mean_group_table().set_index("grupo").loc[group]
+    return row.to_dict()
+
+
+def elnino_group_label(group: str, *, short: bool = False) -> str:
+    row = elnino_group_style(group)
+    return str(row["rotulo_curto" if short else "rotulo"])
+
+
 def load_eqband_weekly() -> pd.DataFrame:
     df = pd.read_parquet(FEAT / "equatorial_pacific_ssta_weekly_by_lon.parquet")
     df.index = pd.to_datetime(df.index)

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 import matplotlib
+import pandas as pd
 
 
 matplotlib.use("Agg")
@@ -64,6 +65,29 @@ class Phase3ScopeTests(unittest.TestCase):
             self.assertEqual([tick.get_text() for tick in ax.get_xticklabels()], ["120E", "160E", "160W", "120W", "80W"])
         finally:
             plt.close(fig)
+
+    def test_phase3_elnino_mean_groups_are_fixed_and_ordered(self) -> None:
+        self.assertEqual(
+            self.u.ELNINO_MEAN_GROUP_ORDER,
+            ("forte_p90", "super_p95", "eventos_gt_p90"),
+        )
+        table = self.u.elnino_mean_group_table()
+        self.assertEqual(table["grupo"].tolist(), list(self.u.ELNINO_MEAN_GROUP_ORDER))
+        self.assertIn(">P90 e <P95", table.loc[table["grupo"] == "forte_p90", "definicao"].iloc[0])
+        self.assertIn(">P95", table.loc[table["grupo"] == "super_p95", "definicao"].iloc[0])
+
+    def test_phase3_elnino_mean_groups_include_classes_and_gt90_mean(self) -> None:
+        events = pd.DataFrame(
+            {
+                "event_id": ["a", "b", "c"],
+                "classe_p90_p95": ["forte_p90", "super_p95", "forte_p90"],
+            }
+        )
+        groups = self.u.elnino_mean_groups(events)
+        self.assertEqual(list(groups), list(self.u.ELNINO_MEAN_GROUP_ORDER))
+        self.assertEqual(groups["forte_p90"]["event_id"].tolist(), ["a", "c"])
+        self.assertEqual(groups["super_p95"]["event_id"].tolist(), ["b"])
+        self.assertEqual(groups["eventos_gt_p90"]["event_id"].tolist(), ["a", "b", "c"])
 
 
 if __name__ == "__main__":
