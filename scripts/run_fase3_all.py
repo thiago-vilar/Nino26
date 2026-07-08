@@ -28,6 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--timeout", type=int, default=7200)
     parser.add_argument("--kernel", default="python3")
+    parser.add_argument("--skip-report", action="store_true",
+                        help="nao gerar RELATORIO_FINAL_FASE3.md apos os notebooks")
     args = parser.parse_args(argv)
 
     t0 = time.time()
@@ -50,6 +52,9 @@ def main(argv: list[str] | None = None) -> int:
             str(nb),
         ]
         subprocess.run(command, cwd=ROOT, check=True)
+    if not args.skip_report:
+        print(">>> generate_phase3_report.py", flush=True)
+        subprocess.run([sys.executable, "scripts/generate_phase3_report.py"], cwd=ROOT, check=True)
     print(f"Fase 3 completa em {time.time() - t0:.0f}s")
     return 0
 

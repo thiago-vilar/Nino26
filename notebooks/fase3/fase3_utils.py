@@ -427,6 +427,238 @@ def weekly_longitude_dhw_after_12w(eq_weekly: pd.DataFrame, *, threshold: float 
     return out
 
 
+def peak_precursor_value(weekly: pd.DataFrame, var: str, peak_time, lead_weeks: int, halfwin: int = 2) -> float:
+    """Valor do precursor `var` centrado `lead_weeks` semanas antes do pico (media +-halfwin semanas)."""
+    idx = weekly.index
+    target = pd.to_datetime(peak_time) - pd.Timedelta(weeks=int(lead_weeks))
+    i = idx.get_indexer([target], method="nearest")[0]
+    lo, hi = max(0, i - halfwin), min(len(idx), i + halfwin + 1)
+    return float(weekly[var].iloc[lo:hi].mean())
+
+
+def loo_peak_hindcast(weekly: pd.DataFrame, events: pd.DataFrame, spec: dict[str, int],
+                      target_col: str = "peak_oni_local_c"):
+    """Hindcast leave-one-event-out (LOO) do pico ONI local.
+
+    spec = {variavel: lead_semanas}. Para cada evento, ajusta OLS nos demais
+    eventos e preve o pico do evento deixado de fora. Baseline honesto =
+    climatologia LOO (media dos picos dos eventos de treino). Retorna
+    (DataFrame por evento, dict de metricas). Sem ML pesado: regressao linear.
+    """
+    import numpy as np
+    ev = events.reset_index(drop=True)
+    X = np.column_stack([
+        [peak_precursor_value(weekly, v, p, L) for p in ev["peak_time"]]
+        for v, L in spec.items()
+    ])
+    y = ev[target_col].astype(float).values
+    ok = np.isfinite(X).all(axis=1) & np.isfinite(y)
+    pred = np.full(len(y), np.nan)
+    for i in range(len(y)):
+        if not ok[i]:
+            continue
+        tr = ok.copy(); tr[i] = False
+        A = np.column_stack([np.ones(int(tr.sum())), X[tr]])
+        beta, *_ = np.linalg.lstsq(A, y[tr], rcond=None)
+        pred[i] = float(np.concatenate(([1.0], X[i])) @ beta)
+    res = ev[["event_id", target_col]].copy().rename(columns={target_col: "oni_pico_obs_c"})
+    res["oni_pico_prev_loo_c"] = np.round(pred, 3)
+    m = np.isfinite(pred)
+    obs, prd = y[m], pred[m]
+    clim = np.array([float(np.mean(np.delete(obs, i))) for i in range(len(obs))])
+    r_loo = float(np.corrcoef(obs, prd)[0, 1]) if int(m.sum()) > 2 else float("nan")
+    mae = float(np.mean(np.abs(prd - obs)))
+    mae_clim = float(np.mean(np.abs(clim - obs)))
+    metrics = {
+        "n_eventos": int(m.sum()),
+        "r_loo": round(r_loo, 3),
+        "mae_loo_c": round(mae, 3),
+        "rmse_loo_c": round(float(np.sqrt(np.mean((prd - obs) ** 2))), 3),
+        "mae_climatologia_c": round(mae_clim, 3),
+        "skill_vs_climatologia": round(1.0 - mae / mae_clim, 3),
+        "residuo_std_c": round(float(np.std(prd - obs, ddof=1)), 3) if int(m.sum()) > 2 else float("nan"),
+    }
+    return res, metrics
+
+
+def _event_design_matrix(weekly: pd.DataFrame, events: pd.DataFrame, spec: dict[str, int],
+                         target_col: str = "peak_oni_local_c"):
+    import numpy as np
+
+    ev = events.reset_index(drop=True)
+    X = np.column_stack([
+        [peak_precursor_value(weekly, v, p, L) for p in ev["peak_time"]]
+        for v, L in spec.items()
+    ])
+    y = ev[target_col].astype(float).values
+    ok = np.isfinite(X).all(axis=1) & np.isfinite(y)
+    return ev, X, y, ok
+
+
+def candidate_peak_specs(*, horizons=(8, 12, 15, 20, 26)) -> list[dict]:
+    """Grade fisicamente pre-especificada para predizer pico ENSO.
+
+    Mantem poucos graus de liberdade por modelo (<=3 preditores) para n pequeno.
+    A selecao do melhor candidato deve ser avaliada por nested LOO, nao pelo
+    mesmo LOO usado para escolher o candidato.
+    """
+    blocks = [
+        ("ohc300", ["ohc_0_300"], "calor subsuperficial Nino 3.4"),
+        ("ssh", ["ssh_m"], "altura dinamica/proxy de recarga"),
+        ("tau_x", ["tau_x_anom_nino34_pa"], "acoplamento vento-superficie"),
+        ("d20", ["d20_m"], "profundidade da termoclina"),
+        ("tilt", ["tilt_m"], "inclinacao da termoclina"),
+        ("wwv", ["wwv"], "volume de agua quente Pacifico equatorial"),
+        ("recharge_core", ["ohc_0_300", "ssh_m", "d20_m"], "recarga subsuperficial compacta"),
+        ("recharge_tilt", ["ohc_0_300", "tilt_m", "d20_m"], "recarga + inclinacao"),
+        ("wind_recharge", ["ohc_0_300", "ssh_m", "tau_x_anom_nino34_pa"], "recarga + vento"),
+        ("wwv_recharge", ["ohc_0_300", "d20_m", "wwv"], "recarga + memoria basinwide"),
+    ]
+    rows = []
+    for H in horizons:
+        for name, variables, rationale in blocks:
+            rows.append({
+                "modelo": f"{name}_{int(H)}w",
+                "familia": name,
+                "horizonte_sem": int(H),
+                "variaveis": "+".join(variables),
+                "n_preditores": len(variables),
+                "racional": rationale,
+                "spec": {v: int(H) for v in variables},
+            })
+    return rows
+
+
+def select_best_spec_by_loo(weekly: pd.DataFrame, events: pd.DataFrame, candidates: list[dict],
+                            target_col: str = "peak_oni_local_c") -> tuple[dict, pd.DataFrame]:
+    """Seleciona candidato por LOO dentro do conjunto fornecido.
+
+    Uso correto: chamar esta funcao apenas dentro de um conjunto de treino, ou
+    depois de estimar o desempenho do procedimento por `nested_loo_peak_hindcast`.
+    """
+    import numpy as np
+
+    rows = []
+    for cand in candidates:
+        _, met = loo_peak_hindcast(weekly, events, cand["spec"], target_col=target_col)
+        row = {k: v for k, v in cand.items() if k != "spec"}
+        row.update(met)
+        row["spec"] = cand["spec"]
+        rows.append(row)
+    table = pd.DataFrame(rows)
+    table = table.replace([np.inf, -np.inf], np.nan)
+    table = table.sort_values(
+        ["skill_vs_climatologia", "mae_loo_c", "n_preditores", "modelo"],
+        ascending=[False, True, True, True],
+        na_position="last",
+    ).reset_index(drop=True)
+    return table.iloc[0].to_dict(), table
+
+
+def nested_loo_peak_hindcast(weekly: pd.DataFrame, events: pd.DataFrame, candidates: list[dict],
+                             target_col: str = "peak_oni_local_c"):
+    """Nested leave-one-event-out para avaliar selecao de modelo + regressao.
+
+    Loop externo: deixa um evento fora para teste. Loop interno: nos eventos de
+    treino, escolhe o melhor candidato por LOO. O skill final avalia o protocolo
+    completo de selecao + ajuste, reduzindo o vies otimista do "flat LOO".
+    """
+    import numpy as np
+
+    ev = events.reset_index(drop=True)
+    y_all = ev[target_col].astype(float).values
+    pred = np.full(len(ev), np.nan)
+    clim = np.full(len(ev), np.nan)
+    selected = []
+
+    for i in range(len(ev)):
+        train = ev.drop(index=i).reset_index(drop=True)
+        test = ev.iloc[[i]].reset_index(drop=True)
+        best, inner_table = select_best_spec_by_loo(weekly, train, candidates, target_col=target_col)
+        spec = best["spec"]
+        _, Xtr, ytr, oktr = _event_design_matrix(weekly, train, spec, target_col=target_col)
+        _, Xte, _, okte = _event_design_matrix(weekly, test, spec, target_col=target_col)
+
+        p = len(spec)
+        clim[i] = float(np.nanmean(ytr[oktr])) if oktr.any() else np.nan
+        if int(oktr.sum()) <= p + 1 or not bool(okte[0]):
+            selected.append({**{k: best[k] for k in best if k != "spec"}, "outer_event_id": ev.loc[i, "event_id"]})
+            continue
+
+        A = np.column_stack([np.ones(int(oktr.sum())), Xtr[oktr]])
+        beta, *_ = np.linalg.lstsq(A, ytr[oktr], rcond=None)
+        pred[i] = float(np.concatenate(([1.0], Xte[0])) @ beta)
+        sel = {k: best[k] for k in best if k != "spec"}
+        sel.update({
+            "outer_event_id": ev.loc[i, "event_id"],
+            "inner_best_skill": best.get("skill_vs_climatologia"),
+            "inner_rank_rows": len(inner_table),
+        })
+        selected.append(sel)
+
+    res = ev[["event_id", target_col]].copy().rename(columns={target_col: "oni_pico_obs_c"})
+    res["oni_pico_prev_nested_loo_c"] = np.round(pred, 3)
+    res["oni_pico_climatologia_treino_c"] = np.round(clim, 3)
+    selected_df = pd.DataFrame(selected)
+    if not selected_df.empty:
+        keep = ["outer_event_id", "modelo", "familia", "horizonte_sem", "variaveis", "n_preditores", "inner_best_skill"]
+        res = res.merge(selected_df[[c for c in keep if c in selected_df.columns]],
+                        left_on="event_id", right_on="outer_event_id", how="left").drop(columns=["outer_event_id"])
+
+    m = np.isfinite(pred) & np.isfinite(clim) & np.isfinite(y_all)
+    obs, prd, base = y_all[m], pred[m], clim[m]
+    r_loo = float(np.corrcoef(obs, prd)[0, 1]) if int(m.sum()) > 2 else float("nan")
+    mae = float(np.mean(np.abs(prd - obs))) if int(m.sum()) else float("nan")
+    mae_clim = float(np.mean(np.abs(base - obs))) if int(m.sum()) else float("nan")
+    metrics = {
+        "n_eventos": int(m.sum()),
+        "r_nested_loo": round(r_loo, 3),
+        "mae_nested_loo_c": round(mae, 3),
+        "rmse_nested_loo_c": round(float(np.sqrt(np.mean((prd - obs) ** 2))), 3) if int(m.sum()) else float("nan"),
+        "mae_climatologia_c": round(mae_clim, 3),
+        "skill_vs_climatologia": round(1.0 - mae / mae_clim, 3) if mae_clim and np.isfinite(mae_clim) else float("nan"),
+        "residuo_std_c": round(float(np.std(prd - obs, ddof=1)), 3) if int(m.sum()) > 2 else float("nan"),
+        "protocolo": "nested leave-one-event-out: inner LOO seleciona candidato; outer LOO avalia evento retido",
+    }
+    return res, metrics, selected_df
+
+
+def fit_and_project_peak(weekly: pd.DataFrame, events: pd.DataFrame, spec: dict[str, int],
+                         target_col: str = "peak_oni_local_c") -> dict:
+    """Ajusta OLS em TODOS os eventos e projeta o pico usando o estado mais recente.
+
+    A leitura e condicional: assume que os valores atuais das variaveis sao os
+    precursores de um pico ~lead semanas a frente. A incerteza deve vir do
+    residuo LOO correspondente (loo_peak_hindcast com o mesmo spec).
+    """
+    import numpy as np
+    ev = events.reset_index(drop=True)
+    X = np.column_stack([
+        [peak_precursor_value(weekly, v, p, L) for p in ev["peak_time"]]
+        for v, L in spec.items()
+    ])
+    y = ev[target_col].astype(float).values
+    ok = np.isfinite(X).all(axis=1) & np.isfinite(y)
+    A = np.column_stack([np.ones(int(ok.sum())), X[ok]])
+    beta, *_ = np.linalg.lstsq(A, y[ok], rcond=None)
+    latest = {}
+    for v in spec:
+        s = weekly[v].dropna()
+        latest[v] = float(s.iloc[-3:].mean())
+        last_week = s.index.max()
+    x_now = np.concatenate(([1.0], [latest[v] for v in spec]))
+    leads = list(spec.values())
+    return {
+        "pico_projetado_c": round(float(x_now @ beta), 3),
+        "ultima_semana_dado": str(pd.to_datetime(last_week).date()),
+        "antecedencia_min_sem": int(min(leads)),
+        "antecedencia_max_sem": int(max(leads)),
+        "janela_pico_projetada_ini": str((pd.to_datetime(last_week) + pd.Timedelta(weeks=min(leads))).date()),
+        "janela_pico_projetada_fim": str((pd.to_datetime(last_week) + pd.Timedelta(weeks=max(leads))).date()),
+        "valores_atuais": {v: round(latest[v], 4) for v in spec},
+    }
+
+
 def stamp_caption(fig, *, variavel, area, periodo, fonte, n=None, extra=None):
     partes = [f"Variavel: {variavel}", f"Area: {area}", f"Periodo: {periodo}", f"Fonte: {fonte}"]
     if n:

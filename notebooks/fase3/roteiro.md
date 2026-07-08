@@ -15,8 +15,9 @@ cd /d C:\DEV\NINO26
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3F_dhw_kelvin.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3G_ciclo_vida_dhw.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3H_genese_precursores_classe.ipynb --inplace --ExecutePreprocessor.timeout=1200
-.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3I_interpretacao_integrada.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3K_pca_crescimento.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3I_interpretacao_integrada.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python scripts\generate_phase3_report.py
 .venv\Scripts\python scripts\audit_phase3_temporal_integrity.py
 .venv\Scripts\python -m pytest -q
 ```
@@ -58,6 +59,14 @@ Use somente `dhw_cweek_0p5_12w`.
 | 3I | Sintese: quais variaveis antecipam o aquecimento maximo e como ler 2025/26. |
 | 3K | PCA para reduzir redundancia entre variaveis fisicas. |
 
+## Padrao de figuras
+
+Cada notebook gera ao menos uma figura padronizada em
+`data/processed/figures/fase3/`. A convencao e `3A1_...png`: Fase 3, notebook
+A, figura 1. Se o notebook precisar de mais imagens do mesmo subcontexto, use
+`3A2`, `3A3` etc. O indice completo e regenerado em
+`notebooks/fase3/INDICE_FIGURAS_FASE3.md`.
+
 ## Coordenadas
 
 Nos mapas e Hovmollers, o eixo x segue 120E -> 80W, oeste para leste:
@@ -69,5 +78,6 @@ sombreada em 170W-120W.
 O conjunto mais importante para antecipar o aquecimento maximo e o bloco de
 recarga/subsuperficie: D20, SSH, OHC, WWV e tilt. `tau_x_anom_nino34_pa` mede
 acoplamento vento-superficie. DHW confirma persistencia e severidade acumulada,
-mas nao e previsor longo isolado. A Fase 3 prepara a futura projecao do pico de
-2026; ela ainda nao entrega uma previsao numerica validada.
+mas nao e previsor longo isolado. A Fase 3 agora entrega uma projecao
+condicional exploratoria por nested LOO; a previsao operacional de timing +
+amplitude fica para a Fase 5.

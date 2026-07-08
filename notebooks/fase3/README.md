@@ -6,6 +6,12 @@ Todos os notebooks: (i) declaram a pergunta que respondem e a metodologia,
 (iii) gravam figuras e mapas em `data/processed/figures/fase3/`.
 Nenhuma figura sem saida numerica correspondente.
 
+Convencao das figuras: `3A1_...png` significa Fase 3, notebook A, figura 1.
+Quando um notebook precisa de mais de uma imagem para o mesmo subcontexto, a
+sequencia cresce (`3A2`, `3A3` etc.). O catalogo interpretativo fica em
+`INDICE_FIGURAS_FASE3.md` e o relatorio completo em
+`RELATORIO_FINAL_FASE3.md`.
+
 ## Pre-requisitos
 
 ```cmd
@@ -40,7 +46,7 @@ Execucao headless completa:
 | 3G | (extra) Como o ciclo de vida se relaciona com o DHW C-week? | metricas por fase de evento, composto SSTA/DHW por classe NOAA, escalonamento, mapa DHW-lon |
 | 3H | (extra) Que estado fisico precede o onset? A genese separa classes NOAA? | compostos onset-alinhados por classe, retrato precursor por classe, separacao Spearman |
 | 3K | (extra) Quais variaveis explicam o crescimento pre-pico? | PCA, loadings e conjunto indispensavel para crescimento |
-| 3I | Qual e a interpretacao integrada da Fase 3? Como ler classes NOAA e 2026? | conclusoes executivas, classificacao NOAA, medias por classe, estado 2026, texto para parecer |
+| 3I | Qual e a interpretacao integrada da Fase 3? Como ler classes NOAA e 2026? | conclusoes executivas, classificacao NOAA, medias por classe, nested LOO, estado 2026, texto para parecer |
 
 **Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
 O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada;

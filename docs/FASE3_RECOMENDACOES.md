@@ -134,11 +134,16 @@ Falha nesses itens e tratada como bug de pipeline antes de virar interpretacao c
 
 ## 7. Saidas Auditaveis
 
+Figuras da Fase 3 seguem a convencao `3A1_...png`: Fase 3, notebook A,
+figura 1. Quando um notebook precisa de mais imagens do mesmo subcontexto,
+incrementa-se o indice (`3A2`, `3A3`). O catalogo e o relatorio final ficam em
+`notebooks/fase3/INDICE_FIGURAS_FASE3.md` e
+`notebooks/fase3/RELATORIO_FINAL_FASE3.md`.
+
 ```text
 data/processed/parquet/features/phase3_indices_semanais.csv
 data/processed/parquet/features/phase3_eventos.csv
 data/processed/parquet/features/phase3_persistencia_semanal.csv
-data/processed/parquet/features/phase3_lag_correlacoes.csv
 data/processed/parquet/features/phase3_fases_recarga.csv
 data/processed/parquet/features/phase3_estabilidade_subperiodos.csv
 data/processed/parquet/features/phase3f_dhw_indices_semanais.csv
@@ -147,16 +152,47 @@ data/processed/parquet/features/phase3f_dhw_redundancy_checks.csv
 data/processed/parquet/features/phase3f_dhw_physical_incremental_summary.csv
 data/processed/parquet/features/phase3f_kelvin_leadlag.csv
 data/processed/parquet/features/nino34_monthly_oisst.csv
-data/processed/parquet/features/nino34_oisst_p90_peaks.csv
+data/processed/parquet/statistics/phase3C_lag_correlacoes.csv
 ```
 
-Campos minimos de `phase3_lag_correlacoes.csv`: `r`, `N`, `N_eff`, `p`, `p_FDR`, `IC95`.
-Nao ha saida de modelo, validacao preditiva ou metrica de habilidade neste escopo ativo.
+Campos minimos de `phase3C_lag_correlacoes.csv`: `r`, `N`, `N_eff`, `p`, `p_FDR`, `IC95`.
+
+### 7.1 Aferimento Preditivo (3I/3K)
+
+A Fase 3 encerra com aferimento preditivo exploratorio, sem ML pesado. O LOO
+simples continua como triagem por variavel, mas a selecao de modelo/horizonte
+passa a ser avaliada por **nested leave-one-event-out**: em cada evento externo,
+o loop interno escolhe o candidato apenas nos eventos de treino, e o loop externo
+mede o erro no evento retido. O baseline e climatologia LOO dos picos de treino;
+`skill = 1 - MAE_modelo/MAE_clim`. A projecao 2025/26 e condicional, nao
+operacional: assume que o estado recente representa um precursor a `H` semanas do
+pico. Saidas:
+
+```text
+data/processed/parquet/statistics/phase3I_skill_por_variavel.csv
+data/processed/parquet/statistics/phase3I_modelos_candidatos.csv
+data/processed/parquet/statistics/phase3I_skill_horizontes.csv
+data/processed/parquet/statistics/phase3I_nested_loo_eventos.csv
+data/processed/parquet/statistics/phase3I_nested_loo_metricas.csv
+data/processed/parquet/statistics/phase3I_nested_loo_selecao.csv
+data/processed/parquet/statistics/phase3I_projecao_pico_2026.csv
+data/processed/parquet/statistics/phase3K_previsao_pico_loo.csv
+data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_metricas.csv
+```
+
+Limites explicitos: n=12 eventos, IC95 indicativo; o hindcast e centrado em
+eventos e estima amplitude condicionada a um lead conhecido. A validacao
+walk-forward continua, a barreira de primavera, persistencia amortecida e
+previsao conjunta de timing + amplitude pertencem a Fase 5.
 
 ## 8. Referencias-Chave
 
 - Jin 1997 - oscilador de recarga.
 - Meinen & McPhaden 2000 - WWV e ENSO.
+- Barnston et al. 2012 (`doi:10.1175/BAMS-D-11-00111.1`) - skill de previsoes ENSO.
+- WMO SVSLRF - verificacao por hindcast, climatologia cross-validada e metricas de skill.
+- Ambroise & McLachlan 2002 - vies de selecao quando a escolha de variaveis fica fora da validacao.
+- Cawley & Talbot 2010 - overfitting na selecao de modelo e vies na avaliacao de desempenho.
 - McPhaden 2003; McPhaden 2012 (`doi:10.1029/2012GL051826`).
 - Zhao 2021 (`doi:10.1029/2021GL094366`).
 - Rodriguez-Fonseca 2009 (`doi:10.1029/2009GL040048`).
