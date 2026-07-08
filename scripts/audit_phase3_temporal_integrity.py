@@ -78,13 +78,13 @@ ARTIFACTS = [
     Artifact(
         "dhw_variantes_nino34",
         FEAT / "nino34_dhw_variants.csv",
-        "DHW 12/26 semanas com limiares 1C e P90",
+        "Variantes brutas de DHW; Fase 3 publica apenas dhw_cweek_p90",
         "time",
         "D",
         1,
         expected_start="1981-09-01",
         stale_after_days=21,
-        key_cols=("dhw_12w_p90", "dhw_26w_p90"),
+        key_cols=("dhw_12w_p90",),
     ),
     Artifact(
         "matriz_semanal_fase3",
@@ -95,7 +95,7 @@ ARTIFACTS = [
         7,
         expected_start="1981-01-04",
         stale_after_days=28,
-        key_cols=("nino34_ssta", "d20_m", "ohc_0_300", "wwv", "ssh_m", "dhw_12w", "dhw_26w_p90"),
+        key_cols=("nino34_ssta", "d20_m", "ohc_0_300", "wwv", "ssh_m", "dhw_cweek_p90"),
     ),
     Artifact(
         "pacifico_equatorial_lon_weekly",

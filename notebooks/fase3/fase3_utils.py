@@ -164,7 +164,7 @@ def weekly_matrix() -> pd.DataFrame:
     dhwv = load_dhw_variants()
     # DHW principal = acumulo de C-week a partir do limiar P90 diario (~1.07 C),
     # janela 12 semanas (decisao do usuario; substitui o limiar fixo 1.0 C herdado do CRW).
-    dhw = pd.DataFrame({"dhw_12w": dhwv["dhw_12w_p90"], "dhw_26w_p90": dhwv["dhw_26w_p90"]})
+    dhw = pd.DataFrame({"dhw_cweek_p90": dhwv["dhw_12w_p90"]})
     atmo = load_atmo()
     tau = tau_x_proxy(atmo["atm_10m_u_component_of_wind"]).to_frame()
     daily = base.join([dhw, tau], how="outer")
@@ -177,8 +177,7 @@ def sources_note() -> pd.DataFrame:
     return pd.DataFrame([
         ("nino34_ssta", "OISST v2.1 local", "1981-09+", "C"),
         ("d20_m / ohc_* / wwv / tilt_m / ssh_m / sss", "UFS 1981-92 (ponte) -> GLORYS12 1993+ -> GLO12 cauda", "sensibilidade 1993+", "m / J m-2 / m3 / m / m / psu"),
-        ("dhw_12w", "derivado da SSTA OISST (limiar P90 diario 1.07C, 12 sem)", "valido 1981-11+", "C-weeks"),
-        ("dhw_26w_p90", "derivado da SSTA OISST (limiar P90 diario 1.07C, 26 sem - escala do evento)", "valido 1982-03+", "C-weeks"),
+        ("dhw_cweek_p90", "derivado da SSTA OISST (limiar P90 diario 1.07C, acumulo 12 sem)", "valido 1981-11+", "C-weeks"),
         ("tau_x_proxy_nino34_pa", "ERA5 u10 caixa Nino 3.4 (proxy; protocolo pede Nino 4)", "1981+", "Pa"),
     ], columns=["variavel", "fonte", "janela_real", "unidade"])
 
@@ -221,6 +220,91 @@ CAIXAS = {
     "nino34": "Nino 3.4 (5S-5N, 170W-120W)",
     "equatorial": "Pacifico equatorial (2S-2N, 120E-280E)",
 }
+
+
+VAR_LABELS = {
+    "nino34_ssta": "SSTA Nino 3.4 (C)",
+    "d20_m": "D20 / profundidade da termoclina (m)",
+    "ohc_0_300": "OHC 0-300 m (J m-2)",
+    "ohc_0_700": "OHC 0-700 m (J m-2)",
+    "wwv": "WWV Pacifico equatorial (m3)",
+    "tilt_m": "Tilt da termoclina (m)",
+    "ssh_m": "SSH Nino 3.4 (m)",
+    "sss": "SSS Nino 3.4 (psu)",
+    "dhw_cweek_p90": "DHW C-week P90 (12 sem)",
+    "tau_x_proxy_nino34_pa": "tau_x proxy Nino 3.4 (Pa)",
+}
+
+VAR_SHORT = {
+    "nino34_ssta": "SSTA",
+    "d20_m": "D20",
+    "ohc_0_300": "OHC0-300",
+    "ohc_0_700": "OHC0-700",
+    "wwv": "WWV",
+    "tilt_m": "Tilt",
+    "ssh_m": "SSH",
+    "sss": "SSS",
+    "dhw_cweek_p90": "DHW C-week P90",
+    "tau_x_proxy_nino34_pa": "tau_x proxy",
+}
+
+
+def var_label(name: str, *, short: bool = False) -> str:
+    labels = VAR_SHORT if short else VAR_LABELS
+    return labels.get(name, name)
+
+
+def lon_label(lon: float) -> str:
+    lon = float(lon)
+    if lon == 180:
+        return "180"
+    if lon < 180:
+        return f"{int(round(lon))}E"
+    return f"{int(round(360 - lon))}W"
+
+
+def format_lon_axis(ax, *, xlabel: str = "Longitude (graus; 0-360)") -> None:
+    ticks = [120, 160, 190, 240, 280]
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([lon_label(t) for t in ticks], fontsize=8)
+    ax.set_xlabel(xlabel)
+
+
+def add_nino34_lon_band(ax, *, label: bool = True) -> None:
+    ax.axvspan(190, 240, color="#000000", alpha=0.06, lw=0)
+    ax.axvline(190, color="k", ls="--", lw=0.7)
+    ax.axvline(240, color="k", ls="--", lw=0.7)
+    if label:
+        ax.text(
+            215,
+            0.985,
+            "Nino 3.4\n190E-240E",
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            va="top",
+            fontsize=7,
+            bbox={"boxstyle": "round,pad=0.18", "facecolor": "white", "edgecolor": "none", "alpha": 0.72},
+        )
+
+
+def add_note(ax, text: str, *, loc: str = "lower right") -> None:
+    anchors = {
+        "lower right": (0.985, 0.02, "right", "bottom"),
+        "upper right": (0.985, 0.98, "right", "top"),
+        "lower left": (0.015, 0.02, "left", "bottom"),
+        "upper left": (0.015, 0.98, "left", "top"),
+    }
+    x, y, ha, va = anchors.get(loc, anchors["lower right"])
+    ax.text(
+        x,
+        y,
+        text,
+        transform=ax.transAxes,
+        ha=ha,
+        va=va,
+        fontsize=7.5,
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "#888", "alpha": 0.86},
+    )
 
 
 def stamp_caption(fig, *, variavel, area, periodo, fonte, n=None, extra=None):

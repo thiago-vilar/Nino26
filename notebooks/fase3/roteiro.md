@@ -63,21 +63,17 @@ eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 | 3D | O que sobrevive a N_eff, IC95 e FDR? | Primeiro filtro para o parecer. |
 | 3E | O que e estavel em 1993-2009 e 2010-presente? | Segundo filtro; instavel vira limite de regime. |
 | 3F | DHW tem informacao propria? Kelvin aparece? | DHW so entra se parcial sobreviver; Kelvin e leitura qualitativa. |
-| 3G | DHW mede severidade acumulada? | Compare `dhw_12w` e `dhw_26w_p90` por evento. |
+| 3G | DHW mede severidade acumulada? | Use somente `dhw_cweek_p90` por evento. |
 | 3H | A genese separa `forte_p90` de `super_p95`? | Descritivo; prepara hipoteses para Fase 5. |
 | 3K | Quais variaveis explicam crescimento pre-pico? | Sintese multivariada; nao substitui 3D/3E. |
 | 3I | Qual e o veredito integrado? | Texto e tabelas finais para o parecer. |
 
 ## 5. DHW correto para Nino 3.4
 
-`dhw_12w` e a metrica principal da Fase 3: acumulo de C-week acima do P90
-diario local por 12 semanas. Ela preserva a ideia operacional de calor recente,
-mas troca o limiar fixo herdado por um limiar empirico da propria OISST local.
-
-`dhw_26w_p90` fica como sensibilidade para severidade ENSO na escala do evento:
-a janela de 26 semanas aproxima o e-folding observado da SSTA (~27 semanas), e
-o limiar P90 diario tambem vem da OISST local. Nao use DHW como definicao de
-El Nino nem como skill preditivo.
+`dhw_cweek_p90` e a unica metrica DHW da Fase 3: acumulo de C-week acima do
+P90 diario local por 12 semanas. Ela preserva a ideia operacional de calor
+recente, mas troca o limiar fixo herdado por um limiar empirico da propria
+OISST local. Nao use DHW como definicao de El Nino nem como skill preditivo.
 
 ## 6. P90 e P95
 

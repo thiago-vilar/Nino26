@@ -50,12 +50,9 @@ o 3I consolida a interpretacao, mas nao cria evidencia nova.
 
 ## DHW
 
-O DHW principal da Fase 3 e `dhw_12w`: acumulo de C-week em 12 semanas acima
-do limiar P90 diario local da SSTA OISST. `dhw_26w_p90` permanece como
-sensibilidade na escala do evento, pois sua janela se aproxima do e-folding
-observado da SSTA (~27 semanas). Ambas sao metricas de calor
-acumulado/severidade; nao devem ser chamadas de previsao nem definicao de
-El Nino.
+O DHW canonico da Fase 3 e `dhw_cweek_p90`: acumulo de C-week em 12 semanas
+acima do limiar P90 diario local da SSTA OISST. A Fase 3 nao publica janelas
+DHW concorrentes; todos os notebooks e figuras usam essa metrica unica.
 
 Classificacao executiva: `forte_p90` = pico mensal >P90 e <P95; `super_p95` =
 pico mensal >P95. A media executiva dos eventos >P90 fica em
