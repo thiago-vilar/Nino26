@@ -66,28 +66,29 @@ class Phase3ScopeTests(unittest.TestCase):
         finally:
             plt.close(fig)
 
-    def test_phase3_elnino_mean_groups_are_fixed_and_ordered(self) -> None:
+    def test_phase3_elnino_mean_groups_are_noaa_classes_and_ordered(self) -> None:
         self.assertEqual(
             self.u.ELNINO_MEAN_GROUP_ORDER,
-            ("forte_p90", "super_p95", "eventos_gt_p90"),
+            ("fraco", "moderado", "forte", "muito_forte"),
         )
         table = self.u.elnino_mean_group_table()
         self.assertEqual(table["grupo"].tolist(), list(self.u.ELNINO_MEAN_GROUP_ORDER))
-        self.assertIn(">P90 e <P95", table.loc[table["grupo"] == "forte_p90", "definicao"].iloc[0])
-        self.assertIn(">P95", table.loc[table["grupo"] == "super_p95", "definicao"].iloc[0])
+        self.assertIn("+0.5", table.loc[table["grupo"] == "fraco", "definicao"].iloc[0])
+        self.assertIn("+2.0", table.loc[table["grupo"] == "muito_forte", "definicao"].iloc[0])
 
-    def test_phase3_elnino_mean_groups_include_classes_and_gt90_mean(self) -> None:
+    def test_phase3_elnino_mean_groups_split_official_classes(self) -> None:
         events = pd.DataFrame(
             {
-                "event_id": ["a", "b", "c"],
-                "classe_p90_p95": ["forte_p90", "super_p95", "forte_p90"],
+                "event_id": ["a", "b", "c", "d"],
+                "peak_class": ["fraco", "moderado", "forte", "muito_forte"],
             }
         )
         groups = self.u.elnino_mean_groups(events)
         self.assertEqual(list(groups), list(self.u.ELNINO_MEAN_GROUP_ORDER))
-        self.assertEqual(groups["forte_p90"]["event_id"].tolist(), ["a", "c"])
-        self.assertEqual(groups["super_p95"]["event_id"].tolist(), ["b"])
-        self.assertEqual(groups["eventos_gt_p90"]["event_id"].tolist(), ["a", "b", "c"])
+        self.assertEqual(groups["fraco"]["event_id"].tolist(), ["a"])
+        self.assertEqual(groups["moderado"]["event_id"].tolist(), ["b"])
+        self.assertEqual(groups["forte"]["event_id"].tolist(), ["c"])
+        self.assertEqual(groups["muito_forte"]["event_id"].tolist(), ["d"])
 
 
 if __name__ == "__main__":

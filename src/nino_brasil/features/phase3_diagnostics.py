@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence
 
-import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -29,7 +28,6 @@ PHASE3_DAILY_TENDENCY_COLUMNS = [
     "thermocline_tilt_m",
     "thermocline_tilt_slope_m_per_degree",
     "ssh_nino34_mean_m",
-    "sss_nino34_mean",
 ]
 
 
@@ -157,10 +155,7 @@ def _add_daily_tendencies_and_durations(
         out[f"nino34_ssta_duration_ge_{str(event_threshold_c).replace('.', 'p')}c_days"] = _run_duration(
             pd.to_numeric(out["nino34_ssta"], errors="coerce") >= event_threshold_c
         )
-        p90_threshold = float(np.nanpercentile(pd.to_numeric(out["nino34_ssta"], errors="coerce").dropna(), 90.0))
-        out["nino34_ssta_daily_p90_threshold_c"] = p90_threshold
-        out["nino34_ssta_above_daily_p90"] = pd.to_numeric(out["nino34_ssta"], errors="coerce") >= p90_threshold
-        out["nino34_ssta_duration_ge_daily_p90_days"] = _run_duration(out["nino34_ssta_above_daily_p90"])
+        out["nino34_ssta_ge_0p5c"] = pd.to_numeric(out["nino34_ssta"], errors="coerce") >= event_threshold_c
 
     for column in PHASE3_DAILY_TENDENCY_COLUMNS:
         if column not in out.columns:
@@ -276,7 +271,6 @@ def _thermocline_columns(frame: pd.DataFrame) -> list[str]:
         "ohc_0_700_nino34_j_m2",
         "ohc_300_700_nino34_j_m2",
         "ssh_nino34_mean_m",
-        "sss_nino34_mean",
     ]
     columns = [column for column in preferred if column in frame.columns]
     columns.extend(

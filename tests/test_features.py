@@ -16,7 +16,7 @@ if str(SRC) not in sys.path:
 
 from nino_brasil.data.anomalies import daily_anomaly, fit_daily_climatology, standardized_anomaly
 from nino_brasil.features.distributions import fit_power_law_tail
-from nino_brasil.features.dhw import degree_heating_weeks, equatorial_dhw_indices
+from nino_brasil.features.dhw import degree_heating_weeks, equatorial_dhw_indices, thermal_window_mean
 from nino_brasil.features.nino import (
     atl3_sst_index,
     atl4_sst_index,
@@ -235,15 +235,25 @@ class FeatureTests(unittest.TestCase):
         self.assertTrue({"atl3_sst", "atl4_sst", "tna_sst", "tsa_sst"}.issubset(set(atl.data_vars)))
         self.assertAlmostEqual(float(iod_sst_index(sst)), -40.0, places=6)
 
-    def test_degree_heating_weeks_accumulates_daily_excess_as_c_weeks(self) -> None:
+    def test_degree_heating_weeks_accumulates_daily_hotspots_as_c_weeks(self) -> None:
         time = pd.date_range("2001-01-01", periods=14, freq="D")
         ssta = xr.DataArray(np.full(time.size, 2.0), coords={"time": time}, dims=("time",))
 
         dhw = degree_heating_weeks(ssta, threshold_c=1.0, window_weeks=2)
 
         self.assertTrue(np.isnan(float(dhw.isel(time=12))))
-        self.assertAlmostEqual(float(dhw.isel(time=13)), 2.0)
+        self.assertAlmostEqual(float(dhw.isel(time=13)), 4.0)
         self.assertEqual(dhw.attrs["units"], "degree_C_weeks")
+        self.assertEqual(dhw.attrs["hotspot_rule"], "SSTA if SSTA >= threshold_c else 0")
+
+    def test_thermal_window_mean_uses_same_12_week_basis(self) -> None:
+        time = pd.date_range("2001-01-01", periods=14, freq="D")
+        ssta = xr.DataArray(np.arange(time.size, dtype=float), coords={"time": time}, dims=("time",))
+
+        mean = thermal_window_mean(ssta, window_weeks=2)
+
+        self.assertTrue(np.isnan(float(mean.isel(time=12))))
+        self.assertAlmostEqual(float(mean.isel(time=13)), 6.5)
 
     def test_equatorial_dhw_indices_emit_expected_weekly_boxes(self) -> None:
         time = pd.date_range("2001-01-01", periods=21, freq="D")
@@ -270,7 +280,7 @@ class FeatureTests(unittest.TestCase):
         ds = equatorial_dhw_indices(ssta, threshold_c=1.0, window_weeks=1, weekly_reduction="max")
 
         weekly_peak = float(ds["nino34_dhw_1w"].max(skipna=True))
-        self.assertAlmostEqual(weekly_peak, 1.0)
+        self.assertAlmostEqual(weekly_peak, 8.0 / 7.0)
         self.assertEqual(
             ds["nino34_dhw_1w"].attrs["accumulation_resolution"],
             "native_daily_before_weekly_resample",

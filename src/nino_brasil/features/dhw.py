@@ -21,35 +21,59 @@ def infer_samples_per_week(time: xr.DataArray) -> float:
 def degree_heating_weeks(
     ssta: xr.DataArray,
     *,
-    threshold_c: float = 1.0,
+    threshold_c: float = 0.5,
     window_weeks: int = 12,
     time_name: str = "time",
     samples_per_week: float | None = None,
 ) -> xr.DataArray:
-    """Compute Degree Heating Weeks from SST anomalies.
+    """Compute Nino 3.4 Degree Heating Weeks from daily SST anomalies.
 
-    DHW is the rolling accumulation of positive thermal excess above a threshold,
-    expressed in degree C-weeks. For the NINO-BRASIL protocol, DHW must be
-    accumulated at the native daily resolution first and only then reduced to
-    the weekly analysis axis, so short hot peaks are not flattened before the
-    rolling accumulation.
+    The NINO26 DHW protocol is anchored to the El Nino thermal threshold:
+    daily HotSpot = SSTA when SSTA >= ``threshold_c``; values below the
+    threshold are discarded as background variability. The rolling 12-week
+    accumulation is then expressed in degree C-weeks.
     """
     if window_weeks < 1:
         raise ValueError("window_weeks must be positive.")
     spw = samples_per_week or infer_samples_per_week(ssta[time_name])
     window_samples = max(1, int(round(window_weeks * spw)))
-    excess = xr.where(ssta > threshold_c, ssta - threshold_c, 0.0)
-    dhw = excess.rolling({time_name: window_samples}, min_periods=window_samples).sum() / spw
+    hotspot = xr.where(ssta >= threshold_c, ssta, 0.0)
+    dhw = hotspot.rolling({time_name: window_samples}, min_periods=window_samples).sum() / spw
     dhw.attrs.update(
         {
             "units": "degree_C_weeks",
             "threshold_c": float(threshold_c),
+            "hotspot_rule": "SSTA if SSTA >= threshold_c else 0",
             "window_weeks": int(window_weeks),
             "samples_per_week": float(spw),
             "valid_after_weeks": int(window_weeks),
         }
     )
     return dhw.rename(f"dhw_{window_weeks}w")
+
+
+def thermal_window_mean(
+    ssta: xr.DataArray,
+    *,
+    window_weeks: int = 12,
+    time_name: str = "time",
+    samples_per_week: float | None = None,
+) -> xr.DataArray:
+    """Rolling mean SSTA over the same thermal window used to validate DHW."""
+    if window_weeks < 1:
+        raise ValueError("window_weeks must be positive.")
+    spw = samples_per_week or infer_samples_per_week(ssta[time_name])
+    window_samples = max(1, int(round(window_weeks * spw)))
+    mean = ssta.rolling({time_name: window_samples}, min_periods=window_samples).mean()
+    mean.attrs.update(
+        {
+            "units": "degree_C",
+            "window_weeks": int(window_weeks),
+            "samples_per_week": float(spw),
+            "valid_after_weeks": int(window_weeks),
+        }
+    )
+    return mean.rename(f"ssta_mean_{window_weeks}w")
 
 
 def weekly_mean(da: xr.DataArray, *, time_name: str = "time", label: str = "right") -> xr.DataArray:
@@ -80,7 +104,7 @@ def weekly_reduce(
 def equatorial_dhw_indices(
     ssta_field: xr.DataArray,
     *,
-    threshold_c: float = 1.0,
+    threshold_c: float = 0.5,
     window_weeks: int = 12,
     time_name: str = "time",
     lat_name: str = "lat",

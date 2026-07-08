@@ -15,7 +15,7 @@ class NinoPeakThresholds:
     weak: float = 0.5
     moderate: float = 1.0
     strong: float = 1.5
-    super: float = 2.0
+    very_strong: float = 2.0
 
 
 DEFAULT_NINO_THRESHOLDS = NinoPeakThresholds()
@@ -25,16 +25,16 @@ def classify_nino_peak(
     peak_ssta_c: float,
     thresholds: NinoPeakThresholds = DEFAULT_NINO_THRESHOLDS,
 ) -> str:
-    """Classify a future Nino 3.4 peak by fixed SSTA intensity thresholds."""
+    """Classify a future Nino 3.4 peak by NOAA CPC intensity thresholds."""
     if pd.isna(peak_ssta_c) or peak_ssta_c < thresholds.weak:
         return "neutral"
     if peak_ssta_c < thresholds.moderate:
-        return "weak_el_nino"
+        return "fraco"
     if peak_ssta_c < thresholds.strong:
-        return "moderate_el_nino"
-    if peak_ssta_c < thresholds.super:
-        return "strong_el_nino"
-    return "super_el_nino"
+        return "moderado"
+    if peak_ssta_c < thresholds.very_strong:
+        return "forte"
+    return "muito_forte"
 
 
 def _month_delta(start: pd.Timestamp, end: pd.Timestamp) -> int:
@@ -136,7 +136,7 @@ def build_enso_peak_progression_table(
                     "future_peak_class": classify_nino_peak(peak_ssta, thresholds),
                     "will_el_nino": bool(peak_ssta >= thresholds.weak),
                     "will_strong_el_nino": bool(peak_ssta >= thresholds.strong),
-                    "will_super_el_nino": bool(peak_ssta >= thresholds.super),
+                    "will_muito_forte_el_nino": bool(peak_ssta >= thresholds.very_strong),
                     **feature_values,
                 }
             )
@@ -252,7 +252,7 @@ def build_daily_enso_peak_progression_table(
                     "has_reference_peak": bool(has_reference_peak),
                     "will_el_nino": bool(has_reference_peak and future_peak_ssta >= thresholds.weak),
                     "will_strong_el_nino": bool(has_reference_peak and future_peak_ssta >= thresholds.strong),
-                    "will_super_el_nino": bool(has_reference_peak and future_peak_ssta >= thresholds.super),
+                    "will_muito_forte_el_nino": bool(has_reference_peak and future_peak_ssta >= thresholds.very_strong),
                     "future_daily_max_ssta": float(ssta_values[daily_peak_idx]),
                     "future_daily_max_time": pd.Timestamp(time_index[daily_peak_idx]),
                     **feature_values,

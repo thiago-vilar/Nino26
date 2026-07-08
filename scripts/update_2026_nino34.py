@@ -123,9 +123,7 @@ def main(argv: list[str] | None = None) -> int:
 
     rebuild = [
         ("Fase 3: indice diario Nino 3.4", cmd("scripts/data_pipeline.py", "build-nino34-daily-index")),
-        ("Fase 3: referencia mensal OISST", cmd("scripts/data_pipeline.py", "build-nino34-sst-reference")),
-        ("Fase 3: picos P90", cmd("scripts/data_pipeline.py", "build-nino34-p90-peaks")),
-        ("Fase 3: picos P95", cmd("scripts/data_pipeline.py", "build-nino34-p95-peaks")),
+        ("Fase 3: referencia mensal OISST/ONI local", cmd("scripts/data_pipeline.py", "build-nino34-sst-reference")),
         ("Fase 3: diagnosticos fisicos", cmd("scripts/data_pipeline.py", "build-phase3-diagnostics")),
         ("Fase 3: auditoria", cmd("scripts/data_pipeline.py", "audit-phase3-diagnostics")),
         ("Fase 3: cache atmosferico ERA5", cmd("scripts/update_era5_nino34_atmo_cache.py", "--start-year", "1981", "--end-year", str(today.year))),

@@ -16,12 +16,11 @@ cd /d C:\DEV\NINO26
 :: 1. Base da Fase 3 (se os stores ainda nao existem ou apos atualizar OISST)
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-daily-index
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-sst-reference
-.venv\Scripts\python scripts\data_pipeline.py build-nino34-p90-peaks
 .venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
 
 :: 2. Insumos dos notebooks (ATL, banda equatorial, SSH eventos, DHW, mapas)
-.venv\Scripts\python scripts\fase3_build_inputs.py
+.venv\Scripts\python scripts\fase3_build_inputs.py --force
 
 :: 3. Sanidade
 .venv\Scripts\python -m pytest -q

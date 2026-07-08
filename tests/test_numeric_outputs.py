@@ -156,7 +156,8 @@ class NumericOutputTests(unittest.TestCase):
         self.assertIn("nino34_ssta_c", monthly.columns)
         self.assertTrue(monthly["source"].str.contains("OISST").all())
         self.assertEqual(len(peaks), 1)
-        self.assertEqual(peaks.iloc[0]["peak_class"], "super_el_nino")
+        self.assertEqual(peaks.iloc[0]["peak_class"], "muito_forte")
+        self.assertIn("peak_oni_local_c", peaks.columns)
         self.assertEqual(len(p90_peaks), 1)
         self.assertGreaterEqual(
             p90_peaks.iloc[0]["peak_nino34_anom_c"],

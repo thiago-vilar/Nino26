@@ -157,10 +157,10 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print("13. diagnose-distributions: optional QC/EDA tail diagnostics")
     print("14. build-nino34-daily-index: daily OISST Nino 3.4 SST/SSTA trajectory")
     print("15. build-nino34-sst-reference: monthly Nino 3.4 reference derived from the local OISST daily SST")
-    print("16. build-nino34-p90-peaks/build-nino34-p95-peaks: Phase 3 OISST-derived monthly P90/P95 anomaly peaks and charts")
-    print("17. sync-official-nino34-visuals: mirror official NOAA/PSL Nino 3.4 charts for visual comparison only")
-    print("18. build-phase3-diagnostics: Nino 3.4 physical diagnostics from local SST/ocean products")
-    print("19. audit-phase3-diagnostics: verify Phase 3 outputs")
+    print("16. sync-official-nino34-visuals: mirror official NOAA/PSL Nino 3.4 charts for visual comparison only")
+    print("17. build-phase3-diagnostics: Nino 3.4 physical diagnostics from local SST/ocean products")
+    print("18. audit-phase3-diagnostics: verify Phase 3 outputs")
+    print("19. legacy optional: build-nino34-p90-peaks/build-nino34-p95-peaks are not used by the active Phase 3")
     print("scope: stop at Phase 3; no external ENSO labels and no ML/modeling stage in the active plan")
     return 0
 
@@ -570,6 +570,8 @@ def cmd_build_nino34_sst_reference(args: argparse.Namespace) -> int:
             print(f"p90_peaks_csv={p90_peaks_csv_path}")
             print(f"p90_peaks_zarr={p90_peaks_zarr_path}")
             print(f"p90_plot={p90_plot_path}")
+        else:
+            print("percentile_peak_analysis=skipped (ENSO classification uses NOAA ONI-compatible thresholds)")
         return 0
     if not daily_csv.exists():
         raise FileNotFoundError(f"Daily OISST Nino 3.4 CSV not found: {daily_csv}. Run build-nino34-daily-index first.")
@@ -877,18 +879,14 @@ def cmd_audit_phase3_diagnostics(args: argparse.Namespace) -> int:
         _path_arg(args.thermocline_zarr_path),
         _path_arg(args.peak_signal_zarr_path),
         _path_arg(args.signal_slope_duration_zarr_path),
-        _path_arg(args.p90_peaks_zarr_path),
-        _path_arg(args.p95_peaks_zarr_path),
     ]
     csv_paths = [
         _path_arg(args.physical_signal_csv_path),
         _path_arg(args.event_table_csv_path),
         _path_arg(args.peak_comparison_csv_path),
         _path_arg(args.physics_precalc_csv_path),
-        _path_arg(args.p90_peaks_csv_path),
-        _path_arg(args.p95_peaks_csv_path),
     ]
-    plot_paths = [_path_arg(args.p90_plot_path), _path_arg(args.p95_plot_path)]
+    plot_paths: list[Path] = []
     report_path = _path_arg(args.report_path)
 
     report: dict[str, object] = {"zarr": {}, "csv": {}, "plot": {}, "errors": []}
@@ -1745,7 +1743,8 @@ def build_parser() -> argparse.ArgumentParser:
     nino34_ref_p.add_argument("--p90-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p90_peaks.csv")
     nino34_ref_p.add_argument("--p90-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p90_peaks.zarr")
     nino34_ref_p.add_argument("--p90-plot-path", default="docs/assets/figures/nino34_oisst_p90_peaks.png")
-    nino34_ref_p.add_argument("--skip-p90-analysis", action="store_true")
+    nino34_ref_p.add_argument("--skip-p90-analysis", action="store_true", default=True)
+    nino34_ref_p.add_argument("--include-percentile-analysis", dest="skip_p90_analysis", action="store_false")
     nino34_ref_p.add_argument("--dry-run", action="store_true")
     nino34_ref_p.set_defaults(func=cmd_build_nino34_sst_reference)
 
@@ -1806,7 +1805,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     phase3_audit_p = sub.add_parser(
         "audit-phase3-diagnostics",
-        help="Verify Phase 3 diagnostics and item 3.10b artifacts.",
+        help="Verify Phase 3 NOAA/ONI-compatible diagnostics artifacts.",
     )
     phase3_audit_p.add_argument("--physical-signal-csv-path", default="data/processed/parquet/features/nino34_physical_signal.csv")
     phase3_audit_p.add_argument("--physical-signal-zarr-path", default="data/processed/zarr/features/nino34_physical_signal.zarr")
@@ -1816,12 +1815,6 @@ def build_parser() -> argparse.ArgumentParser:
     phase3_audit_p.add_argument("--event-table-csv-path", default="data/processed/parquet/features/nino34_event_table_monthly.csv")
     phase3_audit_p.add_argument("--peak-comparison-csv-path", default="data/processed/parquet/features/nino34_peak_comparison.csv")
     phase3_audit_p.add_argument("--physics-precalc-csv-path", default="data/processed/parquet/physics_precalc_timeseries.csv")
-    phase3_audit_p.add_argument("--p90-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p90_peaks.csv")
-    phase3_audit_p.add_argument("--p90-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p90_peaks.zarr")
-    phase3_audit_p.add_argument("--p90-plot-path", default="docs/assets/figures/nino34_oisst_p90_peaks.png")
-    phase3_audit_p.add_argument("--p95-peaks-csv-path", default="data/processed/parquet/features/nino34_oisst_p95_peaks.csv")
-    phase3_audit_p.add_argument("--p95-peaks-zarr-path", default="data/processed/zarr/features/nino34_oisst_p95_peaks.zarr")
-    phase3_audit_p.add_argument("--p95-plot-path", default="docs/assets/figures/nino34_oisst_p95_peaks.png")
     phase3_audit_p.add_argument("--report-path", default="data/audit/phase3_diagnostics_audit.json")
     phase3_audit_p.set_defaults(func=cmd_audit_phase3_diagnostics)
 

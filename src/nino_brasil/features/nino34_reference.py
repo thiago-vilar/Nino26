@@ -17,7 +17,7 @@ class Nino34PeakThresholds:
     weak: float = 0.5
     moderate: float = 1.0
     strong: float = 1.5
-    super: float = 2.0
+    very_strong: float = 2.0
 
 
 @dataclass(frozen=True)
@@ -49,16 +49,16 @@ def classify_nino34_peak(
     value_c: float,
     thresholds: Nino34PeakThresholds = Nino34PeakThresholds(),
 ) -> str:
-    """Classify Nino 3.4 anomaly intensity using fixed SST-anomaly thresholds."""
+    """Classify Nino 3.4 intensity using NOAA CPC 0.5 C threshold bins."""
     if pd.isna(value_c) or value_c < thresholds.weak:
         return "neutral"
     if value_c < thresholds.moderate:
-        return "weak_el_nino"
+        return "fraco"
     if value_c < thresholds.strong:
-        return "moderate_el_nino"
-    if value_c < thresholds.super:
-        return "strong_el_nino"
-    return "super_el_nino"
+        return "moderado"
+    if value_c < thresholds.very_strong:
+        return "forte"
+    return "muito_forte"
 
 
 def build_monthly_nino34_sst_reference(
@@ -99,6 +99,7 @@ def build_monthly_nino34_sst_reference(
         center=True,
         min_periods=3,
     ).mean()
+    monthly["oni_local_c"] = monthly["nino34_ssta_3mo_mean_c"]
     # Backward-compatible aliases inside Phase 3 only. They are OISST-derived, not an external index.
     monthly["nino34_anom_c"] = monthly["nino34_ssta_c"]
     monthly["nino34_anom_3mo_mean_c"] = monthly["nino34_ssta_3mo_mean_c"]
@@ -115,6 +116,7 @@ def build_monthly_nino34_sst_reference(
             "nino34_sst_c",
             "nino34_ssta_c",
             "nino34_ssta_3mo_mean_c",
+            "oni_local_c",
             "nino34_anom_c",
             "nino34_anom_3mo_mean_c",
             "source",
@@ -164,8 +166,10 @@ def build_nino34_sst_peak_reference(
                 "event_start",
                 "event_end",
                 "duration_months",
+                "duration_oni_seasons",
                 "peak_time",
                 "peak_ssta_c",
+                "peak_oni_local_c",
                 "peak_monthly_ssta_c",
                 "peak_class",
                 "threshold_basis",
@@ -194,11 +198,16 @@ def build_nino34_sst_peak_reference(
                 "event_start": start,
                 "event_end": end,
                 "duration_months": int(len(event)),
+                "duration_oni_seasons": int(len(event)),
                 "peak_time": peak_time,
                 "peak_ssta_c": peak_ssta,
+                "peak_oni_local_c": peak_ssta,
                 "peak_monthly_ssta_c": float(peak[monthly_column]),
                 "peak_class": classify_nino34_peak(peak_ssta, thresholds),
-                "threshold_basis": f"{intensity_column}>={threshold_c} for {min_duration_months}+ months on local OISST",
+                "threshold_basis": (
+                    f"NOAA ONI-compatible local OISST: {intensity_column}>={threshold_c} "
+                    f"for {min_duration_months}+ consecutive overlapping 3-month seasons"
+                ),
                 "source": str(peak.get("source", OISST_NINO34_SOURCE)),
                 "source_url": str(peak.get("source_url", "")),
             }

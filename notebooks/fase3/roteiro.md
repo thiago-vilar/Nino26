@@ -28,8 +28,6 @@ como fonte operacional de 2026, pois tem latencia anual longa.
 cd /d C:\DEV\NINO26
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-daily-index
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-sst-reference
-.venv\Scripts\python scripts\data_pipeline.py build-nino34-p90-peaks
-.venv\Scripts\python scripts\data_pipeline.py build-nino34-p95-peaks
 .venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
 .venv\Scripts\python scripts\update_era5_nino34_atmo_cache.py --start-year 1981 --end-year 2026
@@ -58,15 +56,15 @@ eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 | Notebook | Pergunta | Decisao |
 |---|---|---|
 | 3A | Quais series fisicas existem e em que janela real? | Variavel com baixa cobertura ou fonte emendada entra com ressalva. |
-| 3B | Como eventos crescem, picam e decaem? | Leia sempre as 3 medias: P90 forte, P95 super e todos >P90; o e-folding da SSTA define o baseline de persistencia. |
+| 3B | Como eventos crescem, picam e decaem? | Leia as classes NOAA/ONI locais: fraco, moderado, forte e muito forte; o e-folding da SSTA define o baseline de persistencia. |
 | 3C | Quais variaveis parecem liderar o Nino 3.4? | Triagem; nao cite como evidencia final. |
 | 3D | O que sobrevive a N_eff, IC95 e FDR? | Primeiro filtro para o parecer. |
 | 3E | O que e estavel em 1993-2009 e 2010-presente? | Segundo filtro; instavel vira limite de regime. |
 | 3F | DHW tem informacao propria? Kelvin aparece? | DHW so entra se parcial sobreviver; Kelvin e leitura qualitativa. |
-| 3G | DHW mede severidade acumulada? | Use somente `dhw_cweek_p90` e compare as 3 medias de evento. |
-| 3H | A genese separa `forte_p90` de `super_p95`? | Descritivo nas 3 medias; prepara hipoteses para Fase 5. |
+| 3G | DHW mede severidade acumulada? | Use somente `dhw_cweek_0p5_12w` e compare as classes NOAA de evento. |
+| 3H | A genese separa classes NOAA? | Descritivo por classe e pela media geral dos eventos; prepara hipoteses para Fase 5. |
 | 3K | Quais variaveis explicam crescimento pre-pico? | Sintese multivariada; nao substitui 3D/3E. |
-| 3I | Qual e o veredito integrado? | Texto e tabelas finais, incluindo as 3 medias executivas. |
+| 3I | Qual e o veredito integrado? | Texto e tabelas finais, incluindo classes NOAA, DHW canonico e estado 2026. |
 
 Referencias oficiais NOAA/CPC usadas na leitura:
 
@@ -83,33 +81,34 @@ referencia W/E no texto interpretativo.
 
 ## 5. DHW correto para Nino 3.4
 
-`dhw_cweek_p90` e a unica metrica DHW da Fase 3: acumulo de C-week acima do
-P90 diario local por 12 semanas. Ela preserva a ideia operacional de calor
-recente, mas troca o limiar fixo herdado por um limiar empirico da propria
-OISST local. Nao use DHW como definicao de El Nino nem como skill preditivo.
+`dhw_cweek_0p5_12w` e a unica metrica DHW da Fase 3: soma em C-weeks apenas de
+HotSpots diarios com SSTA Nino 3.4 >= +0,5 C, acumulados em 12 semanas. A
+validacao temporal auxiliar exige `oni_12w_mean_c >= +0,5 C` por 20 semanas
+consecutivas. Nao use DHW sozinho como declaracao oficial de El Nino; ele
+materializa o criterio termico local e precisa ser lido junto do acoplamento
+atmosferico.
 
-## 6. P90 e P95
+## 6. Classificacao NOAA/ONI local
 
-P90 compara todos os picos quentes mensais da OISST local. P95 compara a cauda
-extrema/super-eventos. A tabela principal fica em:
+Evento El Nino = media movel de 3 meses da SSTA Nino 3.4 >= +0,5 C por pelo
+menos 5 estacoes moveis sobrepostas. A intensidade e dada pelo pico dessa media:
+
+1. `fraco`: 0,5 C <= pico < 1,0 C.
+2. `moderado`: 1,0 C <= pico < 1,5 C.
+3. `forte`: 1,5 C <= pico < 2,0 C.
+4. `muito_forte`: pico >= 2,0 C.
+
+A Fase 3 usa OISST local para reprodutibilidade e avalia acoplamento por proxy
+atmosferico (`tau_x_anom_nino34_pa`). Declaracao oficial operacional continua
+sendo responsabilidade do CPC/NOAA.
+
+As tabelas principais ficam em:
 
 ```text
-data\processed\parquet\statistics\phase3I_picos_p90_p95_comparacao.csv
+data\processed\parquet\statistics\phase3I_classificacao_noaa_oni.csv
+data\processed\parquet\statistics\phase3I_medias_classes_noaa.csv
+data\processed\parquet\statistics\phase3I_estado_2026.csv
 ```
-
-Use `forte_p90` para eventos com pico mensal >P90 e <P95. Use `super_p95`
-para eventos com pico mensal >P95. Eventos abaixo ou iguais a P90 ficam
-registrados em tabela de descarte, mas nao entram em compostos por classe.
-
-Regra fixa de leitura por medias/compostos, nesta ordem:
-
-1. `forte_p90`: media dos eventos P90 forte (>P90 e <P95).
-2. `super_p95`: media dos eventos P95 super (>P95).
-3. `eventos_gt_p90`: media conjunta de todos os eventos >P90.
-
-A tabela final fica em
-`data\processed\parquet\statistics\phase3I_tres_medias_elnino.csv`; o arquivo
-`phase3I_media_eventos_gt_p90.csv` permanece por compatibilidade.
 
 ## 7. Vento e tau_x
 

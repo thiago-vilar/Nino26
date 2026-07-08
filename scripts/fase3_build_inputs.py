@@ -9,7 +9,7 @@ stores da Fase 3):
    (W-SUN) da banda 2S-2N por longitude (120E-280E)
 3. features/ssh_equatorial_daily_by_lon_events.parquet - SSH 1S-1N por
    longitude nos anos de evento (Kelvin)
-4. features/nino34_dhw_daily.csv - DHW 12 semanas (limiar 1 C, acumulado diario)
+4. features/nino34_dhw_daily.csv - DHW ONI local 12 semanas (HotSpot >=0.5 C)
 5. interim/fase3_map_cache/*.nc - campos mensais Nov/Dez 1991-2020 + picos
    (mapas compostos do 3B)
 
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from nino_brasil.data.anomalies import daily_anomaly, dayofyear_climatology
-from nino_brasil.features.dhw import degree_heating_weeks
+from nino_brasil.features.dhw import degree_heating_weeks, thermal_window_mean
 from nino_brasil.features.nino import tropical_atlantic_sst_indices
 
 FEAT = ROOT / "data/processed/parquet/features"
@@ -134,12 +134,14 @@ def build_ssh_events(force: bool) -> None:
 
 
 def build_dhw(force: bool) -> None:
-    """DHW principal (12 sem, limiar 1.0 C - convencao CRW herdada) + variantes
-    de sensibilidade: janelas 12/26 semanas x limiares 1.0 C (herdado) e P90
-    diario da propria serie (data-driven). A janela de 26 semanas aproxima o
-    e-folding da SSTA (~27 sem, notebook 3B), tornando o DHW uma integral na
-    escala do evento; o limiar P90 substitui a convencao de coral por um corte
-    derivado da propria base. A adequacao e decidida empiricamente no 3G."""
+    """DHW Nino 3.4 oficializado para a Fase 3.
+
+    Regra: HotSpot diario = SSTA quando SSTA >=0.5 C; valores menores viram
+    zero. O DHW e a soma movel em 12 semanas, expressa em C-weeks. A validacao
+    temporal adicional usa a media movel de 12 semanas da SSTA e marca
+    consolidacao quando essa media fica >=0.5 C por pelo menos 20 semanas
+    consecutivas.
+    """
     out = FEAT / "nino34_dhw_daily.csv"
     out_var = FEAT / "nino34_dhw_variants.csv"
     if out.exists() and out_var.exists() and not force:
@@ -147,17 +149,29 @@ def build_dhw(force: bool) -> None:
         return
     d = pd.read_csv(FEAT / "nino34_daily_oisst.csv", parse_dates=["time"])
     ssta = xr.DataArray(d["nino34_ssta"].values, coords={"time": d["time"].values}, dims=("time",))
-    p90_daily = float(np.nanpercentile(d["nino34_ssta"].dropna(), 90.0))
-    base = degree_heating_weeks(ssta, threshold_c=1.0, window_weeks=12)
-    pd.DataFrame({"time": d["time"], "nino34_ssta": d["nino34_ssta"],
-                  "nino34_dhw_12w_cweeks": base.values}).to_csv(out, index=False)
-    var = pd.DataFrame({"time": d["time"], "nino34_ssta": d["nino34_ssta"]})
-    for wk in (12, 26):
-        for thr, tag in ((1.0, "1p0"), (p90_daily, "p90")):
-            var[f"dhw_{wk}w_{tag}"] = degree_heating_weeks(ssta, threshold_c=thr, window_weeks=wk).values
-    var.attrs = {}
-    var.to_csv(out_var, index=False)
-    print(f"[ok] {out.relative_to(ROOT)} e {out_var.relative_to(ROOT)} (p90_daily={p90_daily:.3f} C)")
+    ssta_values = d["nino34_ssta"].to_numpy(dtype=float)
+    hotspot = np.where(ssta_values >= 0.5, ssta_values, 0.0)
+    dhw = degree_heating_weeks(ssta, threshold_c=0.5, window_weeks=12)
+    mean12 = thermal_window_mean(ssta, window_weeks=12)
+    mean_ge = pd.Series(mean12.values >= 0.5, index=d.index).fillna(False)
+    run_days = mean_ge.groupby((mean_ge != mean_ge.shift(fill_value=False)).cumsum()).cumcount() + 1
+    run_days = run_days.where(mean_ge, 0).astype(int)
+    table = pd.DataFrame(
+        {
+            "time": d["time"],
+            "nino34_ssta": d["nino34_ssta"],
+            "hotspot_ge_0p5_c": hotspot,
+            "dhw_cweek_0p5_12w": dhw.values,
+            "oni_12w_mean_c": mean12.values,
+            "oni_12w_ge_0p5": mean_ge.astype(int).values,
+            "oni_12w_run_ge_0p5_days": run_days.values,
+            "oni_12w_run_ge_0p5_weeks": (run_days / 7.0).round(2).values,
+            "elnino_thermal_persistent_20w": (run_days >= 140).astype(int).values,
+        }
+    )
+    table.to_csv(out, index=False)
+    table.to_csv(out_var, index=False)
+    print(f"[ok] {out.relative_to(ROOT)} e {out_var.relative_to(ROOT)} (HotSpot >=0.5 C; janela=12 sem; persistencia=20 sem)")
 
 
 def build_map_cache(force: bool) -> None:

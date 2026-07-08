@@ -44,7 +44,7 @@ como comparativo visual, nunca como metrica, rotulo ou entrada do pipeline.
 | Regioes principais | `nino34`, guia equatorial do Pacifico e caixas auxiliares oceanicas mantidas apenas como diagnostico fisico. |
 | Chuva oficial | CHIRPS baixado e processado, mas nao entra na Fase 3; e insumo da Fase 4 (pausada ate validacao integral das Fases 1-3). |
 | SST/SSTA principal | NOAA OISST diario. |
-| Indice ENSO | Eventos, P90 e comparacoes mensais metricas sao derivados da propria SST/SSTA OISST baixada; graficos oficiais NOAA/PSL ficam permitidos apenas como comparativo visual. |
+| Indice ENSO | Eventos sao derivados da propria SST/SSTA OISST baixada com criterio termico NOAA/ONI local: media movel de 3 meses >= +0,5 C por 5 estacoes moveis; intensidade por pico ONI local fraco/moderado/forte/muito forte. |
 | Memoria subsuperficial | GLORYS12 diario desde 1993 como fonte diaria principal; ORAS5 mensal independente; NOAA UFS 1981-1992 fica segregado como ponte/benchmark, nao como serie observacional homogenea. |
 | Resolucao temporal | Diario para insumo bruto, DHW e Kelvin; semanal de 7 dias como eixo canonico de analise; mensal apenas para series nativamente mensais/sensibilidade. |
 | Validacao in situ | CTD/WOD, TAO/TRITON e Argo validam D20/OHC/termoclina onde houver cobertura; nao substituem os cubos gridded. |
@@ -68,10 +68,11 @@ Saude do projeto:
 .\.venv\Scripts\python scripts\data_pipeline.py status
 .\.venv\Scripts\python scripts\data_pipeline.py build-nino34-daily-index
 .\.venv\Scripts\python scripts\data_pipeline.py build-nino34-sst-reference
-.\.venv\Scripts\python scripts\data_pipeline.py build-nino34-p90-peaks
 .\.venv\Scripts\python scripts\data_pipeline.py sync-official-nino34-visuals
 .\.venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .\.venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
+.\.venv\Scripts\python scripts\fase3_build_inputs.py --force
+.\.venv\Scripts\python scripts\run_fase3_all.py
 .\.venv\Scripts\python scripts\update_painel_executivo.py
 .\.venv\Scripts\python -m pytest -q
 ```

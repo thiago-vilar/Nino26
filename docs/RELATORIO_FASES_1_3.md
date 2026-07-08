@@ -11,7 +11,7 @@ Este relatório consolida a reexecução das Fases 1 a 3 a partir dos dados já 
 |---|---|---|---|
 | 1 — Base local e ingestão | Temos dados suficientes, reprodutíveis e com procedência para diagnosticar o Pacífico? | Concluída | CHIRPS/OISST cobrem 1981–2026; ERA5 processado cobre 1981–2025 sem lacunas internas, com disponibilidade operacional indicada para 2026 conforme latência; oceano UFS/GLORYS12/ORAS5 e in situ locais |
 | 2 — Padronização, anomalias, Zarr/regrid | Os dados brutos viram cubos comparáveis, sem vazamento de climatologia e com fontes emendadas de forma honesta? | Concluída | Auditoria oceânica `status=complete`, `errors=0`; 51 linhas de auditoria de transição de fonte |
-| 3 — Diagnóstico físico do Niño 3.4 | Como o sinal do Niño 3.4 nasce, cresce, atinge pico e decai, e quais relações físicas são defensáveis sem rótulo externo? | Concluída e reexecutada | `phase3_diagnostics_audit.json` com `errors: []`; 16.353 dias, 538 meses, 12 eventos, 11 picos P90 |
+| 3 — Diagnóstico físico do Niño 3.4 | Como o sinal do Niño 3.4 nasce, cresce, atinge pico e decai, e quais relações físicas são defensáveis sem rótulo externo? | Concluída e reexecutada | `phase3_diagnostics_audit.json` com `errors: []`; série diária OISST, referência mensal ONI local, eventos NOAA/ONI locais e DHW `dhw_cweek_0p5_12w` |
 
 Qualidade transversal verificada nesta rodada: **54 testes automatizados passaram** (features, estatística, saídas numéricas, modelagem, oceano diário/mensal, zarr store), auditoria oceânica da Fase 2 recomposta sem erros e auditoria da Fase 3 recomposta sem erros.
 
@@ -43,9 +43,9 @@ Coerência de fases foi corrigida na fonte: `scripts/update_painel_executivo.py`
 
 **Pergunta:** como o sinal do Niño 3.4 se forma, quanto tempo guarda memória e quais relações físicas são defensáveis num parecer auditável — tudo derivado da própria SST OISST baixada, sem rótulo ENSO externo e sem ML?
 
-**Reexecução (2026-07-07).** Os cinco estágios foram regerados na ordem canônica: índice diário Niño 3.4, referência mensal de SST, picos P90, diagnósticos físicos e auditoria. Resultados:
+**Reexecução (2026-07-07; método atualizado em 2026-07-08).** Os estágios ativos são: índice diário Niño 3.4, referência mensal SST/ONI local, diagnósticos físicos, auditoria, insumos interpretativos da Fase 3 e notebooks 3A–3I/3K. Resultados:
 
-A trajetória diária cobre **16.353 dias (1981-09-01 a 2026-06-09)** e a referência mensal, **538 meses**. Dela derivam **12 eventos El Niño** (limiar de SSTA de 3 meses ≥ 0,5 °C por 5+ meses), classificados a partir da própria base: três *super* (1982–1983, 1997–1998, 2014–2016), três *strong* (1991–1992, 2009–2010, 2023–2024), dois *moderate* e quatro *weak*. O critério de percentil identifica **11 picos P90** (limiar de 0,992 °C), liderados por 2015-11 (2,79 °C), 1982-12 (2,28 °C) e 1997-11 (2,17 °C). Os diagnósticos físicos acompanham cada evento com D20, anomalia de termoclina, OHC 0–300/0–700 m, duração do sinal e a taxonomia de fases (neutral → onset → peak). A auditoria final (`audit-phase3-diagnostics`) retornou **sem erros**, validando os cinco produtos Zarr/CSV e a figura P90.
+A trajetória diária OISST sustenta a referência mensal local. Dela derivam eventos El Niño pelo critério termal NOAA/ONI local: média móvel de 3 meses da SSTA Niño 3.4 ≥ 0,5 °C por pelo menos 5 estações móveis sobrepostas. A intensidade passa a ser o pico dessa média: fraco [0,5;1,0), moderado [1,0;1,5), forte [1,5;2,0) e muito forte ≥2,0 °C. Os diagnósticos físicos acompanham cada evento com D20, anomalia de termoclina, OHC 0–300/0–700 m, SSH, WWV, `tau_x_anom` e DHW canônico `dhw_cweek_0p5_12w`, calculado por HotSpots diários SSTA ≥0,5 °C em janela de 12 semanas e persistência térmica auxiliar de 20 semanas. A auditoria final (`audit-phase3-diagnostics`) retornou **sem erros**, validando os produtos Zarr/CSV ativos.
 
 **Nota metodológica sobre a reexecução.** O estágio de diagnósticos lê ~50 stores Zarr de features oceânicas diárias. Para reexecutar dentro do ambiente de verificação (sistema de arquivos montado, mais lento), os stores foram materializados uma vez em cache Parquet e o cálculo rodou sobre esse cache — o conteúdo numérico é idêntico ao dos Zarr originais, apenas o I/O foi acelerado. Na máquina de origem, o comando `build-phase3-diagnostics` roda diretamente sobre os Zarr sem esse contorno.
 
@@ -84,7 +84,8 @@ Comandos que regeneram a Fase 3 a partir da base local (na máquina de origem, d
 ```cmd
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-daily-index
 .venv\Scripts\python scripts\data_pipeline.py build-nino34-sst-reference
-.venv\Scripts\python scripts\data_pipeline.py build-nino34-p90-peaks
 .venv\Scripts\python scripts\data_pipeline.py build-phase3-diagnostics
 .venv\Scripts\python scripts\data_pipeline.py audit-phase3-diagnostics
+.venv\Scripts\python scripts\fase3_build_inputs.py --force
+.venv\Scripts\python scripts\run_fase3_all.py
 .venv\Scripts\python scripts\audit_ocean_phase2.py --glorys-my-end 2026-05-26 --opera

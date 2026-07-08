@@ -32,7 +32,7 @@ fisicas sao defensaveis em um parecer auditavel.
 
 | Notebook | Pergunta | Metodo | Saida de decisao |
 |---|---|---|---|
-| **3A - Indices** | Quais series fisicas descrevem o sistema ENOS? | Matriz semanal de SSTA, WWV, D20, OHC, termoclina, SSH, DHW C-week P90 e `tau_x_anom`. | `indices_semanais` com cobertura, fonte e unidade. |
+| **3A - Indices** | Quais series fisicas descrevem o sistema ENOS? | Matriz semanal de SSTA, WWV, D20, OHC, termoclina, SSH, DHW C-week >=0,5 C e `tau_x_anom`. | `indices_semanais` com cobertura, fonte e unidade. |
 | **3B - Alvo** | Como os eventos nascem, crescem, atingem pico e decaem? | Eventos mensais derivados da SSTA OISST local, trajetoria semanal do Nino 3.4, taxas de crescimento/decaimento e persistencia. | Tabela de eventos, fases do evento e matriz de memoria. |
 | **3C - Precursores** | O que antecede o pico do Nino 3.4? | Correlacoes defasadas semanais, preditor liderando, lags 0-78 semanas. | Ranking preliminar de lead e forca. |
 | **3D - Rigor** | O que sobrevive estatisticamente? | `N_eff`, teste-t, IC95 Fisher-z e FDR sobre o conjunto total de testes. | Ranking filtrado por significancia robusta. |
@@ -55,7 +55,7 @@ executiva.
 
 | Indice | Caixa | Nota |
 |---|---|---|
-| Nino 3.4 (alvo) | 5N-5S, 170W-120W | OISST; alvo das series, eventos P90/P95 e parecer |
+| Nino 3.4 (alvo) | 5N-5S, 170W-120W | OISST; alvo das series, eventos NOAA/ONI locais e parecer |
 | Nino 4 (`u10_anom` / `tau_x_anom`) | 5N-5S, 160E-150W | ERA5; referencia desejada para WWB/Kelvin |
 | Banda equatorial diagnostica | 2S-2N, 120E-80W | Hovmoller e mapas longitude x lag; nao e caixa oficial Nino |
 
@@ -63,7 +63,7 @@ executiva.
 
 1. **Anti-vazamento:** configuracao unica para A-E; climatologia, anomalias e z-scores fitados so no periodo de treino. No eixo semanal, usar climatologia harmonica com 2-3 harmonicos anuais, nao 52 medias semanais cruas.
 2. **Subsuperficie:** D20 por interpolacao linear da isoterma de 20 C (depth em m, positivo para baixo; paralelizar so no tempo); OHC 0-300 m = rho * cp * integral(T dz); WWV = integral de area da D20. Fonte primaria: ORAS5 ou GLORYS12, com a outra como sensibilidade. Janela real: 1993-presente.
-3. **Eventos (B):** criterio local OISST (media movel trimestral da SSTA Nino 3.4 >= +0,5 C por >= 5 meses); taxas de crescimento/decaimento em serie suavizada de 3 meses; descartar aceleracao bruta. O evento mensal e projetado na grade semanal para analises de lead.
+3. **Eventos (B):** criterio local OISST compativel com NOAA/ONI (media movel trimestral da SSTA Nino 3.4 >= +0,5 C por >= 5 estacoes moveis sobrepostas); intensidade pelo pico ONI local: fraco, moderado, forte e muito forte; taxas de crescimento/decaimento em serie suavizada de 3 meses; descartar aceleracao bruta. O evento mensal e projetado na grade semanal para analises de lead.
 4. **Persistencia (B):** matriz semanal por mes inicial e lead de 1-52 semanas, com resumo 12x12 mes inicial x lead mensal equivalente; quantifica memoria fisica e barreira de primavera, sem uso de ML.
 5. **Correlacoes defasadas (C/D):** lags semanais de 0-78 semanas, preditor liderando; `N_eff = N * (1 - r1_x*r1_y) / (1 + r1_x*r1_y)`; teste-t e IC95 (Fisher-z) com `N_eff`; FDR Benjamini-Hochberg (`alpha=0,10`) sobre o conjunto total de testes.
 6. **Controles inter-bacia:** ficam fora do parecer da Fase 3; entram apenas em fases de teleconexao Brasil.
@@ -84,16 +84,17 @@ alem de SSTA instantanea e do bloco de recarga WWV/OHC.
   reduzir para a semana canonica de 7 dias.
 - Caixa principal: Nino 3.4 (5N-5S, 170W-120W); mapas longitudinais usam a
   banda diagnostica 2S-2N, 120E-80W.
-- Metrica publicada unica: `dhw_cweek_p90`.
-- Limiar: P90 diario local da SSTA OISST, base 1991-2020.
-- Janela: 12 semanas para preservar a leitura C-week de calor recente; nao
-  publicar janelas concorrentes na Fase 3.
+- Metrica publicada unica: `dhw_cweek_0p5_12w`.
+- Limiar: HotSpot diario entra no somatorio apenas quando SSTA Nino 3.4 >= +0,5 C.
+- Janela: 12 semanas para preservar a leitura C-week de calor recente; a
+  validacao temporal auxiliar exige media movel de 12 semanas >= +0,5 C por
+  20 semanas consecutivas; nao publicar janelas concorrentes na Fase 3.
 - Unidade: C-semana.
 
 Formula operacional:
 
 ```text
-DHW_diario(t) = soma_movel(max(SSTA_diaria(t) - limiar, 0), janela_dias) / 7
+DHW_diario(t) = soma_movel(SSTA_diaria(t) se SSTA_diaria(t) >= 0,5 C, senao 0, janela_dias) / 7
 DHW_semanal = max_ou_media_semanal(DHW_diario)
 ```
 

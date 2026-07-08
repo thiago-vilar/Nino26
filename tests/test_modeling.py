@@ -174,7 +174,7 @@ class ModelingTests(unittest.TestCase):
         self.assertEqual(PHYSICS_ABLATIONS["G_with_physics"], {"ocean", "atmosphere", "physics_precalc"})
         self.assertEqual(PHYSICS_ABLATIONS["H_without_physics"], {"ocean", "atmosphere"})
 
-    def test_enso_peak_progression_targets_super_el_nino_peak(self) -> None:
+    def test_enso_peak_progression_targets_muito_forte_el_nino_peak(self) -> None:
         time = pd.date_range("2001-01-01", "2002-12-01", freq="MS")
         ssta = np.linspace(-0.2, 2.2, len(time))
         monthly = pd.DataFrame(
@@ -193,10 +193,10 @@ class ModelingTests(unittest.TestCase):
         )
         row = table[table["origin_time"] == pd.Timestamp("2002-06-01")].iloc[0]
 
-        self.assertEqual(classify_nino_peak(2.0), "super_el_nino")
-        self.assertEqual(row["future_peak_class"], "super_el_nino")
+        self.assertEqual(classify_nino_peak(2.0), "muito_forte")
+        self.assertEqual(row["future_peak_class"], "muito_forte")
         self.assertEqual(int(row["months_to_peak"]), 6)
-        self.assertTrue(bool(row["will_super_el_nino"]))
+        self.assertTrue(bool(row["will_muito_forte_el_nino"]))
         self.assertIn("d20_anomaly_m_delta_3m", table.columns)
 
     def test_daily_enso_progression_uses_daily_features_and_reference_peaks(self) -> None:
@@ -212,7 +212,7 @@ class ModelingTests(unittest.TestCase):
             {
                 "peak_time": [pd.Timestamp("2001-01-06")],
                 "peak_ssta_c": [2.05],
-                "peak_class": ["super_el_nino"],
+                "peak_class": ["muito_forte"],
             }
         )
 
@@ -225,9 +225,9 @@ class ModelingTests(unittest.TestCase):
         )
         row = table[table["origin_time"] == pd.Timestamp("2001-01-01")].iloc[0]
 
-        self.assertEqual(row["future_peak_class"], "super_el_nino")
+        self.assertEqual(row["future_peak_class"], "muito_forte")
         self.assertEqual(int(row["days_to_peak"]), 5)
-        self.assertTrue(bool(row["will_super_el_nino"]))
+        self.assertTrue(bool(row["will_muito_forte_el_nino"]))
         self.assertIn("nino34_ssta_mean_3d", table.columns)
         self.assertIn("future_daily_max_ssta", table.columns)
 

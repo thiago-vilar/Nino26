@@ -11,7 +11,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -49,20 +48,9 @@ def load_dhw() -> pd.DataFrame:
 
 
 def load_dhw_variants() -> pd.DataFrame:
-    """Arquivo bruto de DHW; a Fase 3 publica apenas `dhw_cweek_p90`."""
+    """Arquivo bruto de DHW; a Fase 3 publica apenas `dhw_cweek_0p5_12w`."""
     df = pd.read_csv(FEAT / "nino34_dhw_variants.csv", parse_dates=["time"])
     return df.set_index("time").sort_index()
-
-
-def load_p90_peaks() -> pd.DataFrame:
-    return pd.read_csv(FEAT / "nino34_oisst_p90_peaks.csv",
-                       parse_dates=["event_start", "event_end", "peak_time"])
-
-
-def load_p95_peaks() -> pd.DataFrame:
-    """Picos P95 (limiar ~1.58 C): recorte super_p95 comparavel ao P90."""
-    return pd.read_csv(FEAT / "nino34_oisst_p95_peaks.csv",
-                       parse_dates=["event_start", "event_end", "peak_time"])
 
 
 def load_atmo() -> pd.DataFrame:
@@ -76,89 +64,93 @@ def load_events() -> pd.DataFrame:
     return ev
 
 
-def p90_p95_thresholds() -> tuple[float, float]:
-    """Limiar mensal local usado na Fase 3: forte=P90, super=P95."""
-    p90 = float(load_p90_peaks()["percentile_threshold_c"].dropna().iloc[0])
-    p95 = float(load_p95_peaks()["percentile_threshold_c"].dropna().iloc[0])
-    return p90, p95
-
-
-def add_p90_p95_classification(
-    events: pd.DataFrame,
-    *,
-    value_col: str = "peak_monthly_ssta_c",
-) -> pd.DataFrame:
-    """Classifica eventos em apenas duas categorias executivas.
-
-    `super_p95` tem prioridade quando o pico e estritamente maior que P95.
-    `forte_p90` e o intervalo aberto/fechado solicitado: >P90 e <P95.
-    Eventos fora desses cortes ficam marcados para descarte das analises por
-    classe, preservando rastreabilidade.
-    """
-    p90, p95 = p90_p95_thresholds()
-    out = events.copy()
-    value = out[value_col].astype(float)
-    out["classe_p90_p95"] = np.select(
-        [value > p95, (value > p90) & (value < p95)],
-        ["super_p95", "forte_p90"],
-        default="descartado_abaixo_p90",
-    )
-    out["limiar_p90_c"] = p90
-    out["limiar_p95_c"] = p95
-    out["elegivel_p90_p95"] = out["classe_p90_p95"].isin(["forte_p90", "super_p95"])
-    return out
-
-
-def events_p90_p95() -> pd.DataFrame:
-    """Eventos El Nino locais filtrados para as duas classes da Fase 3."""
-    return add_p90_p95_classification(load_events()).query("elegivel_p90_p95").copy()
-
-
-ELNINO_MEAN_GROUPS = (
+NOAA_INTENSITY_GROUPS = (
     {
-        "grupo": "forte_p90",
-        "rotulo_curto": "P90 forte",
-        "rotulo": "Media P90 forte (>P90 e <P95)",
-        "definicao": "eventos com pico mensal >P90 e <P95",
+        "grupo": "fraco",
+        "rotulo_curto": "Fraco",
+        "rotulo": "El Nino fraco (0.5 <= ONI < 1.0 C)",
+        "definicao": "pico da media movel de 3 meses na Nino 3.4 entre +0.5 e +0.9 C",
+        "color": "#f9a825",
+        "linestyle": "--",
+        "linewidth": 1.5,
+    },
+    {
+        "grupo": "moderado",
+        "rotulo_curto": "Moderado",
+        "rotulo": "El Nino moderado (1.0 <= ONI < 1.5 C)",
+        "definicao": "pico da media movel de 3 meses na Nino 3.4 entre +1.0 e +1.4 C",
         "color": "#e65100",
         "linestyle": "--",
         "linewidth": 1.7,
     },
     {
-        "grupo": "super_p95",
-        "rotulo_curto": "P95 super",
-        "rotulo": "Media P95 super (>P95)",
-        "definicao": "eventos com pico mensal >P95",
+        "grupo": "forte",
+        "rotulo_curto": "Forte",
+        "rotulo": "El Nino forte (1.5 <= ONI < 2.0 C)",
+        "definicao": "pico da media movel de 3 meses na Nino 3.4 entre +1.5 e +1.9 C",
         "color": "#b71c1c",
         "linestyle": "--",
-        "linewidth": 1.7,
+        "linewidth": 1.9,
     },
     {
-        "grupo": "eventos_gt_p90",
-        "rotulo_curto": "Todos >P90",
-        "rotulo": "Media todos os El Ninos >P90",
-        "definicao": "todos os eventos elegiveis acima do P90, combinando forte_p90 e super_p95",
+        "grupo": "muito_forte",
+        "rotulo_curto": "Muito forte",
+        "rotulo": "El Nino muito forte / super (ONI >= 2.0 C)",
+        "definicao": "pico da media movel de 3 meses na Nino 3.4 igual ou acima de +2.0 C",
         "color": "#111827",
         "linestyle": "-",
         "linewidth": 2.4,
     },
 )
-ELNINO_MEAN_GROUP_ORDER = tuple(item["grupo"] for item in ELNINO_MEAN_GROUPS)
+NOAA_CLASS_ORDER = tuple(item["grupo"] for item in NOAA_INTENSITY_GROUPS)
+ELNINO_MEAN_GROUP_ORDER = NOAA_CLASS_ORDER
+
+
+def normalize_noaa_class(value: object) -> str:
+    mapping = {
+        "weak_el_nino": "fraco",
+        "moderate_el_nino": "moderado",
+        "strong_el_nino": "forte",
+        "super_el_nino": "muito_forte",
+        "very_strong_el_nino": "muito_forte",
+    }
+    text = str(value)
+    return mapping.get(text, text)
+
+
+def add_noaa_classification(events: pd.DataFrame) -> pd.DataFrame:
+    """Garante classe NOAA/ONI local e metadados de corte em eventos Nino 3.4."""
+    out = events.copy()
+    if "peak_class" in out:
+        out["classe_noaa"] = out["peak_class"].map(normalize_noaa_class)
+    else:
+        value = pd.to_numeric(out.get("peak_oni_local_c", out.get("peak_ssta_c")), errors="coerce")
+        out["classe_noaa"] = pd.cut(
+            value,
+            bins=[-float("inf"), 0.5, 1.0, 1.5, 2.0, float("inf")],
+            labels=["neutral", "fraco", "moderado", "forte", "muito_forte"],
+            right=False,
+        ).astype(str)
+    out["elegivel_noaa_oni"] = out["classe_noaa"].isin(NOAA_CLASS_ORDER)
+    out["limiar_oni_evento_c"] = 0.5
+    out["min_estacoes_sobrepostas"] = 5
+    return out
+
+
+def events_noaa() -> pd.DataFrame:
+    """Eventos El Nino locais pela regra NOAA/ONI compativel da Fase 3."""
+    return add_noaa_classification(load_events()).query("elegivel_noaa_oni").copy()
 
 
 def elnino_mean_group_table() -> pd.DataFrame:
-    """Tabela de referencia das tres medias executivas solicitadas."""
-    return pd.DataFrame(ELNINO_MEAN_GROUPS).copy()
+    """Tabela de referencia das classes oficiais NOAA usadas nos compostos."""
+    return pd.DataFrame(NOAA_INTENSITY_GROUPS).copy()
 
 
 def elnino_mean_groups(events: pd.DataFrame | None = None) -> dict[str, pd.DataFrame]:
-    """Retorna as tres medias executivas sempre na ordem P90, P95, todos >P90."""
-    ev = events_p90_p95() if events is None else events.copy()
-    return {
-        "forte_p90": ev.query("classe_p90_p95 == 'forte_p90'").copy(),
-        "super_p95": ev.query("classe_p90_p95 == 'super_p95'").copy(),
-        "eventos_gt_p90": ev.copy(),
-    }
+    """Retorna medias por classe NOAA sempre na ordem fraco->muito_forte."""
+    ev = events_noaa() if events is None else add_noaa_classification(events)
+    return {group: ev.query("classe_noaa == @group").copy() for group in NOAA_CLASS_ORDER}
 
 
 def elnino_group_style(group: str) -> dict:
@@ -227,9 +219,10 @@ def weekly_matrix() -> pd.DataFrame:
     # atlanticos foram removidos: controles inter-bacia sao materia da Fase 4
     # (teleconexao Brasil), nao do diagnostico fisico do Pacifico.
     dhwv = load_dhw_variants()
-    # DHW principal = acumulo de C-week a partir do limiar P90 diario (~1.07 C),
-    # janela 12 semanas (decisao do usuario; substitui o limiar fixo 1.0 C herdado do CRW).
-    dhw = pd.DataFrame({"dhw_cweek_p90": dhwv["dhw_12w_p90"]})
+    # DHW principal = HotSpot diario da anomalia SSTA >=0.5 C, acumulado em
+    # janela movel de 12 semanas. A flag de persistencia exige 20 semanas
+    # consecutivas de media movel 12 semanas >=0.5 C.
+    dhw = dhwv[["dhw_cweek_0p5_12w", "oni_12w_mean_c", "elnino_thermal_persistent_20w"]].copy()
     atmo = load_atmo()
     tau_raw = zonal_wind_stress_proxy(atmo["atm_10m_u_component_of_wind"])
     tau = daily_doy_anomaly(tau_raw).rename("tau_x_anom_nino34_pa").to_frame()
@@ -263,11 +256,18 @@ def sources_note() -> pd.DataFrame:
             "m / J m-2 / m3 / m / m",
         ),
         (
-            "dhw_cweek_p90",
-            "derivado da SSTA OISST (limiar P90 diario 1.07C, acumulo 12 sem)",
-            "derivado de anomalia; acumulo positivo em C-weeks",
+            "dhw_cweek_0p5_12w",
+            "derivado da SSTA OISST (HotSpot diario >=0.5C, acumulo 12 sem)",
+            "anomalias <0.5C descartadas; soma positiva em C-weeks",
             "valido 1981-11+",
             "C-weeks",
+        ),
+        (
+            "oni_12w_mean_c / elnino_thermal_persistent_20w",
+            "derivado da SSTA OISST",
+            "media movel 12 semanas e flag >=0.5C por 20 semanas consecutivas",
+            "valido 1981-11+",
+            "C / 0-1",
         ),
         (
             "tau_x_anom_nino34_pa",
@@ -328,7 +328,9 @@ VAR_LABELS = {
     "wwv": "WWV Pacifico equatorial (m3)",
     "tilt_m": "Tilt da termoclina (m)",
     "ssh_m": "SSH Nino 3.4 (m)",
-    "dhw_cweek_p90": "DHW C-week P90 (12 sem)",
+    "dhw_cweek_0p5_12w": "DHW C-week >=0.5C (12 sem)",
+    "oni_12w_mean_c": "Media SSTA 12 sem (C)",
+    "elnino_thermal_persistent_20w": "Persistencia termica 20 sem",
     "tau_x_anom_nino34_pa": "tau_x anom. Nino 3.4 (Pa)",
 }
 
@@ -340,7 +342,9 @@ VAR_SHORT = {
     "wwv": "WWV",
     "tilt_m": "Tilt",
     "ssh_m": "SSH",
-    "dhw_cweek_p90": "DHW C-week P90",
+    "dhw_cweek_0p5_12w": "DHW >=0.5C",
+    "oni_12w_mean_c": "SSTA 12w",
+    "elnino_thermal_persistent_20w": "Persist. 20w",
     "tau_x_anom_nino34_pa": "tau_x anom.",
 }
 
