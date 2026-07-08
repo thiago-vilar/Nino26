@@ -8,6 +8,8 @@ from pathlib import Path
 import matplotlib
 import pandas as pd
 
+from nino_brasil.features.phase3_diagnostics import _drop_phase3_excluded_columns
+
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -43,6 +45,20 @@ class Phase3ScopeTests(unittest.TestCase):
             ]
         )
         self.assertNotIn("sss", public_text.lower())
+
+    def test_phase3_public_signal_drops_salinity_columns(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "time": pd.to_datetime(["2026-01-01"]),
+                "nino34_ssta": [0.7],
+                "sss_nino34_mean": [35.1],
+                "absolute_salinity_nino34": [35.2],
+            }
+        )
+        out = _drop_phase3_excluded_columns(frame)
+        self.assertIn("nino34_ssta", out.columns)
+        self.assertNotIn("sss_nino34_mean", out.columns)
+        self.assertNotIn("absolute_salinity_nino34", out.columns)
 
     def test_phase3_wind_contract_uses_anomaly_not_raw_proxy(self) -> None:
         self.assertIn("tau_x_anom_nino34_pa", self.u.VAR_LABELS)

@@ -30,6 +30,22 @@ PHASE3_DAILY_TENDENCY_COLUMNS = [
     "ssh_nino34_mean_m",
 ]
 
+PHASE3_EXCLUDED_PUBLIC_COLUMNS = {
+    "sss_nino34_mean",
+}
+
+
+def _drop_phase3_excluded_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Remove variables explicitly outside the active Phase 3 public contract."""
+    excluded = [
+        column
+        for column in frame.columns
+        if column in PHASE3_EXCLUDED_PUBLIC_COLUMNS or column.startswith("sss_") or "salinity" in column.lower()
+    ]
+    if not excluded:
+        return frame
+    return frame.drop(columns=excluded)
+
 
 @dataclass(frozen=True)
 class Phase3DiagnosticsOutput:
@@ -194,6 +210,7 @@ def _merge_daily_oisst_ocean_monthly(
     if not monthly.empty:
         merged = pd.merge(merged, monthly, on="month_start", how="left", suffixes=("", "_monthly"))
 
+    merged = _drop_phase3_excluded_columns(merged)
     merged["year"] = merged["time"].dt.year
     merged["month"] = merged["time"].dt.month
     merged["day"] = merged["time"].dt.day
