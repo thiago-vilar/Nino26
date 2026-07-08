@@ -5,6 +5,12 @@ import sys
 import unittest
 from pathlib import Path
 
+import matplotlib
+
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 
 ROOT = Path(__file__).resolve().parents[1]
 UTILS_PATH = ROOT / "notebooks" / "fase3" / "fase3_utils.py"
@@ -48,6 +54,16 @@ class Phase3ScopeTests(unittest.TestCase):
         self.assertIn("5N-5S, 160E-150W", references)
         self.assertIn("120E-80W", references)
         self.assertNotIn("0-360", references)
+
+    def test_phase3_longitude_axis_runs_west_to_east(self) -> None:
+        fig, ax = plt.subplots()
+        try:
+            self.u.format_lon_axis(ax)
+            self.assertEqual(tuple(ax.get_xlim()), (120.0, 280.0))
+            self.assertEqual(list(ax.get_xticks()), [120, 160, 200, 240, 280])
+            self.assertEqual([tick.get_text() for tick in ax.get_xticklabels()], ["120E", "160E", "160W", "120W", "80W"])
+        finally:
+            plt.close(fig)
 
 
 if __name__ == "__main__":

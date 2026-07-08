@@ -76,10 +76,10 @@ Referencias oficiais NOAA/CPC usadas na leitura:
 | Nino 4 | 5N-5S, 160E-150W | referencia desejada para anomalias de vento/WWB |
 | Banda 2S-2N, 120E-80W | faixa diagnostica, nao caixa oficial Nino | Hovmoller e mapas longitude x lag |
 
-Nas figuras 3A/3C/3D/3E/3F/3G, o eixo x e invertido para leitura
-leste->oeste. A esquerda fica o Pacifico leste (80W), o centro marca as
-longitudes do Nino 3.4 (170W-120W), e a direita fica o Pacifico oeste
-(160E-120E). Use sempre essa referencia W/E no texto interpretativo.
+Nas figuras 3A/3C/3D/3E/3F/3G, o eixo x segue a leitura oeste->leste. A
+esquerda fica o Pacifico oeste (120E), o centro marca as longitudes do Nino
+3.4 (170W-120W), e a direita fica o Pacifico leste (80W). Use sempre essa
+referencia W/E no texto interpretativo.
 
 ## 5. DHW correto para Nino 3.4
 

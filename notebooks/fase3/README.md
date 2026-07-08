@@ -58,9 +58,9 @@ Referencias NOAA/CPC usadas na Fase 3:
 | Nino 4 | 5N-5S, 160E-150W | referencia desejada para anomalias de vento/WWB |
 | Banda equatorial 2S-2N, 120E-80W | nao e caixa oficial Nino | diagnostico longitudinal/Hovmoller |
 
-Nas figuras longitudinais, o eixo x e invertido para leitura leste->oeste:
-esquerda = Pacifico leste (80W), centro = longitudes Nino 3.4 (170W-120W),
-direita = Pacifico oeste (160E-120E). A notacao interna de arquivos pode usar
+Nas figuras longitudinais, o eixo x segue a leitura oeste->leste:
+esquerda = Pacifico oeste (120E), centro = longitudes Nino 3.4 (170W-120W),
+direita = Pacifico leste (80W). A notacao interna de arquivos pode usar
 longitude numerica continua, mas relatorios e figuras devem mostrar apenas W/E.
 
 ## DHW

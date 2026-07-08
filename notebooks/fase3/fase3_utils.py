@@ -302,9 +302,9 @@ def lon_label(lon: float) -> str:
     return f"{int(round(360 - lon))}W"
 
 
-def format_lon_axis(ax, *, xlabel: str = "Longitude oficial (W/E; leste -> oeste)") -> None:
-    ticks = [280, 240, 190, 160, 120]
-    ax.set_xlim(280, 120)
+def format_lon_axis(ax, *, xlabel: str = "Longitude oficial (W/E; oeste -> leste)") -> None:
+    ticks = [120, 160, 200, 240, 280]
+    ax.set_xlim(120, 280)
     ax.set_xticks(ticks)
     ax.set_xticklabels([lon_label(t) for t in ticks], fontsize=8)
     ax.set_xlabel(xlabel)
