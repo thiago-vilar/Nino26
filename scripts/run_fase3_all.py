@@ -19,6 +19,7 @@ NOTEBOOKS = [
     "3F_dhw_kelvin.ipynb",
     "3G_ciclo_vida_dhw.ipynb",
     "3H_genese_precursores_classe.ipynb",
+    "3K_pca_crescimento.ipynb",
     "3I_interpretacao_integrada.ipynb",
 ]
 

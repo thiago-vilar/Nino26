@@ -48,7 +48,8 @@ No terminal:
 .venv\Scripts\python scripts\run_fase3_all.py
 ```
 
-No VS Code, selecione o kernel `Python 3 (.venv NINO26)`, rode na ordem 3A-3I
+No VS Code, selecione o kernel `Python 3 (.venv NINO26)`, rode na ordem 3A-3H,
+3K e 3I
 e reinicie o kernel entre notebooks. Os notebooks nao materializam dado bruto:
 eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 
@@ -63,19 +64,20 @@ eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 | 3E | O que e estavel em 1993-2009 e 2010-presente? | Segundo filtro; instavel vira limite de regime. |
 | 3F | DHW tem informacao propria? Kelvin aparece? | DHW so entra se parcial sobreviver; Kelvin e leitura qualitativa. |
 | 3G | DHW mede severidade acumulada? | Compare `dhw_12w` e `dhw_26w_p90` por evento. |
-| 3H | A genese separa fortes de fracos? | Descritivo; prepara hipoteses para Fase 5. |
+| 3H | A genese separa `forte_p90` de `super_p95`? | Descritivo; prepara hipoteses para Fase 5. |
+| 3K | Quais variaveis explicam crescimento pre-pico? | Sintese multivariada; nao substitui 3D/3E. |
 | 3I | Qual e o veredito integrado? | Texto e tabelas finais para o parecer. |
 
 ## 5. DHW correto para Nino 3.4
 
-`dhw_12w` (`>1 C` por 12 semanas) fica como metrica herdada/compatibilidade. A
-janela veio da tradicao CRW, que foi pensada para estresse termico de coral, nao
-para a memoria de ENOS.
+`dhw_12w` e a metrica principal da Fase 3: acumulo de C-week acima do P90
+diario local por 12 semanas. Ela preserva a ideia operacional de calor recente,
+mas troca o limiar fixo herdado por um limiar empirico da propria OISST local.
 
-`dhw_26w_p90` e a metrica preferida para severidade ENSO na Fase 3: a janela de
-26 semanas aproxima o e-folding observado da SSTA (~27 semanas), e o limiar P90
-diario e derivado da propria OISST local. Ela mede carga termica acumulada no
-tempo do evento. Nao use DHW como definicao de El Nino nem como skill preditivo.
+`dhw_26w_p90` fica como sensibilidade para severidade ENSO na escala do evento:
+a janela de 26 semanas aproxima o e-folding observado da SSTA (~27 semanas), e
+o limiar P90 diario tambem vem da OISST local. Nao use DHW como definicao de
+El Nino nem como skill preditivo.
 
 ## 6. P90 e P95
 
@@ -86,9 +88,11 @@ extrema/super-eventos. A tabela principal fica em:
 data\processed\parquet\statistics\phase3I_picos_p90_p95_comparacao.csv
 ```
 
-Use P90 para ranking geral e P95 para o conjunto extremo. P95 nao substitui a
-classificacao classica por limiares fixos; ele e uma regua interna, auditavel e
-sem rotulo externo.
+Use `forte_p90` para eventos com pico mensal >P90 e <P95. Use `super_p95`
+para eventos com pico mensal >P95. Eventos abaixo ou iguais a P90 ficam
+registrados em tabela de descarte, mas nao entram em compostos por classe. A
+media executiva dos eventos >P90 fica em
+`data\processed\parquet\statistics\phase3I_media_eventos_gt_p90.csv`.
 
 ## 7. Estado 2026
 

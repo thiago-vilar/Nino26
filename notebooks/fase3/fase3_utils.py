@@ -1,4 +1,4 @@
-"""Utilidades compartilhadas dos notebooks da Fase 3 (3A-3G).
+"""Utilidades compartilhadas dos notebooks da Fase 3 (3A-3I/3K).
 
 Convencoes:
 - Eixo canonico semanal: semanas terminando no domingo (W-SUN).
@@ -60,7 +60,7 @@ def load_p90_peaks() -> pd.DataFrame:
 
 
 def load_p95_peaks() -> pd.DataFrame:
-    """Picos P95 (limiar ~1.58 C): recorte 'super/strong' comparavel ao P90."""
+    """Picos P95 (limiar ~1.58 C): recorte super_p95 comparavel ao P90."""
     return pd.read_csv(FEAT / "nino34_oisst_p95_peaks.csv",
                        parse_dates=["event_start", "event_end", "peak_time"])
 
@@ -74,6 +74,44 @@ def load_events() -> pd.DataFrame:
     ev = pd.read_csv(FEAT / "nino34_oisst_event_reference.csv",
                      parse_dates=["event_start", "event_end", "peak_time"])
     return ev
+
+
+def p90_p95_thresholds() -> tuple[float, float]:
+    """Limiar mensal local usado na Fase 3: forte=P90, super=P95."""
+    p90 = float(load_p90_peaks()["percentile_threshold_c"].dropna().iloc[0])
+    p95 = float(load_p95_peaks()["percentile_threshold_c"].dropna().iloc[0])
+    return p90, p95
+
+
+def add_p90_p95_classification(
+    events: pd.DataFrame,
+    *,
+    value_col: str = "peak_monthly_ssta_c",
+) -> pd.DataFrame:
+    """Classifica eventos em apenas duas categorias executivas.
+
+    `super_p95` tem prioridade quando o pico e estritamente maior que P95.
+    `forte_p90` e o intervalo aberto/fechado solicitado: >P90 e <P95.
+    Eventos fora desses cortes ficam marcados para descarte das analises por
+    classe, preservando rastreabilidade.
+    """
+    p90, p95 = p90_p95_thresholds()
+    out = events.copy()
+    value = out[value_col].astype(float)
+    out["classe_p90_p95"] = np.select(
+        [value > p95, (value > p90) & (value < p95)],
+        ["super_p95", "forte_p90"],
+        default="descartado_abaixo_p90",
+    )
+    out["limiar_p90_c"] = p90
+    out["limiar_p95_c"] = p95
+    out["elegivel_p90_p95"] = out["classe_p90_p95"].isin(["forte_p90", "super_p95"])
+    return out
+
+
+def events_p90_p95() -> pd.DataFrame:
+    """Eventos El Nino locais filtrados para as duas classes da Fase 3."""
+    return add_p90_p95_classification(load_events()).query("elegivel_p90_p95").copy()
 
 
 def load_eqband_weekly() -> pd.DataFrame:
@@ -139,7 +177,7 @@ def sources_note() -> pd.DataFrame:
     return pd.DataFrame([
         ("nino34_ssta", "OISST v2.1 local", "1981-09+", "C"),
         ("d20_m / ohc_* / wwv / tilt_m / ssh_m / sss", "UFS 1981-92 (ponte) -> GLORYS12 1993+ -> GLO12 cauda", "sensibilidade 1993+", "m / J m-2 / m3 / m / m / psu"),
-        ("dhw_12w", "derivado da SSTA OISST (limiar 1C, 12 sem - convencao CRW)", "valido 1981-11+", "C-weeks"),
+        ("dhw_12w", "derivado da SSTA OISST (limiar P90 diario 1.07C, 12 sem)", "valido 1981-11+", "C-weeks"),
         ("dhw_26w_p90", "derivado da SSTA OISST (limiar P90 diario 1.07C, 26 sem - escala do evento)", "valido 1982-03+", "C-weeks"),
         ("tau_x_proxy_nino34_pa", "ERA5 u10 caixa Nino 3.4 (proxy; protocolo pede Nino 4)", "1981+", "Pa"),
     ], columns=["variavel", "fonte", "janela_real", "unidade"])
