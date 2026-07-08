@@ -49,7 +49,7 @@ def load_dhw() -> pd.DataFrame:
 
 
 def load_dhw_variants() -> pd.DataFrame:
-    """Variantes de sensibilidade do DHW: janelas 12/26 sem x limiar 1.0C/P90 diario."""
+    """Arquivo bruto de DHW; a Fase 3 publica apenas `dhw_cweek_p90`."""
     df = pd.read_csv(FEAT / "nino34_dhw_variants.csv", parse_dates=["time"])
     return df.set_index("time").sort_index()
 
@@ -128,15 +128,24 @@ def load_ssh_events() -> pd.DataFrame:
     return df
 
 
-def tau_x_proxy(u10: pd.Series) -> pd.Series:
-    """Proxy de estresse zonal do vento: tau_x = rho_a * Cd * |u10| * u10.
+def zonal_wind_stress_proxy(u10: pd.Series) -> pd.Series:
+    """Proxy bruto de estresse zonal do vento: tau_x = rho_a * Cd * |u10| * u10.
 
     Caveat metodologico: usa u10 medio da caixa Nino 3.4 (cache ERA5 local);
     o protocolo pede tau_x na caixa Nino 4 - substituir quando o recorte
     Nino 4 for materializado. O sinal (leste/oeste) e a fase temporal sao
     preservados; a magnitude absoluta nao deve ser interpretada.
     """
-    return (RHO_AIR * CD_NEUTRAL * u10.abs() * u10).rename("tau_x_proxy_nino34_pa")
+    return (RHO_AIR * CD_NEUTRAL * u10.abs() * u10).rename("tau_x_raw_proxy_nino34_pa")
+
+
+def daily_doy_anomaly(series: pd.Series, *, base_start: str = "1991-01-01", base_end: str = "2020-12-31") -> pd.Series:
+    """Anomalia diaria simples por dia-do-ano, estimada no periodo base."""
+    s = series.sort_index().astype(float)
+    base = s.loc[base_start:base_end]
+    clim = base.groupby(base.index.dayofyear).mean()
+    out = s - pd.Series(s.index.dayofyear, index=s.index).map(clim).astype(float)
+    return out.rename(f"{series.name}_anom")
 
 
 def to_weekly(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
@@ -155,7 +164,6 @@ def weekly_matrix() -> pd.DataFrame:
         "wwv_equatorial_pacific_m3": "wwv",
         "thermocline_tilt_m": "tilt_m",
         "ssh_nino34_mean_m": "ssh_m",
-        "sss_nino34_mean": "sss",
     }
     base = phys[list(cols)].rename(columns=cols)
     # Escopo Fase 3 = diagnostico fisico do Pacifico (Nino 3.4). Indices
@@ -166,7 +174,8 @@ def weekly_matrix() -> pd.DataFrame:
     # janela 12 semanas (decisao do usuario; substitui o limiar fixo 1.0 C herdado do CRW).
     dhw = pd.DataFrame({"dhw_cweek_p90": dhwv["dhw_12w_p90"]})
     atmo = load_atmo()
-    tau = tau_x_proxy(atmo["atm_10m_u_component_of_wind"]).to_frame()
+    tau_raw = zonal_wind_stress_proxy(atmo["atm_10m_u_component_of_wind"])
+    tau = daily_doy_anomaly(tau_raw).rename("tau_x_anom_nino34_pa").to_frame()
     daily = base.join([dhw, tau], how="outer")
     weekly = to_weekly(daily)
     weekly.index.name = "week_ending_sunday"
@@ -190,11 +199,11 @@ def sources_note() -> pd.DataFrame:
             "C",
         ),
         (
-            "d20_m / ohc_* / wwv / tilt_m / ssh_m / sss",
+            "d20_m / ohc_* / wwv / tilt_m / ssh_m",
             "UFS 1981-92 (ponte) -> GLORYS12 1993+ -> GLO12 cauda",
             "valor fisico/indice original; nao e anomalia climatologica na matriz semanal",
             "sensibilidade 1993+",
-            "m / J m-2 / m3 / m / m / psu",
+            "m / J m-2 / m3 / m / m",
         ),
         (
             "dhw_cweek_p90",
@@ -204,9 +213,9 @@ def sources_note() -> pd.DataFrame:
             "C-weeks",
         ),
         (
-            "tau_x_proxy_nino34_pa",
-            "ERA5 u10 caixa Nino 3.4 (proxy; protocolo pede Nino 4)",
-            "proxy fisico calculado de u10; nao e anomalia climatologica",
+            "tau_x_anom_nino34_pa",
+            "ERA5 u10 caixa Nino 3.4 (proxy; referencia desejada: Nino 4)",
+            "anomalia diaria 1991-2020 do proxy de estresse zonal do vento",
             "1981+",
             "Pa",
         ),
@@ -248,8 +257,9 @@ def save_fig(fig, name):
 
 
 CAIXAS = {
-    "nino34": "Nino 3.4 (5S-5N, 170W-120W)",
-    "equatorial": "Pacifico equatorial (2S-2N, 120E-280E)",
+    "nino34": "Nino 3.4 NOAA/CPC (5N-5S, 170W-120W)",
+    "nino4": "Nino 4 NOAA/CPC (5N-5S, 160E-150W)",
+    "equatorial": "Banda diagnostica equatorial (2S-2N, 120E-80W)",
 }
 
 
@@ -261,9 +271,8 @@ VAR_LABELS = {
     "wwv": "WWV Pacifico equatorial (m3)",
     "tilt_m": "Tilt da termoclina (m)",
     "ssh_m": "SSH Nino 3.4 (m)",
-    "sss": "SSS Nino 3.4 (psu)",
     "dhw_cweek_p90": "DHW C-week P90 (12 sem)",
-    "tau_x_proxy_nino34_pa": "tau_x proxy Nino 3.4 (Pa)",
+    "tau_x_anom_nino34_pa": "tau_x anom. Nino 3.4 (Pa)",
 }
 
 VAR_SHORT = {
@@ -274,9 +283,8 @@ VAR_SHORT = {
     "wwv": "WWV",
     "tilt_m": "Tilt",
     "ssh_m": "SSH",
-    "sss": "SSS",
     "dhw_cweek_p90": "DHW C-week P90",
-    "tau_x_proxy_nino34_pa": "tau_x proxy",
+    "tau_x_anom_nino34_pa": "tau_x anom.",
 }
 
 
@@ -294,7 +302,7 @@ def lon_label(lon: float) -> str:
     return f"{int(round(360 - lon))}W"
 
 
-def format_lon_axis(ax, *, xlabel: str = "Longitude (leste -> oeste; graus 0-360 invertidos)") -> None:
+def format_lon_axis(ax, *, xlabel: str = "Longitude oficial (W/E; leste -> oeste)") -> None:
     ticks = [280, 240, 190, 160, 120]
     ax.set_xlim(280, 120)
     ax.set_xticks(ticks)

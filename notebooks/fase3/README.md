@@ -19,8 +19,8 @@ Nenhuma figura sem saida numerica correspondente.
 .venv\Scripts\python -m pytest -q
 ```
 
-`fase3_build_inputs.py` materializa ATL3/ATL4/TNA/TSA, banda equatorial por
-longitude, SSH de eventos, DHW diario canonico e o cache de mapas. Use
+`fase3_build_inputs.py` materializa banda equatorial por longitude, SSH de
+eventos, DHW diario canonico e o cache de mapas. Use
 `--force` quando OISST/oceano forem atualizados.
 
 Execucao headless completa:
@@ -48,12 +48,20 @@ Execucao headless completa:
 O 3F tem regra extra de nao-redundancia; o 3G caracteriza severidade acumulada;
 o 3I consolida a interpretacao, mas nao cria evidencia nova.
 
-## Convencao de longitude
+## Referencias oficiais de longitude
 
-Nas figuras longitudinais da Fase 3, o eixo x e invertido para leitura
-leste->oeste: esquerda = Pacifico leste (80W/280E) e direita = Pacifico oeste
-(120E). A faixa cinza/tracejada marca as longitudes do Nino 3.4, 170W-120W
-(240E-190E na convencao 0-360).
+Referencias NOAA/CPC usadas na Fase 3:
+
+| Caixa | Referencia oficial | Uso na Fase 3 |
+|---|---|---|
+| Nino 3.4 | 5N-5S, 170W-120W | alvo das series, eventos P90/P95 e parecer |
+| Nino 4 | 5N-5S, 160E-150W | referencia desejada para anomalias de vento/WWB |
+| Banda equatorial 2S-2N, 120E-80W | nao e caixa oficial Nino | diagnostico longitudinal/Hovmoller |
+
+Nas figuras longitudinais, o eixo x e invertido para leitura leste->oeste:
+esquerda = Pacifico leste (80W), centro = longitudes Nino 3.4 (170W-120W),
+direita = Pacifico oeste (160E-120E). A notacao interna de arquivos pode usar
+longitude numerica continua, mas relatorios e figuras devem mostrar apenas W/E.
 
 ## DHW
 
@@ -64,6 +72,14 @@ DHW concorrentes; todos os notebooks e figuras usam essa metrica unica.
 Classificacao executiva: `forte_p90` = pico mensal >P90 e <P95; `super_p95` =
 pico mensal >P95. A media executiva dos eventos >P90 fica em
 `phase3I_media_eventos_gt_p90.csv`.
+
+## Vento
+
+`tau_x` e estresse zonal do vento (friccao na superficie), em Pa. A Fase 3
+publica `tau_x_anom_nino34_pa`, anomalia diaria 1991-2020 do proxy de estresse
+zonal derivado do `u10` ERA5 na caixa Nino 3.4. Para investigar WWB/Kelvin com
+mais rigor, a variavel desejada e `u10_anom` e/ou `tau_x_anom` em Nino 4
+(5N-5S, 160E-150W), a ser materializada quando o cache ERA5 Nino 4 existir.
 
 Kernel no VS Code: `Python 3 (.venv NINO26)`.
 Modulo compartilhado: `fase3_utils.py` (caminhos, matriz semanal, eventos, salvamento padrao).

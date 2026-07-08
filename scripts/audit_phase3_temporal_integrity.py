@@ -56,7 +56,7 @@ ARTIFACTS = [
     Artifact(
         "sinal_fisico_nino34",
         FEAT / "nino34_physical_signal.csv",
-        "SSTA + D20/OHC/WWV/SSH/SSS diarios",
+        "SSTA + D20/OHC/WWV/SSH diarios; salinidade fora do escopo da Fase 3",
         "time",
         "D",
         1,

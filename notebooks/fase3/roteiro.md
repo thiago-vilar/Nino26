@@ -68,10 +68,18 @@ eles leem produtos do pipeline e gravam tabelas/figuras interpretativas.
 | 3K | Quais variaveis explicam crescimento pre-pico? | Sintese multivariada; nao substitui 3D/3E. |
 | 3I | Qual e o veredito integrado? | Texto e tabelas finais para o parecer. |
 
-Convencao de longitude nas figuras 3A/3C/3D/3E/3F: o eixo x e invertido para
-leitura leste->oeste. A esquerda fica o Pacifico leste (80W/280E); a direita
-fica o Pacifico oeste (120E). A faixa cinza/tracejada marca as longitudes do
-Nino 3.4, 170W-120W.
+Referencias oficiais NOAA/CPC usadas na leitura:
+
+| Caixa | Longitude/latitude oficial | Papel |
+|---|---|---|
+| Nino 3.4 | 5N-5S, 170W-120W | alvo da Fase 3 |
+| Nino 4 | 5N-5S, 160E-150W | referencia desejada para anomalias de vento/WWB |
+| Banda 2S-2N, 120E-80W | faixa diagnostica, nao caixa oficial Nino | Hovmoller e mapas longitude x lag |
+
+Nas figuras 3A/3C/3D/3E/3F/3G, o eixo x e invertido para leitura
+leste->oeste. A esquerda fica o Pacifico leste (80W), o centro marca as
+longitudes do Nino 3.4 (170W-120W), e a direita fica o Pacifico oeste
+(160E-120E). Use sempre essa referencia W/E no texto interpretativo.
 
 ## 5. DHW correto para Nino 3.4
 
@@ -95,7 +103,17 @@ registrados em tabela de descarte, mas nao entram em compostos por classe. A
 media executiva dos eventos >P90 fica em
 `data\processed\parquet\statistics\phase3I_media_eventos_gt_p90.csv`.
 
-## 7. Estado 2026
+## 7. Vento e tau_x
+
+`tau_x` e estresse zonal do vento, ou seja, friccao/forcamento zonal aplicado
+na superficie do oceano, em Pa. Ele nao e automaticamente uma anomalia: so vira
+anomalia quando removemos a climatologia diaria. A Fase 3 usa
+`tau_x_anom_nino34_pa`, anomalia 1991-2020 do proxy de tau_x derivado do `u10`
+ERA5 em Nino 3.4. Para investigar deslocamento/anomalia de vento de forma mais
+direta, use `u10_anom`; para WWB/Kelvin, a regiao mais adequada e Nino 4
+(5N-5S, 160E-150W).
+
+## 8. Estado 2026
 
 A leitura de 2026 deve vir de:
 
@@ -107,7 +125,7 @@ Se o mes mais recente estiver incompleto, escreva "aquecimento em curso" e nao
 "evento fechado". Um novo El Nino so deve entrar na tabela de eventos quando o
 criterio local OISST completar a duracao minima.
 
-## 8. Regra de escrita do parecer
+## 9. Regra de escrita do parecer
 
 1. Figura ilustra; tabela decide.
 2. Cite sempre janela, fonte e `N_eff`.
