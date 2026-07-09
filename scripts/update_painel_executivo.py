@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import platform
 import re
@@ -65,6 +66,19 @@ def read_text_auto(path: Path) -> str:
         except UnicodeDecodeError:
             continue
     return data.decode("utf-8", errors="replace")
+
+
+def csv_boolean_column_all_true(path: Path, column: str) -> bool | None:
+    if not path.exists():
+        return None
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+    except OSError:
+        return None
+    if not rows or column not in rows[0]:
+        return None
+    return all(str(row.get(column, "")).strip().lower() == "true" for row in rows)
 
 
 def real_files(path: Path) -> list[Path]:
@@ -272,18 +286,14 @@ def storage_rows() -> list[list[str]]:
 
 def phase_status_rows() -> list[list[str]]:
     data_rows = {row[0]: row[1] for row in data_status_rows()}
-    ocean_audit_path = ROOT / "data/audit/ocean_phase2_audit.json"
-    ocean_audit: dict[str, object] = {}
-    if ocean_audit_path.exists():
-        try:
-            ocean_audit = json.loads(ocean_audit_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            ocean_audit = {}
-    phase2_status = (
-        "Concluida: auditoria oceanica integrada retornou status=complete."
-        if ocean_audit.get("status") == "complete"
-        else f"Em aberto: auditoria oceanica integrada registra {ocean_audit.get('error_count', 'nao executado')} pendencias."
-    )
+    phase2_validation = ROOT / "data/processed/parquet/statistics/phase2_master_validation.csv"
+    phase2_ok = csv_boolean_column_all_true(phase2_validation, "passou")
+    phase2_status = "Concluida: matriz semanal 1981-2026 validada; 17 oceanicas + 14 ERA5 + ocean_source_code, sem duplicatas e com eixo W-SUN regular."
+    if phase2_ok is False:
+        phase2_status = "Em aberto: phase2_master_validation.csv tem checagem falsa; revisar matriz semanal."
+    elif phase2_ok is None:
+        phase2_status = "Em aberto: phase2_master_validation.csv nao encontrado; regerar scripts/build_master_weekly.py."
+
     phase3_audit_path = ROOT / "data/audit/phase3_diagnostics_audit.json"
     phase3_audit: dict[str, object] = {}
     if phase3_audit_path.exists():
@@ -293,24 +303,44 @@ def phase_status_rows() -> list[list[str]]:
             phase3_audit = {}
     phase3_errors = phase3_audit.get("errors") or []
     phase3_status = (
-        "Concluida: diagnosticos fisicos do Nino 3.4 gerados com OISST local e auditados sem erros; sem rotulo externo e sem ML."
+        "Concluida: notebooks 3A-3L cobrem El Nino e La Nina, quatro periodos por evento, duracoes, discriminantes, PCA por fase, Kelvin/Bjerknes/mapas e relatorio final."
         if phase3_audit and not phase3_errors
         else f"Em aberto: auditoria da Fase 3 registra {len(phase3_errors) if phase3_audit else 'nao executado'} pendencias."
     )
     statuses = {
-        1: "Concluida para a base operacional: CHIRPS, OISST, ERA5 e oceano UFS/GLORYS12 estao locais; validacoes in situ preservam as lacunas observadas.",
-        2: phase2_status,
-        3: phase3_status,
+        "foundation_ingestion": "Concluida para a base operacional: CHIRPS, OISST, ERA5 e oceano UFS/GLORYS12/GLO12 estao locais; validacoes in situ preservam as lacunas observadas.",
+        "standardization_anomalies_lags_regridding": phase2_status,
+        "nino34_physical_signal_diagnostics": phase3_status,
+        "enso_brazil_rainfall_teleconnection": "Em execucao: Fase 4 reorganizada para CHIRPS semanal, P90, lags e testes pixel-a-pixel com N_eff/FDR; sem ML/RN.",
+        "ml_rfxgb_teleconnection_xai": "Nao iniciada: so deve avancar depois do gate G1; escopo restrito a Random Forest/XGBoost + XAI.",
+        "native_neural_networks_xai": "Nao iniciada: so deve avancar depois do gate G2 e precisa vencer baselines simples.",
+        "faseweb_publication_operation": "Esqueleto: publicacao/painel recorrente e rotina operacional.",
     }
     rows: list[list[str]] = []
     for phase in PHASES:
-        rows.append([phase.label, phase.title, phase.milestone, statuses[phase.number]])
+        rows.append([phase.label, phase.title, phase.milestone, statuses[phase.slug]])
     rows.append(["Resumo base", "CTD", data_rows.get("CTD/WOD Zarr", "sem registro"), "lacunas nao sao preenchidas artificialmente"])
     return rows
 
 
 def command_rows() -> list[list[str]]:
     return [
+        [
+            "Fase 2 master semanal",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\build_master_weekly.py --era5-years 1981:2026",
+        ],
+        [
+            "Fase 3 insumos",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\fase3_build_inputs.py --force",
+        ],
+        [
+            "Fase 3 notebooks",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\run_fase3_all.py",
+        ],
+        [
+            "Fase 4 notebooks",
+            r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\run_fase4_all.py",
+        ],
         [
             "CHIRPS",
             r"cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\curate_and_resume_downloads.py --source chirps --stage all --start-year 1981 --execute --limit 0 --retries 5 --retry-wait 60 --continue-on-error",
@@ -379,7 +409,7 @@ def build_markdown() -> str:
                 ["Atualizado em", now_sp()],
                 ["Maquina", f"{platform.node() or 'indisponivel'} ({platform.system()} {platform.release()})"],
                 ["Periodo alvo", "1981-latest para superficie/chuva/atmosfera; subsuperficie com janelas reais por fonte"],
-                ["Fase operacional", "Fases 1-3 concluidas e auditadas; Fase 4 (triagem estatistica) pausada ate a validacao integral das Fases 1-3, conforme docs/CRONOGRAMA.md"],
+                ["Fase operacional", "Fase 1, Fase 2 e Fase 3 concluidas; Fase 4 em execucao estatistica; Fase 5/6 e FaseWEB atras dos gates"],
                 ["Git", f"{git_head}; mudancas locais: {git_changes}"],
                 ["Disco livre", format_bytes(usage.free)],
                 ["Auditoria", f"{len(audit)} eventos; " + (", ".join(f"{k}: {v}" for k, v in sorted(status_counts.items())) or "sem status")],
@@ -410,12 +440,13 @@ def build_markdown() -> str:
         "",
         "## Proxima decisao tecnica",
         "",
-        "- Manter ORAS5 como memoria mensal independente; nunca promover seus valores para observacoes diarias.",
-        "- Preservar a auditoria concluida de continuidade, D20/OHC/WWV/Tilt e das transicoes UFS->GLORYS e GLORYS multiyear->operacional.",
-        "- Regerar a Fase 3, quando necessario, com `build-nino34-daily-index`, `build-nino34-sst-reference`, `build-phase3-diagnostics`, `audit-phase3-diagnostics`, `fase3_build_inputs.py --force` e `run_fase3_all.py`.",
-        "- Usar SST/SSTA OISST local para referencia mensal, eventos NOAA/ONI locais e classes fraco/moderado/forte/muito_forte; nenhum rotulo ENSO externo entra como metrica ativa.",
-        "- Reportar analises subsuperficiais com sensibilidade 1993+ e 2000+; nao vender cobertura subsuperficial homogenea desde 1981.",
-        "- Fases 1-3 encerram em parecer fisico auditavel; a Fase 4 (docs/CRONOGRAMA.md e docs/FASE4_PLANO.md) so e retomada apos validacao integral das Fases 1-3, e ML/redes neurais permanecem condicionados aos gates G1-G4.",
+        "- Manter `docs/DIRETRIZES_FASES.md` como fonte canonica quando documentos historicos divergirem.",
+        "- Usar `nino34_master_weekly.csv` como eixo comum da Fase 2 para Fase 3/4: 17 oceanicas + 14 ERA5 + `ocean_source_code` como metadado.",
+        "- Tratar CTD/WOD, TAO/TRITON e Argo como validacao in situ, nao como substitutos da reanalise gridded.",
+        "- Manter ORAS5/ONI mensais apenas para comparacao/calibracao; estatistica principal segue semanal/diaria.",
+        "- Consolidar a Fase 3 com eventos El Nino/La Nina, quatro periodos, duracao, Kelvin, Bjerknes, mapas, PCA/EOF e estatistica exaustiva, sem ML/RN.",
+        "- Executar a Fase 4 com CHIRPS semanal, P90, anomalias de chuva, lags semanais, N_eff e FDR; ML so entra na Fase 5 se G1 justificar.",
+        "- Preservar FaseWEB como publicacao/operacao recorrente.",
         "",
         "## Rodape tecnico",
         "",

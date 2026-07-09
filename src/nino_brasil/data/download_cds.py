@@ -75,8 +75,6 @@ ERA5_PRESSURE_VARIABLE_ALIASES = {
 ATMOSPHERE_AREAS = {
     "nino34": [5, -170, -5, -120],
     "brazil": [7, -75, -35, -30],
-    "atl4": [3, -50, -3, -25],
-    "tropical_atlantic": [30, -70, -30, 20],
     "iod_west": [10, 50, -10, 70],
     "iod_east": [0, 90, -10, 110],
 }

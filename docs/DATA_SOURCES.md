@@ -63,28 +63,16 @@ east_pacific_brazil:
 
 O dominio atmosferico e dividido em dois blocos para evitar erro no cruzamento do antimeridiano.
 
-### 2.4 Controles Atlantico tropical e IOD
-
-Uso: covariaveis obrigatorias/recomendadas para teleconexao de chuva no Brasil,
-evitando atribuir ao Pacifico variancia associada ao Atlantico tropical.
+### 2.4 Caixas IOD (opcionais)
 
 ```text
-ATL4: 3S a 3N, 50W a 25W
-ATL3: 3S a 3N, 20W a 0E
-TNA: 5.5N a 23.5N, 57.5W a 15W
-TSA: 20S a 0, 30W a 10E
 IOD oeste: 10S a 10N, 50E a 70E
 IOD leste: 10S a 0, 90E a 110E
 ```
 
 Os indices SST podem ser derivados do OISST global ja baixado. ERA5 nessas
-caixas e opcional para testes de ponte atmosferica.
-
-`ATL4` e o controle prioritario para o Nordeste por representar o Atlantico
-equatorial oeste, mais proximo da costa brasileira. `ATL3` permanece no projeto
-como indice da Atlantic Nino/cold tongue e como candidato principal entre
-ATL3/ATL4 para precursores ENSO; ATL4 fica como sensibilidade e controle
-regional.
+caixas e opcional para testes de ponte atmosferica. O escopo ativo do projeto
+e estritamente Pacifico -> Brasil.
 
 ## 3. Estrutura local
 
@@ -749,6 +737,6 @@ Argo: validacao in situ pos-1999, mais forte apos os anos 2000
 ERA5: 1981-latest_available, subdiario baixado em 4 horarios e agregado depois para diario; dinamica atmosferica, nao chuva oficial
 NOAA UFS: 1981-1992 no projeto, analise diaria nativa, ponte/benchmark segregado para memoria subsuperficial
 GLORYS12V1: 1993-latest_available, media diaria, fonte principal para memoria subsuperficial
-ATL4/ATL3/TNA/TSA/IOD: derivados do OISST global como covariaveis de teleconexao
+IOD: derivavel do OISST global (opcional; fora do escopo ativo)
 IBGE: cartografia estatica
 ```

@@ -77,70 +77,6 @@ def nino34_sst_index(
     )
 
 
-def atl3_sst_index(
-    sst: xr.DataArray,
-    lat_name: str = "lat",
-    lon_name: str = "lon",
-) -> xr.DataArray:
-    """Calculate ATL3 SST over 3S-3N, 20W-0E."""
-    return sst_box_index(
-        sst,
-        lat_bounds=(-3.0, 3.0),
-        lon_bounds=(-20.0, 0.0),
-        name="atl3_sst",
-        lat_name=lat_name,
-        lon_name=lon_name,
-    )
-
-
-def atl4_sst_index(
-    sst: xr.DataArray,
-    lat_name: str = "lat",
-    lon_name: str = "lon",
-) -> xr.DataArray:
-    """Calculate ATL4 SST over 3S-3N, 50W-25W."""
-    return sst_box_index(
-        sst,
-        lat_bounds=(-3.0, 3.0),
-        lon_bounds=(-50.0, -25.0),
-        name="atl4_sst",
-        lat_name=lat_name,
-        lon_name=lon_name,
-    )
-
-
-def tropical_north_atlantic_sst_index(
-    sst: xr.DataArray,
-    lat_name: str = "lat",
-    lon_name: str = "lon",
-) -> xr.DataArray:
-    """Calculate tropical North Atlantic SST over 5N-25N, 55W-15W."""
-    return sst_box_index(
-        sst,
-        lat_bounds=(5.0, 25.0),
-        lon_bounds=(-55.0, -15.0),
-        name="tna_sst",
-        lat_name=lat_name,
-        lon_name=lon_name,
-    )
-
-
-def tropical_south_atlantic_sst_index(
-    sst: xr.DataArray,
-    lat_name: str = "lat",
-    lon_name: str = "lon",
-) -> xr.DataArray:
-    """Calculate tropical South Atlantic SST over 20S-0, 30W-10E."""
-    return sst_box_index(
-        sst,
-        lat_bounds=(-20.0, 0.0),
-        lon_bounds=(-30.0, 10.0),
-        name="tsa_sst",
-        lat_name=lat_name,
-        lon_name=lon_name,
-    )
-
-
 def iod_sst_index(
     sst: xr.DataArray,
     lat_name: str = "lat",
@@ -164,22 +100,6 @@ def iod_sst_index(
         lon_name=lon_name,
     )
     return (west - east).rename("iod_dmi_sst")
-
-
-def tropical_atlantic_sst_indices(
-    sst: xr.DataArray,
-    lat_name: str = "lat",
-    lon_name: str = "lon",
-) -> xr.Dataset:
-    """Return Atlantic SST covariates required for Brazil teleconnection controls."""
-    return xr.Dataset(
-        {
-            "atl3_sst": atl3_sst_index(sst, lat_name=lat_name, lon_name=lon_name),
-            "atl4_sst": atl4_sst_index(sst, lat_name=lat_name, lon_name=lon_name),
-            "tna_sst": tropical_north_atlantic_sst_index(sst, lat_name=lat_name, lon_name=lon_name),
-            "tsa_sst": tropical_south_atlantic_sst_index(sst, lat_name=lat_name, lon_name=lon_name),
-        }
-    )
 
 
 def nino34_ssta_index(

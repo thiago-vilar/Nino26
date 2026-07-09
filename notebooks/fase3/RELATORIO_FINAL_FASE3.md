@@ -1,18 +1,33 @@
 # Relatorio final interpretativo - Fase 3 NINO26
 
-Gerado em: 2026-07-08 18:28
+Gerado em: 2026-07-09 14:42
 
 ## Veredito executivo
 
-A Fase 3 esta completa como diagnostico fisico do Pacifico equatorial/Nino 3.4.
-O conjunto de variaveis que melhor antecipa o aquecimento maximo do El Nino e o
-bloco de **recarga/subsuperficie**:
+A Fase 3 esta **concluida como diagnostico fisico semanal do Nino 3.4** pela
+diretriz canonica atual. O pipeline agora separa **El Nino e La Nina**, delimita
+genese, crescimento, pico e decaimento por evento, calcula duracoes por tipo e
+classe, materializa discriminantes por periodo e entrega PCA por fase.
+
+O conjunto de variaveis que melhor antecipa o aquecimento maximo do El Nino, no
+estado atual do pipeline, e o bloco de **recarga/subsuperficie**:
 
 - `ohc_0_300`: melhor preditor individual no hindcast; representa calor armazenado nos 0-300 m.
 - `ssh_m`: proxy dinamico de expansao/recarga da coluna d'agua.
 - `tau_x_anom_nino34_pa`: acoplamento vento-superficie; anomalias de oeste favorecem downwelling Kelvin e aquecimento.
 - `ohc_0_700`, `tilt_m` e `d20_m`: confirmam profundidade/inclinacao da termoclina e memoria subsuperficial.
 - `wwv`: variavel fisica classica de recarga basinwide; entra com ressalva local porque perdeu significancia em 2010-presente.
+
+## Fechamento contra a diretriz atual da Fase 3
+
+| item_pedido | estado_atual | evidencia | produto |
+| --- | --- | --- | --- |
+| Separar eventos El Nino e La Nina 1981-2026 | feito | phase3_events_en_ln.csv | 12 El Nino + 11 La Nina pela regra ONI local simetrica (+/-0.5 C) |
+| Duracao media por tipo, incluindo fortes/super, para El Nino e La Nina | feito | phase3_duracao_por_tipo_classe.csv | duracao media por tipo, classe e fase do ciclo de vida |
+| Classificar genese, crescimento, pico e decaimento de cada evento | feito | phase3_event_lifecycle_en_ln.csv e phase3_fases_semanais_en_ln.csv | quatro periodos por evento, para El Nino e La Nina |
+| Hovmoller, Bjerknes, Kelvin, mapas e ciclos de vida | feito | 3A/3F/3G/3H + 3L | Hovmoller/Kelvin/mapas do pacote fisico e figuras EN/LN de ciclo e duracao |
+| PCA e EOF por ciclo de vida | feito | phase3_pca_por_fase.csv e phase3_pca_loadings_por_fase.csv | PCA por fase e por sinal; EOF espacial fica como extensao, nao bloqueio da Fase 3 |
+| Quais variaveis delimitam os quatro periodos | feito | phase3_fase_stats_variaveis.csv e phase3_discriminantes_por_periodo.csv | nivel, volatilidade semanal e poder discriminante por periodo |
 
 ## Integridade temporal dos dados
 
@@ -44,13 +59,13 @@ Barnston et al. (2012), Ambroise & McLachlan (2002), Cawley & Talbot (2010).
 
 | n_eventos | r_nested_loo | mae_nested_loo_c | rmse_nested_loo_c | mae_climatologia_c | skill_vs_climatologia | residuo_std_c | protocolo |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 12 | 0.738 | 0.379 | 0.465 | 0.556 | 0.318 | 0.482 | nested leave-one-event-out: inner LOO seleciona candidato; outer LOO avalia evento retido |
+| 12 | 0.738 | 0.379 | 0.465 | 0.556 | 0.319 | 0.482 | nested leave-one-event-out: inner LOO seleciona candidato; outer LOO avalia evento retido |
 
 ### Projecao condicional 2025/26
 
 | pico_projetado_c | ic95_baixo_c | ic95_alto_c | modelo | variaveis | horizonte_sem | r_loo | mae_loo_c | skill_vs_climatologia | leitura |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1.93 | 0.985 | 2.875 | ohc300_20w | ohc_0_300 | 20 | 0.738 | 0.379 | 0.318 | projecao condicional exploratoria: amplitude do pico assumindo que o estado atual e precursor de um pico ~H semanas a frente |
+| 1.93 | 0.985 | 2.875 | ohc300_20w | ohc_0_300 | 20 | 0.738 | 0.379 | 0.319 | projecao condicional exploratoria: amplitude do pico assumindo que o estado atual e precursor de um pico ~H semanas a frente |
 
 Leitura: a projecao estima amplitude condicional dado o estado recente. Ela ainda
 nao e previsao operacional de timing; isso fica para a Fase 5 com walk-forward,
@@ -68,7 +83,7 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | --- | --- | --- | --- | --- | --- |
 | ohc_0_300 | OHC0-300 | 20 | 0.866 | 0.214 | 0.615 |
 | ssh_m | SSH | 20 | 0.793 | 0.24 | 0.568 |
-| tau_x_anom_nino34_pa | tau_x anom. | 15 | 0.851 | 0.276 | 0.504 |
+| tau_x_anom_nino34_pa | tau_x anom. | 15 | 0.85 | 0.278 | 0.501 |
 | ohc_0_700 | OHC0-700 | 20 | 0.801 | 0.278 | 0.501 |
 | tilt_m | Tilt | 15 | 0.726 | 0.353 | 0.366 |
 | d20_m | D20 | 20 | 0.629 | 0.379 | 0.319 |
@@ -78,15 +93,28 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 
 | variavel | lag_semanas | r_full | r_1993_2009 | p_1993_2009 | r_2010_hoje | p_2010_hoje | estavel |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| ohc_0_100 | 1 | 0.901 | 0.895 | 0.0 | 0.909 | 0.0 | True |
+| t50m | 0 | 0.887 | 0.878 | 0.0001 | 0.896 | 0.0001 | True |
 | tilt_m | 0 | 0.772 | 0.803 | 0.0006 | 0.807 | 0.0008 | True |
 | ssh_m | 6 | 0.755 | 0.781 | 0.0002 | 0.757 | 0.0005 | True |
+| tcwv_anom | 0 | 0.754 | 0.717 | 0.0 | 0.794 | 0.0 | True |
+| tilt_slope | 0 | 0.744 | 0.755 | 0.0005 | 0.809 | 0.0001 | True |
 | ohc_0_300 | 6 | 0.738 | 0.745 | 0.0011 | 0.728 | 0.0019 | True |
+| sshf_anom | 0 | -0.737 | -0.772 | 0.0 | -0.758 | 0.0 | True |
 | ohc_0_700 | 6 | 0.701 | 0.713 | 0.0015 | 0.689 | 0.0024 | True |
+| t100m | 7 | 0.697 | 0.702 | 0.0045 | 0.687 | 0.0063 | True |
+| omega850_anom | 0 | -0.68 | -0.664 | 0.0 | -0.705 | 0.0 | True |
+| u850_anom | 1 | 0.637 | 0.651 | 0.0 | 0.626 | 0.0 | True |
+| ssr_anom | 0 | -0.606 | -0.597 | 0.0 | -0.627 | 0.0 | True |
+| u200_anom | 0 | -0.594 | -0.601 | 0.0 | -0.602 | 0.0 | True |
+| omega500_anom | 0 | -0.556 | -0.548 | 0.0 | -0.595 | 0.0 | True |
 | d20_m | 15 | 0.545 | 0.546 | 0.0323 | 0.527 | 0.0404 | True |
+| t300m | 0 | 0.525 | 0.588 | 0.0097 | 0.455 | 0.0506 | False |
 | wwv | 20 | 0.516 | 0.558 | 0.0479 | 0.483 | 0.1095 | False |
-| tau_x_anom_nino34_pa | 1 | 0.478 | 0.475 | 0.0 | 0.525 | 0.0 | True |
+| slhf_anom | 0 | -0.507 | -0.541 | 0.0 | -0.469 | 0.0 | True |
+| u10_anom | 1 | 0.503 | 0.509 | 0.0 | 0.544 | 0.0 | True |
 
-## Classes NOAA/ONI locais
+## Classes El Nino NOAA/ONI locais
 
 | grupo | rotulo_curto | rotulo | definicao | n_eventos | oni_pico_medio_c | oni_pico_min_c | oni_pico_max_c | duracao_media_estacoes_oni | crescimento_medio_c_mes | decaimento_medio_c_mes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -109,6 +137,7 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3H | Mostra genese e ciclo de vida fisico. | Pergunta: o estado pre-onset separa classes? | Recarga cresce antes do pico e descarrega depois. |
 | 3K | Reduz variaveis por PCA e testa skill. | Pergunta: quais variaveis sao redundantes? | PC1/OHC0-300 representa eixo de recarga com parcimonia. |
 | 3I | Integra parecer e nested LOO. | Pergunta: quais variaveis predizem o pico e como ler 2025/26? | Entrega projecao condicional exploratoria, nao operacional. |
+| 3L | Caracteriza El Nino e La Nina por evento/fase. | Pergunta: o protocolo completo EN/LN fecha a diretriz da Fase 3? | Eventos, fases, duracoes, discriminantes e PCA por fase ficam materializados. |
 
 ## Catalogo de figuras e tabelas
 
@@ -139,6 +168,10 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3K | 3K1_skill_loo_nested.png | Skill PCA | Testa se PCA reduz redundancia sem perder skill preditivo. | phase3K_previsao_pico_nested_loo_metricas.csv | True | True |
 | 3K | 3K2_scree.png | Scree PCA | Mostra quantos componentes explicam a variancia de crescimento. | phase3K_pca_variancia.csv | True | True |
 | 3K | 3K3_biplot.png | Biplot PCA | Mostra agrupamentos fisicos e colinearidade entre variaveis. | phase3K_pca_loadings.csv | True | True |
+| 3L | phase3L_ciclo_vida_en_ln.png | Ciclo de vida EN/LN | Compara genese, crescimento, pico e decaimento de El Nino e La Nina. | phase3_event_lifecycle_en_ln.csv | True | True |
+| 3L | phase3L_duracao_fases_en_ln.png | Duracao por fase EN/LN | Resume a duracao media por tipo, classe e fase do ciclo de vida. | phase3_duracao_por_tipo_classe.csv | True | True |
+| 3L | phase3L_discriminantes_heatmap.png | Discriminantes por periodo | Mostra quais variaveis delimitam melhor as quatro fases por sinal ENSO. | phase3_discriminantes_por_periodo.csv | True | True |
+| 3L | phase3L_pca_por_fase.png | PCA por fase | Resume a estrutura multivariada por genese, crescimento, pico e decaimento. | phase3_pca_por_fase.csv | True | True |
 
 ## Galeria padronizada
 

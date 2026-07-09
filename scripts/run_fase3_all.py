@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Executa os notebooks da Fase 3 em ordem, com kernel novo por notebook."""
+"""Executa a Fase 3: gera artefatos EN/LN, roda os notebooks e o relatorio."""
 from __future__ import annotations
 
 import argparse
@@ -21,6 +21,7 @@ NOTEBOOKS = [
     "3H_genese_precursores_classe.ipynb",
     "3K_pca_crescimento.ipynb",
     "3I_interpretacao_integrada.ipynb",
+    "3L_en_ln_caracterizacao.ipynb",
 ]
 
 
@@ -33,25 +34,24 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     t0 = time.time()
+    # Pre-etapa EN/LN: eventos, ciclo de vida, duracoes, discriminantes e PCA por
+    # fase (El Nino E La Nina) a partir da matriz-mestre; roda antes dos notebooks.
+    print(">>> phase3_en_ln.py", flush=True)
+    subprocess.run([sys.executable, "scripts/phase3_en_ln.py"], cwd=ROOT, check=True)
+
     for name in NOTEBOOKS:
         nb = NBDIR / name
         if not nb.exists():
             raise FileNotFoundError(nb)
         print(f">>> {name}", flush=True)
-        command = [
-            sys.executable,
-            "-m",
-            "jupyter",
-            "nbconvert",
-            "--to",
-            "notebook",
-            "--execute",
-            "--inplace",
+        subprocess.run([
+            sys.executable, "-m", "jupyter", "nbconvert",
+            "--to", "notebook", "--execute", "--inplace",
             f"--ExecutePreprocessor.timeout={args.timeout}",
             f"--ExecutePreprocessor.kernel_name={args.kernel}",
             str(nb),
-        ]
-        subprocess.run(command, cwd=ROOT, check=True)
+        ], cwd=ROOT, check=True)
+
     if not args.skip_report:
         print(">>> generate_phase3_report.py", flush=True)
         subprocess.run([sys.executable, "scripts/generate_phase3_report.py"], cwd=ROOT, check=True)

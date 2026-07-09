@@ -24,12 +24,11 @@ KERNEL = "python3"
 TIMEOUT = 7200  # 2 h por notebook (a 1a execucao de B/C le ERA5/CHIRPS)
 
 NOTEBOOKS = {
-    "0": "0_fase4_sanidade_disponibilidade.ipynb",
-    "I": "A_fase4_fontes_variaveis_series.ipynb",
-    "4A": "4A_fase4_regionalizacao_chuva.ipynb",
-    "4B": "4B_fase4_correlacao_regressao_defasada.ipynb",
-    "4C": "4C_fase4_modos_acoplados.ipynb",
-    "4D": "4D_fase4_atribuicao_composicoes.ipynb",
+    "4.0": "4_0_fase4_abertura.ipynb",
+    "4A": "4A_ciclo_enso_fases.ipynb",
+    "4B": "4B_variaveis_determinantes_fases.ipynb",
+    "4C": "4C_sinal_pixel_lags.ipynb",
+    "4D": "4D_clusters_alvo.ipynb",
 }
 
 

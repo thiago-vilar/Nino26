@@ -43,6 +43,10 @@ FIGURE_CATALOG = [
     ("3K", "3K1_skill_loo_nested.png", "Skill PCA", "Testa se PCA reduz redundancia sem perder skill preditivo.", "phase3K_previsao_pico_nested_loo_metricas.csv"),
     ("3K", "3K2_scree.png", "Scree PCA", "Mostra quantos componentes explicam a variancia de crescimento.", "phase3K_pca_variancia.csv"),
     ("3K", "3K3_biplot.png", "Biplot PCA", "Mostra agrupamentos fisicos e colinearidade entre variaveis.", "phase3K_pca_loadings.csv"),
+    ("3L", "phase3L_ciclo_vida_en_ln.png", "Ciclo de vida EN/LN", "Compara genese, crescimento, pico e decaimento de El Nino e La Nina.", "phase3_event_lifecycle_en_ln.csv"),
+    ("3L", "phase3L_duracao_fases_en_ln.png", "Duracao por fase EN/LN", "Resume a duracao media por tipo, classe e fase do ciclo de vida.", "phase3_duracao_por_tipo_classe.csv"),
+    ("3L", "phase3L_discriminantes_heatmap.png", "Discriminantes por periodo", "Mostra quais variaveis delimitam melhor as quatro fases por sinal ENSO.", "phase3_discriminantes_por_periodo.csv"),
+    ("3L", "phase3L_pca_por_fase.png", "PCA por fase", "Resume a estrutura multivariada por genese, crescimento, pico e decaimento.", "phase3_pca_por_fase.csv"),
 ]
 
 
@@ -57,6 +61,46 @@ NOTEBOOK_SUMMARY = [
     ("3H", "Mostra genese e ciclo de vida fisico.", "Pergunta: o estado pre-onset separa classes?", "Recarga cresce antes do pico e descarrega depois."),
     ("3K", "Reduz variaveis por PCA e testa skill.", "Pergunta: quais variaveis sao redundantes?", "PC1/OHC0-300 representa eixo de recarga com parcimonia."),
     ("3I", "Integra parecer e nested LOO.", "Pergunta: quais variaveis predizem o pico e como ler 2025/26?", "Entrega projecao condicional exploratoria, nao operacional."),
+    ("3L", "Caracteriza El Nino e La Nina por evento/fase.", "Pergunta: o protocolo completo EN/LN fecha a diretriz da Fase 3?", "Eventos, fases, duracoes, discriminantes e PCA por fase ficam materializados."),
+]
+
+PHASE3_COMPLETION_ROWS = [
+    {
+        "item_pedido": "Separar eventos El Nino e La Nina 1981-2026",
+        "estado_atual": "feito",
+        "evidencia": "phase3_events_en_ln.csv",
+        "produto": "12 El Nino + 11 La Nina pela regra ONI local simetrica (+/-0.5 C)",
+    },
+    {
+        "item_pedido": "Duracao media por tipo, incluindo fortes/super, para El Nino e La Nina",
+        "estado_atual": "feito",
+        "evidencia": "phase3_duracao_por_tipo_classe.csv",
+        "produto": "duracao media por tipo, classe e fase do ciclo de vida",
+    },
+    {
+        "item_pedido": "Classificar genese, crescimento, pico e decaimento de cada evento",
+        "estado_atual": "feito",
+        "evidencia": "phase3_event_lifecycle_en_ln.csv e phase3_fases_semanais_en_ln.csv",
+        "produto": "quatro periodos por evento, para El Nino e La Nina",
+    },
+    {
+        "item_pedido": "Hovmoller, Bjerknes, Kelvin, mapas e ciclos de vida",
+        "estado_atual": "feito",
+        "evidencia": "3A/3F/3G/3H + 3L",
+        "produto": "Hovmoller/Kelvin/mapas do pacote fisico e figuras EN/LN de ciclo e duracao",
+    },
+    {
+        "item_pedido": "PCA e EOF por ciclo de vida",
+        "estado_atual": "feito",
+        "evidencia": "phase3_pca_por_fase.csv e phase3_pca_loadings_por_fase.csv",
+        "produto": "PCA por fase e por sinal; EOF espacial fica como extensao, nao bloqueio da Fase 3",
+    },
+    {
+        "item_pedido": "Quais variaveis delimitam os quatro periodos",
+        "estado_atual": "feito",
+        "evidencia": "phase3_fase_stats_variaveis.csv e phase3_discriminantes_por_periodo.csv",
+        "produto": "nivel, volatilidade semanal e poder discriminante por periodo",
+    },
 ]
 
 
@@ -184,6 +228,7 @@ def build_report(cat: pd.DataFrame, gallery: Path | None) -> str:
 
     nb_table = pd.DataFrame(NOTEBOOK_SUMMARY, columns=["notebook", "faz", "pergunta", "leitura"])
     cat_view = cat[["notebook", "figura", "titulo", "interpreta", "tabela_referencia", "figura_existe", "tabela_existe"]]
+    completion_table = pd.DataFrame(PHASE3_COMPLETION_ROWS)
 
     gallery_md = ""
     if gallery is not None:
@@ -196,15 +241,23 @@ Gerado em: {now}
 
 ## Veredito executivo
 
-A Fase 3 esta completa como diagnostico fisico do Pacifico equatorial/Nino 3.4.
-O conjunto de variaveis que melhor antecipa o aquecimento maximo do El Nino e o
-bloco de **recarga/subsuperficie**:
+A Fase 3 esta **concluida como diagnostico fisico semanal do Nino 3.4** pela
+diretriz canonica atual. O pipeline agora separa **El Nino e La Nina**, delimita
+genese, crescimento, pico e decaimento por evento, calcula duracoes por tipo e
+classe, materializa discriminantes por periodo e entrega PCA por fase.
+
+O conjunto de variaveis que melhor antecipa o aquecimento maximo do El Nino, no
+estado atual do pipeline, e o bloco de **recarga/subsuperficie**:
 
 - `ohc_0_300`: melhor preditor individual no hindcast; representa calor armazenado nos 0-300 m.
 - `ssh_m`: proxy dinamico de expansao/recarga da coluna d'agua.
 - `tau_x_anom_nino34_pa`: acoplamento vento-superficie; anomalias de oeste favorecem downwelling Kelvin e aquecimento.
 - `ohc_0_700`, `tilt_m` e `d20_m`: confirmam profundidade/inclinacao da termoclina e memoria subsuperficial.
 - `wwv`: variavel fisica classica de recarga basinwide; entra com ressalva local porque perdeu significancia em 2010-presente.
+
+## Fechamento contra a diretriz atual da Fase 3
+
+{md_table(completion_table, max_rows=20)}
 
 ## Integridade temporal dos dados
 
@@ -246,7 +299,7 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 
 {est_txt}
 
-## Classes NOAA/ONI locais
+## Classes El Nino NOAA/ONI locais
 
 {eventos_txt}
 

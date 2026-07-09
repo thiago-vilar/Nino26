@@ -6,6 +6,10 @@ Todos os notebooks: (i) declaram a pergunta que respondem e a metodologia,
 (iii) gravam figuras e mapas em `data/processed/figures/fase3/`.
 Nenhuma figura sem saida numerica correspondente.
 
+Status em 2026-07-09: a Fase 3 esta fechada como diagnostico fisico semanal,
+com El Nino e La Nina, quatro fases por evento, duracoes, discriminantes e PCA
+por fase. Ver `../../docs/FASE3_PENDENCIAS.md`.
+
 Convencao das figuras: `3A1_...png` significa Fase 3, notebook A, figura 1.
 Quando um notebook precisa de mais de uma imagem para o mesmo subcontexto, a
 sequencia cresce (`3A2`, `3A3` etc.). O catalogo interpretativo fica em
@@ -47,6 +51,7 @@ Execucao headless completa:
 | 3H | (extra) Que estado fisico precede o onset? A genese separa classes NOAA? | compostos onset-alinhados por classe, retrato precursor por classe, separacao Spearman |
 | 3K | (extra) Quais variaveis explicam o crescimento pre-pico? | PCA, loadings e conjunto indispensavel para crescimento |
 | 3I | Qual e a interpretacao integrada da Fase 3? Como ler classes NOAA e 2026? | conclusoes executivas, classificacao NOAA, medias por classe, nested LOO, estado 2026, texto para parecer |
+| 3L | O protocolo EN/LN completo fecha a diretriz? | eventos EN/LN, ciclo por evento, duracao por fase, discriminantes e PCA por fase |
 
 **Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
 O 3F e diagnostico dinamico de Kelvin; o 3G caracteriza o alvo termico SSTA;

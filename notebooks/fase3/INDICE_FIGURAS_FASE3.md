@@ -29,3 +29,7 @@ Convencao: `3A1` = Fase 3, notebook A, figura 1.
 | 3K | 3K1_skill_loo_nested.png | Skill PCA | Testa se PCA reduz redundancia sem perder skill preditivo. | phase3K_previsao_pico_nested_loo_metricas.csv |
 | 3K | 3K2_scree.png | Scree PCA | Mostra quantos componentes explicam a variancia de crescimento. | phase3K_pca_variancia.csv |
 | 3K | 3K3_biplot.png | Biplot PCA | Mostra agrupamentos fisicos e colinearidade entre variaveis. | phase3K_pca_loadings.csv |
+| 3L | phase3L_ciclo_vida_en_ln.png | Ciclo de vida EN/LN | Compara genese, crescimento, pico e decaimento de El Nino e La Nina. | phase3_event_lifecycle_en_ln.csv |
+| 3L | phase3L_duracao_fases_en_ln.png | Duracao por fase EN/LN | Resume a duracao media por tipo, classe e fase do ciclo de vida. | phase3_duracao_por_tipo_classe.csv |
+| 3L | phase3L_discriminantes_heatmap.png | Discriminantes por periodo | Mostra quais variaveis delimitam melhor as quatro fases por sinal ENSO. | phase3_discriminantes_por_periodo.csv |
+| 3L | phase3L_pca_por_fase.png | PCA por fase | Resume a estrutura multivariada por genese, crescimento, pico e decaimento. | phase3_pca_por_fase.csv |

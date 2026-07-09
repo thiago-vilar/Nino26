@@ -191,27 +191,36 @@ def to_weekly(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
     return getattr(res, how)()
 
 
+MASTER_WEEKLY = FEAT / "nino34_master_weekly.csv"
+PACIFIC_CORE = ["nino34_ssta", "d20_m", "ohc_0_300", "ohc_0_700", "wwv",
+                "tilt_m", "ssh_m", "tau_x_anom_nino34_pa"]
+
+
 def weekly_matrix() -> pd.DataFrame:
-    """Matriz semanal canonica da Fase 3 (indices fisicos + controles)."""
+    """Matriz semanal canonica da Fase 3, lida da MATRIZ-MESTRE unificada da Fase 2
+    (`nino34_master_weekly.csv`): oceanicas UFS/GLORYS/GLO12 + atmosfericas ERA5
+    (Bjerknes), eixo W-SUN 1981-2026. `ocean_source_code` (metadado) fica de fora;
+    mantem o nome `tau_x_anom_nino34_pa` que os notebooks esperam. Se o master nao
+    existir, cai no caminho legado (8 variaveis)."""
+    if MASTER_WEEKLY.exists():
+        m = pd.read_csv(MASTER_WEEKLY, parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
+        m = m.drop(columns=[c for c in ["ocean_source_code"] if c in m.columns])
+        if "tau_x_anom" in m.columns:
+            m = m.rename(columns={"tau_x_anom": "tau_x_anom_nino34_pa"})
+        m.index.name = "week_ending_sunday"
+        return m
     phys = load_physical_signal()
     cols = {
-        "nino34_ssta": "nino34_ssta",
-        "d20_nino34_mean_m": "d20_m",
-        "ohc_0_300_nino34_j_m2": "ohc_0_300",
-        "ohc_0_700_nino34_j_m2": "ohc_0_700",
-        "wwv_equatorial_pacific_m3": "wwv",
-        "thermocline_tilt_m": "tilt_m",
+        "nino34_ssta": "nino34_ssta", "d20_nino34_mean_m": "d20_m",
+        "ohc_0_300_nino34_j_m2": "ohc_0_300", "ohc_0_700_nino34_j_m2": "ohc_0_700",
+        "wwv_equatorial_pacific_m3": "wwv", "thermocline_tilt_m": "tilt_m",
         "ssh_nino34_mean_m": "ssh_m",
     }
     base = phys[list(cols)].rename(columns=cols)
-    # Escopo Fase 3 = diagnostico fisico do Pacifico (Nino 3.4). Indices
-    # atlanticos foram removidos: controles inter-bacia sao materia da Fase 4
-    # (teleconexao Brasil), nao do diagnostico fisico do Pacifico.
     atmo = load_atmo()
     tau_raw = zonal_wind_stress_proxy(atmo["atm_10m_u_component_of_wind"])
     tau = daily_doy_anomaly(tau_raw).rename("tau_x_anom_nino34_pa").to_frame()
-    daily = base.join([tau], how="outer")
-    weekly = to_weekly(daily)
+    weekly = to_weekly(base.join([tau], how="outer"))
     weekly.index.name = "week_ending_sunday"
     return weekly
 

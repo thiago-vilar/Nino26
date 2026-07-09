@@ -24,27 +24,6 @@ domains:
     longitude_max: -30.0
     longitude_convention: "-180_180"
     note: "Regiao continental brasileira para impactos."
-  atl3:
-    latitude_min: -3.0
-    latitude_max: 3.0
-    longitude_min: -20.0
-    longitude_max: 0.0
-    longitude_convention: "-180_180"
-    note: "Indice Atlantico equatorial ATL3 para controle de teleconexao com chuva no Brasil."
-  atl4:
-    latitude_min: -3.0
-    latitude_max: 3.0
-    longitude_min: -50.0
-    longitude_max: -25.0
-    longitude_convention: "-180_180"
-    note: "Indice Atlantico equatorial oeste ATL4, mais proximo do Nordeste do Brasil; covariavel prioritaria de teleconexao."
-  tropical_north_atlantic:
-    latitude_min: 5.0
-    latitude_max: 25.0
-    longitude_min: -55.0
-    longitude_max: -15.0
-    longitude_convention: "-180_180"
-    note: "TNA; covariavel obrigatoria para reduzir vies de variavel omitida."
   nino4_tau_x:
     latitude_min: -5.0
     latitude_max: 5.0
@@ -52,13 +31,6 @@ domains:
     longitude_max: 210.0
     longitude_convention: "0_360"
     note: "Caixa Nino 4 para tau_x: 5S-5N, 160E-150W."
-  tropical_south_atlantic:
-    latitude_min: -20.0
-    latitude_max: 0.0
-    longitude_min: -30.0
-    longitude_max: 10.0
-    longitude_convention: "-180_180"
-    note: "TSA; covariavel obrigatoria para teleconexoes Brasil."
   iod_west:
     latitude_min: -10.0
     latitude_max: 10.0
@@ -226,21 +198,14 @@ modeling:
     persistence_matrix_shape: "12_initial_months_x_12_leads"
     event_definition: "local OISST-derived Nino 3.4 3-month mean >= 0.5 C for at least 5 months"
     raw_acceleration_policy: "discard raw second-difference acceleration; use 3-month smoothed growth/decay rates"
-    atlantic_precursor_policy:
-      atl3_enso_direction: "negative expected for ATL3 leading Nino 3.4 at 6-12 months"
-      atl3_jja_variant: true
-      atl4_role: "western Atlantic sensitivity and NEB teleconnection control"
     recharge_phase_diagram: "WWV_anomaly_x_Nino34_SSTA quadrants"
     collinearity_representatives:
       recharge_block_primary: "wwv"
       recharge_block_sensitivity: ["d20", "ohc_0_300", "ohc_0_700"]
-      atlantic_primary: "atl3"
-      atlantic_sensitivity: ["atl4", "tna", "tsa"]
     sanity_acceptance:
       wwv_lead_months_expected: [6, 9]
       wwv_west_stronger_than_total: true
       persistence_spring_drop_months: [5, 6]
-      atl3_to_nino34_expected_sign: "negative"
     outputs:
       indices_mensais: "data/processed/parquet/features/phase3_indices_mensais.csv"
       indices_semanais: "data/processed/parquet/features/phase3_indices_semanais.csv"

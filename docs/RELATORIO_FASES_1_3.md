@@ -3,7 +3,7 @@
 **Projeto NINO-BRASIL · Oceanografia Física UFPE · Thiago Vilar**
 **Data:** 2026-07-07 · **Escopo deste relatório:** revisão, higienização, reexecução e análise das Fases 1, 2 e 3.
 
-Este relatório consolida a reexecução das Fases 1 a 3 a partir dos dados já baixados localmente, com foco no que cada etapa responde cientificamente e nas justificativas das soluções adotadas na organização dos dados. A Fase 4 (triagem estatística chuva–ENOS) permanece deliberadamente pausada: por decisão de escopo, ela só será retomada quando as Fases 1 a 3 estiverem auditadas sem erros conhecidos — condição que este trabalho verifica.
+Este relatório consolida a reexecução das Fases 1 a 3 a partir dos dados já baixados localmente, com foco no que cada etapa responde cientificamente e nas justificativas das soluções adotadas na organização dos dados. Nota de atualização 2026-07-09: a organização canônica atual está em `docs/DIRETRIZES_FASES.md`; a Fase 4 passou a ser a etapa estatística ENSO -> chuva no Brasil, sem ML/RN, e não deve mais ser lida como pausada.
 
 ## 1. Situação executiva
 
@@ -65,7 +65,7 @@ A lacuna apontada em revisão — o protocolo 3A-3F existia só como especifica�
 
 **Conjunto defensável do parecer (sobrevive a 3D ∩ 3E):** tilt da termoclina, SSH, OHC 0–300/0–700, D20 (lead ~15 sem) e τx. WWV entra com ressalva explícita de instabilidade pós-2010.
 
-**Correção de código no caminho:** a materialização dos índices atlânticos expôs um bug real em `_select_lon_bounds` (`nino.py`): caixas terminando em 0°E (ATL3) quebravam em grades deslocadas como o OISST global bruto. Corrigido com teste de regressão (`e76100f`). Insumos reproduzíveis via `scripts/fase3_build_inputs.py`.
+**Correção de código no caminho:** a materialização de índices em grade global expôs um bug real em `_select_lon_bounds` (`nino.py`): caixas terminando em 0°E quebravam em grades deslocadas como o OISST global bruto. Corrigido com teste de regressão (`e76100f`). Insumos reproduzíveis via `scripts/fase3_build_inputs.py`.
 
 **Justificativa da solução.** A regra de ouro da Fase 3 é derivar eventos, referência e picos da própria SST/SSTA OISST local, e não importar um índice ENSO oficial. Isso torna o parecer internamente consistente e auditável: cada número tem origem rastreável no dado baixado. Rótulos NOAA/PSL ficam permitidos apenas como comparação visual, evitando circularidade (usar um índice externo para "validar" um sinal que deveria ser medido de forma independente). O corte de significância exige sobreviver a rigor estatístico (N_eff, IC95 de Fisher-z, FDR) e a estabilidade entre subperíodos (1993–2009 vs 2010–presente) antes de qualquer afirmação entrar no parecer.
 
@@ -75,7 +75,7 @@ O que está sólido: a base 1981–2026 é completa e auditável nas variáveis 
 
 O que foi corrigido nesta rodada: a incoerência documental que tratava a Fase 3 como escopo terminal, o worktree sujo com `index.lock` preso, a mistura de literatura pesada e artefatos no controle de versão, e a lógica de status do painel, que agora deriva o estado da Fase 3 da auditoria real.
 
-O que ainda será construído (fora deste escopo, atrás dos gates): a Fase 4 permanece pausada por decisão sua até a validação integral das Fases 1–3; suas saídas legadas (notebooks B–E) existem mas foram produzidas antes das correções metodológicas e não devem ser citadas como resultado científico. As Fases 5–8 (progressão até o pico, teleconexão por clusters, redes neurais e bancada Ham2019) seguem condicionadas aos gates G1–G4 descritos em `docs/CRONOGRAMA.md`.
+O que ainda será construído (fora deste relatório histórico, atrás dos gates): a Fase 4 é agora a etapa estatística de teleconexão ENSO -> chuva no Brasil, sem ML/RN, com CHIRPS semanal, P90, anomalias de chuva, lags, N_eff e FDR. As Fases 5 e 6 substituem a nomenclatura antiga de modelagem; FaseWEB concentra publicacao e operacao recorrente.
 
 ## 7. Reprodutibilidade
 

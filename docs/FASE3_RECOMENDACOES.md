@@ -61,7 +61,7 @@ executiva.
 3. **Eventos (B):** criterio local OISST compativel com NOAA/ONI (media movel trimestral da SSTA Nino 3.4 >= +0,5 C por >= 5 estacoes moveis sobrepostas); intensidade pelo pico ONI local: fraco, moderado, forte e muito forte; taxas de crescimento/decaimento em serie suavizada de 3 meses; descartar aceleracao bruta. O evento mensal e projetado na grade semanal para analises de lead.
 4. **Persistencia (B):** matriz semanal por mes inicial e lead de 1-52 semanas, com resumo 12x12 mes inicial x lead mensal equivalente; quantifica memoria fisica e barreira de primavera, sem uso de ML.
 5. **Correlacoes defasadas (C/D):** lags semanais de 0-78 semanas, preditor liderando; `N_eff = N * (1 - r1_x*r1_y) / (1 + r1_x*r1_y)`; teste-t e IC95 (Fisher-z) com `N_eff`; FDR Benjamini-Hochberg (`alpha=0,10`) sobre o conjunto total de testes.
-6. **Controles inter-bacia:** ficam fora do parecer da Fase 3; entram apenas em fases de teleconexao Brasil.
+6. **Escopo de bacia:** o projeto e estritamente Pacifico -> Brasil; nenhuma covariavel de outra bacia entra no parecer.
 7. **Diagrama de fase (C):** ocupacao dos quadrantes WWV x SSTA; sequencia esperada do oscilador: recarregado/frio -> recarregado/quente -> descarregado/quente -> descarregado/frio.
 8. **Estabilidade (E):** repetir correlacoes defasadas por subperiodo; mudanca no lead do WWV reproduz McPhaden (2012) e entra como limite fisico do parecer.
 9. **Colinearidade:** D20 ~= OHC ~= WWV ~= SSH/tilt em parte do sinal; escolher representantes por estabilidade estatistica e interpretabilidade fisica, sem contar o mesmo bloco como evidencias independentes.
@@ -157,8 +157,5 @@ previsao conjunta de timing + amplitude pertencem a Fase 5.
 - Cawley & Talbot 2010 - overfitting na selecao de modelo e vies na avaliacao de desempenho.
 - McPhaden 2003; McPhaden 2012 (`doi:10.1029/2012GL051826`).
 - Zhao 2021 (`doi:10.1029/2021GL094366`).
-- Rodriguez-Fonseca 2009 (`doi:10.1029/2009GL040048`).
-- Ham 2013 (`doi:10.1038/ngeo1686`).
-- Martin-Rey 2014 (`doi:10.1007/s00382-014-2305-3`).
 - Bretherton 1999 - `N_eff`.
 - Wilks 2006; Wilks 2016 (`doi:10.1175/BAMS-D-15-00267.1`) - FDR e significancia de campo.

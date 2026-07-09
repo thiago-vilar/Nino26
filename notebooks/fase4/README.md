@@ -1,75 +1,37 @@
-# Fase 4 - Notebooks
+# Fase 4 - Notebooks (reconstrucao 2026-07-08, expandida)
 
-Esta pasta e o local oficial para executar a Fase 4 no VS Code.
+Teleconexao ENSO -> chuva no Brasil. Protocolo completo em
+`docs/METODOLOGIA_FASE4.md`. Escopo estritamente Pacifico -> Brasil.
+Comece pelo 4.0 (abertura/inventario). Ordem cientifica obrigatoria:
+fases do ciclo -> determinantes -> sinal pixel-a-pixel -> alvos clusterizados.
 
-## Notebook ativo
-
-| Ordem | Notebook | O que faz |
+| Ordem | Notebook | O que responde |
 |---|---|---|
-| 0 | `0_fase4_sanidade_disponibilidade.ipynb` | **Sanidade**: reune e trata todas as variaveis e plota tabelas/graficos (cobertura temporal, outliers, series, distribuicoes, transicoes de fonte oceanica, ERA5, CHIRPS, OISST, quadro-resumo). Responde se ha buracos de disponibilidade e outliers. |
-| 0 | `0_fase4_sanidade_disponibilidade.ipynb` | **Pre-flight**: disponibilidade, cobertura temporal e outliers. |
-| I | `A_fase4_fontes_variaveis_series.ipynb` | **Pre-flight**: inventario de variaveis processadas. Nao conta como 4A cientifico. |
-| 4A | `4A_fase4_regionalizacao_chuva.ipynb` | Regionalizacao da chuva CHIRPS com EOF/REOF e clusters. |
-| 4B | `4B_fase4_correlacao_regressao_defasada.ipynb` | Correlacao/regressao defasada pixel-a-pixel e por cluster, com FDR de campo. |
-| 4C | `4C_fase4_modos_acoplados.ipynb` | Modos acoplados EOF/MCA/SVD/CCA para SST(Pacifico+Atlantico) x chuva. |
-| 4D | `4D_fase4_atribuicao_composicoes.ipynb` | Atribuicao Pacifico vs Atlantico, composicoes, estabilidade e gate para ML. |
+| 4.0 | `4_0_fase4_abertura.ipynb` | **Abertura (pre-flight):** justificativa, objetivos e metodologia da Fase 4; inventario de todos os dados disponiveis (forcantes do Pacifico + chuva CHIRPS + serie ONI/eventos) com cobertura temporal; resumo das perguntas que 4A-4D respondem. Nao produz resultado cientifico. |
+| 4A | `4A_ciclo_enso_fases.ipynb` | Separacao logica/estatistica das 4 fases (I. genese, II. crescimento/acoplamento, III. pico, IV. decaimento) para El Nino E La Nina; duracoes, dispersao e ONI por fase; rotulo semanal do ciclo. |
+| 4B | `4B_variaveis_determinantes_fases.ipynb` | Estudo puramente estatistico: quais variaveis do Pacifico mais determinam cada fase (Cliff/Mann-Whitney + Kruskal/epsilon2 + Spearman genese->pico), para EN e LN. |
+| 4C | `4C_sinal_pixel_lags.ipynb` | Sinal pixel-a-pixel: conjunto Pacifico x chuva CHIRPS em lags semanais 0-78; Brasil inteiro primeiro, depois recorte NEB e recorte Sul; quanto tempo o sinal demora por regiao e tipo de sinal. |
+| 4D | `4D_clusters_alvo.ipynb` | So depois do pixel: alvos clusterizados mais afetados, lag de atuacao por tipo de sinal, estabilidade 1993-2009 vs 2010+ e gate G1. |
 
-Modulo compartilhado: `scripts/fase4_features.py` (montagem da matriz ampla,
-anomalias, lags, blocos fisicos, CV temporal com embargo, z-score source-aware).
-Protocolo resumido: `docs/FASE4_PLANO.md`.
+Modulo compartilhado: `fase4_utils.py` (eventos/fases ENSO, anomalia harmonica
+CHIRPS por pixel, correlacao defasada vetorizada com N_eff+FDR, N_eff generico,
+mapas com recorte regional).
 
-Os notebooks antigos de status, auditoria e contratos foram removidos para nao
-parecerem resultados cientificos. As proximas analises devem ser criadas aqui
-apenas quando tiverem calculos reais e saidas numericas verificaveis.
+Execucao headless:
 
-Kernel no VS Code:
-
-```text
-Python 3 (.venv NINO26)
+```cmd
+.venv\Scripts\python scripts\run_fase4_all.py
 ```
 
-Para treino neural/GPU nas proximas fases, use VS Code Remote WSL e selecione:
+Notas operacionais:
 
-```text
-Python 3 (.venv-wsl NINO26 GPU)
-```
+- A primeira execucao do 4C monta o cache
+  `phase4_chirps_weekly_zanom.parquet` lendo os 46 zarr anuais do CHIRPS
+  (etapa pesada; ~10-30 min conforme o disco). Use
+  `u.build_chirps_weekly_zanom(force=True)` se o CHIRPS for atualizado.
+- 4B e 4C dependem do rotulo de fases do 4A; 4D depende do atlas do 4C.
+  Execute em ordem.
+- Notebooks legados da Fase 4 foram removidos; suas saidas nao devem ser
+  citadas.
 
-Diagnostico completo: `docs/AMBIENTE_KERNEL_GPU.md`.
-
-## Saidas
-
-O notebook A grava:
-
-```text
-data\processed\parquet\statistics\phase4_all_processed_variables.csv
-data\processed\parquet\statistics\phase4_all_processed_variables_detail.csv
-```
-
-O notebook B grava (apos a 1a execucao, que monta a matriz ampla lendo ERA5):
-
-```text
-data\processed\parquet\modeling\phase4_feature_matrix_daily.parquet
-data\processed\parquet\statistics\phase4B_best_lag_per_feature.csv
-data\processed\parquet\statistics\phase4B_feature_importance.csv
-data\processed\parquet\statistics\phase4B_skill_incremental.csv
-data\processed\parquet\statistics\phase4B_collinearity_blocks.csv
-```
-
-O notebook C grava:
-
-```text
-data\processed\zarr\statistics\phase4C_rain_nino_corr_maps.nc
-data\processed\parquet\statistics\phase4C_index_rain_ranking.csv
-data\processed\figures\phase4C_ssta_rain_corr.png
-data\processed\figures\phase4C_ssta_rain_sig.png
-```
-
-O notebook 4D deve gravar, quando atualizado para a nova especificacao:
-
-```text
-data\processed\parquet\statistics\phase4d_atribuicao_pacifico_atlantico.csv
-data\processed\zarr\statistics\phase4d_enso_composites.zarr
-data\processed\parquet\statistics\phase4d_stability_subperiods.csv
-data\processed\parquet\statistics\phase4d_predictor_gate_for_ml.csv
-data\processed\parquet\statistics\phase4d_questions_answers.md
-```
+Kernel no VS Code: `Python 3 (.venv NINO26)`.

@@ -108,17 +108,6 @@ ARTIFACTS = [
         regular=False,
     ),
     Artifact(
-        "atlantico_tropical_legacy",
-        FEAT / "tropical_atlantic_sst_daily.csv",
-        "SST Atlantico tropical; legado, fora do parecer Fase 3 atual",
-        "time",
-        "D",
-        1,
-        expected_start="1981-09-01",
-        stale_after_days=45,
-        scope="legacy",
-    ),
-    Artifact(
         "eventos_elnino_referencia",
         FEAT / "nino34_oisst_event_reference.csv",
         "Tabela de eventos OISST; regra NOAA/ONI local: 3 meses >=0.5C por 5 estacoes sobrepostas",

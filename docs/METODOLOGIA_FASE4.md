@@ -1,184 +1,154 @@
-# Fase 4 - Metodologia revisada: teleconexao El Nino -> Brasil
+# Fase 4 - Metodologia revisada: teleconexao ENSO -> chuva no Brasil
 
 **Projeto NINO-BRASIL - Oceanografia Fisica UFPE - Thiago Vilar**
+**Revisao:** 2026-07-08 (expansao por parecer do pesquisador). Escopo
+estritamente **Pacifico -> Brasil**.
 
-Este documento aplica o parecer de reorganizacao das Fases 3 e 4. A fronteira
-fica assim:
+A fronteira entre fases permanece:
 
 - **Fase 3:** alvo = Nino 3.4. Diagnostica pico, memoria e precursores do ENOS.
-- **Fase 4:** alvo = chuva no Brasil. Diagnostica a teleconexao e a atribuicao
-  Pacifico vs. Atlantico para chuva, seca e extremos regionais.
+- **Fase 4:** alvo = chuva no Brasil. Diagnostica o ciclo ENSO em fases, seus
+  determinantes, o tempo de resposta (lags semanais) e os alvos regionais.
 
-Os indices Atlanticos aparecem nas duas fases com papeis diferentes. Na Fase 3,
-ATL3/ATL4/TNA/TSA podem testar influencia sobre o ENOS. Na Fase 4, eles entram
-como forcantes diretas e controles obrigatorios da chuva no Brasil, especialmente
-para NEB/Amazonia. Isso nao e duplicacao: e a mesma serie em hipoteses distintas.
+## 0. Principios herdados
 
-## 1. Politica temporal da Fase 4
+- Eixo canonico semanal `week_ending_sunday` (W-SUN); CHIRPS diario e somado
+  por semana; climatologia harmonica (3 harmonicos anuais) na base 1991-2020,
+  nunca 52 medias cruas.
+- Toda significancia usa `N_eff` (Bretherton) e FDR Benjamini-Hochberg
+  (alfa=0,10) sobre o conjunto completo de testes.
+- Nenhuma figura sem saida numerica rastreavel.
+- Nenhum rotulo ENSO externo: eventos e fases derivam do ONI local OISST.
 
-O eixo padrao da Fase 4 e **semanal de 7 dias** (`week_ending_sunday`).
-
-| Nivel | Uso | Fontes compativeis |
-|---|---|---|
-| Diario | insumo bruto e velocidade de fase Kelvin | OISST, CHIRPS, ERA5, GLORYS12 |
-| Semanal | eixo canonico de precursores, correlacao defasada e teleconexao | derivado do diario |
-| Mensal | excecao para serie nativamente mensal e sensibilidade | ORAS5, Argo em grade, WOD, NOAA PSL/ONI |
-
-Consequencias:
-
-- GLORYS12 diario e a fonte primaria para D20/OHC/WWV no eixo semanal.
-- ORAS5 mensal fica como cross-check de sensibilidade, sem promocao artificial
-  para diario/semanal.
-- CHIRPS em pentada deve ser reamostrado para a semana canonica de 7 dias, com
-  o pequeno efeito de borda documentado.
-- Climatologia semanal deve usar 2-3 harmonicos anuais ajustados somente no
-  treino, nao media crua de 52 semanas.
-- Todo p-valor e IC usa `N_eff`; o N nominal semanal nao deve ser tratado como
-  amostras independentes.
-
-## 2. Estrutura oficial: 4A-4D
+## 1. Ordem cientifica obrigatoria
 
 ```
-4A  Regionalizacao da chuva          -> define clusters/regioes-alvo do Brasil
-4B  Correlacao/regressao defasada    -> testa forcantes por pixel, cluster, lag e estacao
-4C  Modos acoplados                  -> extrai padroes SST(Pacifico+Atlantico) x chuva
-4D  Atribuicao + composicoes         -> separa Pacifico vs Atlantico e fecha as respostas
+4.0 Abertura (pre-flight)     -> justificativa, objetivos, metodologia,
+                                  inventario dos dados e roteiro das perguntas
+4A  Ciclo ENSO em 4 fases     -> genese, crescimento/acoplamento, pico e
+                                  decaimento, para El Nino E La Nina
+4B  Determinantes das fases   -> estudo puramente estatistico: quais variaveis
+                                  do Pacifico mais determinam cada fase
+4C  Sinal pixel-a-pixel       -> conjunto Pacifico x chuva CHIRPS, lags 0-78,
+                                  Brasil inteiro -> recorte NEB -> recorte Sul
+4D  Alvos clusterizados       -> SO DEPOIS do pixel: alvos mais afetados, lag
+                                  por tipo de sinal, estabilidade e gate G1
 ```
 
-Inventario, sanidade de disponibilidade e auditoria de variaveis sao pre-flight:
-eles podem existir como notebooks de apoio, mas nao contam como 4A-4D.
+## 2. Fase 4A - Ciclo ENSO em 4 fases (El Nino e La Nina)
 
-## 3. Fase 4A - Regionalizacao da chuva
+E conhecido no projeto que o ENSO tem 4 fases: **I. Genese, II.
+Crescimento/acoplamento, III. Pico, IV. Decaimento**. A 4A formaliza a
+separacao logica e estatistica dessas fases, simetrica para EN e LN:
 
-Pergunta: **onde o Brasil responde de forma homogenea?**
+- Eventos: ONI local >= +0,5 C (EN) ou <= -0,5 C (LN) por >= 5 estacoes moveis
+  sobrepostas; intensidade pelo pico de |ONI| (classes simetricas).
+- Fases por evento: **pico** = plateau com |ONI| >= 90% do maximo do evento;
+  **crescimento** = onset -> plateau; **decaimento** = plateau -> fim;
+  **genese** = 26 semanas pre-onset (janela de organizacao dos precursores,
+  3C/3H), apenas sobre semanas neutras.
+- Avaliacao expandida: duracao media e dispersao de cada fase por tipo/classe
+  e distribuicao do ONI dentro de cada fase.
+- **Plano de fase (assinatura relacional):** cada fase e uma regiao no plano
+  WWV x SSTA (e D20 x SSTA); os centroides das 4 fases tracam a trajetoria do
+  oscilador de recarga (Jin 1997), simetrica para EN e LN
+  (`phase4A_plano_fase.png`).
+- Saida central: rotulo semanal `phase4A_fases_semanais.csv`, condicionante de
+  4B-4D.
 
-Metodos:
+## 3. Fase 4B - Que variaveis determinam cada fase (puramente estatistico)
 
-- usar CHIRPS no Brasil, em grade 0.25 grau e eixo semanal;
-- construir anomalias e eventos locais (`P10`, `P25`, `P75`, `P90`) com
-  climatologia ajustada apenas no treino;
-- aplicar EOF/REOF e clusterizacao espacial dos pixels;
-- comparar clusters estatisticos com regioes fisicas conhecidas, sem impor NEB
-  e Sul antes do teste;
-- gerar indice regional por media ponderada de area ou PC1.
+Tres testes nao parametricos, sem ML, sobre a matriz semanal do Pacifico
+(SSTA, D20, OHC 0-300/0-700, SSH, tilt, WWV, tau_x) em z-score:
 
-Saidas:
+1. **Separacao fase vs neutro:** Mann-Whitney U por fase x variavel x tipo,
+   tamanho de efeito = delta de Cliff, FDR BH por tipo.
+2. **Discriminancia entre fases:** Kruskal-Wallis sobre as 4 fases dentro de
+   cada tipo, com epsilon-quadrado (quem melhor distingue a fase do ciclo).
+3. **Determinacao da intensidade:** Spearman entre o estado medio da variavel
+   na genese/crescimento de cada evento e o |ONI| do pico (n pequeno:
+   leitura indicativa).
+
+E, alem do nivel isolado, **relacoes entre variaveis** (a pergunta: dentre
+todas as duplas, qual *relacao* determina a fase?):
+
+4. **Pares (bivariado):** para cada um dos 28 pares, tres relacoes por semana -
+   correlacao movel (13 sem), co-movimento `z_i*z_j` e log da razao de
+   volatilidade `sigma_i/sigma_j` - testadas por Kruskal-Wallis/epsilon^2
+   entre as 4 fases, com FDR. Ranking em `phase4B_relacoes_pares_fases.csv`.
+5. **Estrutura multivariada (complexo):** matriz de correlacao 8x8 do conjunto
+   Pacifico por fase e distancia de Frobenius entre fases -> cada fase tem uma
+   assinatura de covariacao propria (`phase4B_matriz_correlacao_por_fase.csv`,
+   `phase4B_estrutura_correlacao_distancias.csv`).
+
+## 4. Fase 4C - Sinal pixel-a-pixel com lags semanais (Brasil -> NEB -> Sul)
+
+Pergunta-chave: **quanto tempo demora para o sinal do El Nino (e da La Nina)
+afetar as chuvas do NEB e do Sul?**
+
+- Chuva: CHIRPS 0,25 no Brasil, soma semanal, anomalia padronizada por pixel
+  (climatologia harmonica). Cache em `phase4_chirps_weekly_zanom.parquet`.
+- Correlacao de Pearson x(t-L) -> chuva(t) por pixel, variavel e lag (0-78,
+  passo 2), em tres condicoes: todas as semanas, semanas El Nino e semanas
+  La Nina (fases ativas do 4A). `N_eff` por pixel; FDR por condicao/variavel.
+- **Organizacao obrigatoria:** primeiro o Brasil inteiro (atlas completo),
+  depois o recorte NEB e o recorte Sul com mapas ampliados, resumo por
+  variavel e distribuicao dos lags por regiao.
+- Resposta direta em `phase4C_lag_resposta_neb_sul.csv` (lag mediano + IQR por
+  regiao, variavel e tipo de sinal).
+- Atlas auditavel: `phase4C_atlas_pixel.zarr`.
+- Ressalva: CHIRPS pode subestimar extremos convectivos locais.
+
+## 5. Fase 4D - Alvos clusterizados, estabilidade e gate G1
+
+- Vetor de resposta por pixel: perfis r(lag) da SSTA Nino 3.4 nas condicoes EN
+  e LN (lags 0-52, passo 4); K-means com k por silhueta.
+- Clusters ranqueados por |r| maximo medio e fracao FDR-significativa ->
+  **alvos mais afetados**; por alvo e tipo de sinal: lag mediano, IQR, sentido
+  (umido/seco) e forca.
+- Estabilidade por subperiodo (1993-2009 vs 2010-presente) da correlacao do
+  alvo no lag otimo, com `N_eff`.
+- Gate para ML (`phase4D_gate_ml.csv`): `preditor` (significativo, estavel,
+  lag > 6 sem), `preditor_com_ressalva`, `diagnostico` (lag 0-6) ou `excluido`.
+
+## 6. Saidas oficiais
 
 ```text
-data/processed/parquet/statistics/phase4a_clusters_brasil.csv
-data/processed/zarr/statistics/phase4a_data_driven_regions.zarr
-docs/assets/maps/phase4a_regions_*.png
+data/processed/parquet/statistics/phase40_inventario_pacifico.csv
+data/processed/parquet/statistics/phase40_inventario_alvo.csv
+data/processed/figures/fase4/phase40_cobertura_dados.png
+data/processed/parquet/statistics/phase4A_eventos_enso.csv
+data/processed/parquet/statistics/phase4A_fases_semanais.csv
+data/processed/parquet/statistics/phase4A_fases_resumo.csv
+data/processed/parquet/statistics/phase4A_duracao_fases_por_evento.csv
+data/processed/figures/fase4/phase4A_plano_fase.png
+data/processed/parquet/statistics/phase4B_determinantes_fases.csv
+data/processed/parquet/statistics/phase4B_discriminancia_fases.csv
+data/processed/parquet/statistics/phase4B_fase_intensidade_pico.csv
+data/processed/parquet/statistics/phase4B_relacoes_pares_fases.csv
+data/processed/parquet/statistics/phase4B_matriz_correlacao_por_fase.csv
+data/processed/parquet/statistics/phase4B_estrutura_correlacao_distancias.csv
+data/processed/parquet/features/phase4_chirps_weekly_zanom.parquet
+data/processed/parquet/features/phase4_chirps_pixels.csv
+data/processed/zarr/statistics/phase4C_atlas_pixel.zarr
+data/processed/parquet/statistics/phase4C_best_lag_pixel.csv
+data/processed/parquet/statistics/phase4C_lag_resposta_neb_sul.csv
+data/processed/parquet/statistics/phase4D_clusters_pixels.csv
+data/processed/parquet/statistics/phase4D_cluster_ranking.csv
+data/processed/parquet/statistics/phase4D_cluster_lags_por_sinal.csv
+data/processed/parquet/statistics/phase4D_estabilidade.csv
+data/processed/parquet/statistics/phase4D_gate_ml.csv
 ```
-
-Resultado esperado: regioes-alvo para 4B/4D e Fase 5B, incluindo NEB,
-Amazonia, Sul e outras regioes que surgirem dos dados.
-
-## 4. Fase 4B - Correlacao/regressao defasada
-
-Pergunta: **quais forcantes explicam cada cluster, onde e quando?**
-
-Metodos:
-
-- correlacao Pearson/Spearman pixel-a-pixel e por cluster;
-- regressao linear com tamanho de efeito fisico, por exemplo mm por grau C;
-- MLR pixel-a-pixel e por cluster comparando:
-  - Pacifico-only;
-  - Pacifico + Atlantico tropical;
-  - superficie oceanica;
-  - subsuperficie;
-  - atmosfera;
-  - oceano + atmosfera;
-- lags semanais canonicos, com 0-78 semanas para varreduras equivalentes a
-  0-18 meses;
-- estacoes DJF/MAM/JJA/SON e janelas chuvosas regionais;
-- `N_eff` de Bretherton para toda significancia;
-- FDR Benjamini-Hochberg/Wilks sobre o conjunto completo de pixels, lags,
-  estacoes e preditores;
-- bootstrap de blocos quando houver composicoes ou incerteza espacial.
-
-Controles obrigatorios:
-
-```text
-ATL4, ATL3, TNA, TSA, gradiente TNA-TSA, IOD/DMI recomendado
-```
-
-Saidas:
-
-```text
-data/processed/zarr/statistics/phase4b_pixel_correlation_field.zarr
-data/processed/zarr/statistics/phase4b_pixel_regression_slope.zarr
-data/processed/zarr/statistics/phase4b_pixel_mlr_coefficients.zarr
-data/processed/zarr/statistics/phase4b_pixel_mlr_diagnostics.zarr
-data/processed/parquet/statistics/phase4b_cluster_lag_regression.csv
-```
-
-Resultado esperado: mapas e tabelas por pixel/cluster com sinal, lag, estacao,
-tamanho de efeito, IC, `p_FDR` e fracao de area significativa.
-
-## 5. Fase 4C - Modos acoplados
-
-Pergunta: **quais padroes conjuntos SST -> chuva dominam?**
-
-Metodos:
-
-- EOF dos campos de chuva para validar as regioes da 4A;
-- EOF dos campos SST/SSHA/D20/OHC/vento no Pacifico e Atlantico tropical;
-- MCA/SVD da covariancia cruzada SST(Pacifico+Atlantico) x chuva Brasil;
-- CCA como sensibilidade;
-- MCA defasada para lead semanal otimo;
-- EOF/MCA/CCA ajustados apenas dentro do bloco de treino quando usados para
-  ranking inferencial ou skill;
-- selecao ciente de colinearidade com correlacao parcial, VIF, LASSO/elastic-net
-  e stability selection.
-
-Saidas:
-
-```text
-data/processed/zarr/statistics/phase4c_rainfall_eof_modes.zarr
-data/processed/zarr/statistics/phase4c_pacific_atlantic_eof_modes.zarr
-data/processed/zarr/statistics/phase4c_mca_coupled_modes.zarr
-data/processed/parquet/statistics/phase4c_independent_variable_selection.csv
-```
-
-Resultado esperado: modos acoplados fisicamente interpretaveis, series de
-expansao e variaveis com informacao independente.
-
-## 6. Fase 4D - Atribuicao, composicoes e estabilidade
-
-Pergunta: **quanto do sinal e Pacifico, quanto e Atlantico, e como isso varia por
-tipo de evento e periodo?**
-
-Metodos:
-
-- regressao parcial Pacifico controlando Atlantico e Atlantico controlando
-  Pacifico;
-- composicoes de chuva por El Nino/La Nina/Neutro, intensidade, EP vs CP e
-  estacao-alvo;
-- repetir 4B/4C em 1993-2009 e 2010-presente para testar estabilidade temporal
-  da teleconexao;
-- registrar quando um sinal Pacifico-only desaparece ao incluir ATL4/ATL3/TNA/TSA;
-- classificar variaveis para Fases 5-6 como `preditor`, `controle`,
-  `diagnostico` ou `excluido`.
-
-Saidas:
-
-```text
-data/processed/parquet/statistics/phase4d_atribuicao_pacifico_atlantico.csv
-data/processed/zarr/statistics/phase4d_enso_composites.zarr
-data/processed/parquet/statistics/phase4d_stability_subperiods.csv
-data/processed/parquet/statistics/phase4d_predictor_gate_for_ml.csv
-data/processed/parquet/statistics/phase4d_questions_answers.md
-```
-
-Resultado esperado: respostas finais da Fase 4 para Q2, com controle de variavel
-omitida, e uma lista auditavel de candidatos para Fase 5B/6C.
 
 ## 7. Criterios de aceite
 
-- Fase 4A define regioes por dados antes da modelagem regional.
-- Fase 4B aplica `N_eff` e FDR em todo mapa.
-- Fase 4C nao usa PCA de indices como substituto de EOF/MCA dos campos.
-- Fase 4D testa atribuicao Pacifico vs Atlantico e estabilidade por subperiodo.
-- CHIRPS/extremos Amazonicos aparecem com ressalva metodologica, pois CHIRPS pode
-  subestimar extremos convectivos locais.
-- Nenhuma figura e publicada sem saida numerica rastreavel.
+1. 4A separa as 4 fases com criterio estatistico explicito e simetrico EN/LN,
+   com avaliacao expandida (duracoes, dispersao, ONI por fase).
+2. 4B responde, com testes nao parametricos e FDR, quais variaveis determinam
+   a genese, o crescimento, o pico e o decaimento - para EN e LN.
+3. 4C publica o sinal pixel-a-pixel do Brasil inteiro ANTES dos recortes; NEB
+   e Sul ganham detalhamento proprio; a pergunta do tempo de resposta e
+   respondida em semanas (mediana + IQR) por tipo de sinal.
+4. 4D deriva os alvos dos dados, mede estabilidade e preenche o gate G1.
+5. Escopo estritamente Pacifico -> Brasil.
+6. Execucao: `python scripts/run_fase4_all.py` (4A -> 4B -> 4C -> 4D).

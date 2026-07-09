@@ -17,11 +17,9 @@ if str(SRC) not in sys.path:
 from nino_brasil.data.anomalies import daily_anomaly, fit_daily_climatology, standardized_anomaly
 from nino_brasil.features.distributions import fit_power_law_tail
 from nino_brasil.features.nino import (
-    atl3_sst_index,
-    atl4_sst_index,
     iod_sst_index,
     nino34_sst_index,
-    tropical_atlantic_sst_indices,
+    sst_box_index,
 )
 from nino_brasil.features.ocean_heat import (
     CP0,
@@ -221,38 +219,29 @@ class FeatureTests(unittest.TestCase):
         self.assertTrue(np.isfinite(fit.llr_power_law_vs_lognormal))
         self.assertIn(fit.preferred_distribution, {"power_law", "lognormal", "exponential"})
 
-    def test_sst_indices_cover_pacific_atlantic_and_iod_boxes(self) -> None:
+    def test_sst_indices_cover_pacific_and_iod_boxes(self) -> None:
         lat = np.arange(-30.0, 31.0, 1.0)
         lon = np.arange(0.0, 360.0, 1.0)
         values = lon[None, :] + lat[:, None] * 0.0
         sst = xr.DataArray(values, coords={"lat": lat, "lon": lon}, dims=("lat", "lon"))
 
         self.assertAlmostEqual(float(nino34_sst_index(sst)), 215.0, places=6)
-        self.assertAlmostEqual(float(atl3_sst_index(sst)), 6990.0 / 21.0, places=6)
-        self.assertAlmostEqual(float(atl4_sst_index(sst)), 322.5, places=6)
-        atl = tropical_atlantic_sst_indices(sst)
-        self.assertTrue({"atl3_sst", "atl4_sst", "tna_sst", "tsa_sst"}.issubset(set(atl.data_vars)))
         self.assertAlmostEqual(float(iod_sst_index(sst)), -40.0, places=6)
 
 class LongitudeBoundaryRegressionTests(unittest.TestCase):
-    def test_atl3_on_offset_grid_without_lon_zero_cell(self) -> None:
-        """Regressao: ATL3 (20W-0E) em grade deslocada (sem celula em 0.0)
-        nao pode disparar wrap espurio com segmento vazio (quebrava no OISST
-        bruto global 0.125-359.875)."""
+    def test_box_ending_at_lon_zero_on_offset_grid(self) -> None:
+        """Regressao: caixa terminando em 0E em grade deslocada (sem celula em
+        0.0) nao pode disparar wrap espurio com segmento vazio (quebrava no
+        OISST bruto global 0.125-359.875)."""
         lat = np.arange(-29.875, 30.0, 0.25)
         lon = np.arange(0.125, 360.0, 0.25)
         time = pd.date_range("1981-09-01", periods=3, freq="D")
         values = np.ones((time.size, lat.size, lon.size)) * 25.0
         sst = xr.DataArray(values, coords={"time": time, "lat": lat, "lon": lon}, dims=("time", "lat", "lon"))
 
-        atl3 = atl3_sst_index(sst)
-        self.assertEqual(atl3.shape, (3,))
-        self.assertTrue(np.allclose(atl3.values, 25.0))
-
-        atl = tropical_atlantic_sst_indices(sst)
-        for name in ("atl3_sst", "atl4_sst", "tna_sst", "tsa_sst"):
-            self.assertEqual(atl[name].shape, (3,))
-            self.assertTrue(np.allclose(atl[name].values, 25.0))
+        box = sst_box_index(sst, lat_bounds=(-3.0, 3.0), lon_bounds=(-20.0, 0.0), name="box_test")
+        self.assertEqual(box.shape, (3,))
+        self.assertTrue(np.allclose(box.values, 25.0))
 
 
 if __name__ == "__main__":
