@@ -105,19 +105,64 @@ def _atomic_to_csv(df: pd.DataFrame, path: Path) -> None:
     os.replace(tmp, path)
 
 
+def _monthly_kind_frames(year: int) -> pd.DataFrame:
+    """Extrai o ano a partir dos stores mensais por tipo (layout operacional
+    recente: era5_single_nino34_YYYYMM_daily.zarr + era5_pressure_...).
+    Retorna DataFrame diario com as 13 colunas de ATMO_ANOM (vazio se nada)."""
+    single_map = {v: k for k, v in ERA5_SINGLE.items()}  # out -> era5 name
+    rows = []
+    for month in range(1, 13):
+        sp = ERA5 / f"single_levels/{year}/era5_single_nino34_{year}{month:02d}_daily.zarr"
+        pp = ERA5 / f"pressure_levels/{year}/era5_pressure_nino34_{year}{month:02d}_daily.zarr"
+        if not sp.exists() or not pp.exists():
+            continue
+        ds, dp = _open(sp), _open(pp)
+        frame = pd.DataFrame({out: _box_mean(ds[var]).to_pandas()
+                              for out, var in single_map.items() if var in ds})
+        lvln = "pressure_level" if "pressure_level" in dp.coords else "level"
+        for var, levels in ERA5_PRESSURE.items():
+            if var not in dp:
+                continue
+            for out, lvl in levels:
+                frame[out] = _box_mean(dp[var].sel({lvln: lvl})).to_pandas()
+        ds.close(); dp.close()
+        rows.append(frame)
+    if not rows:
+        return pd.DataFrame()
+    out = pd.concat(rows).sort_index()
+    out.index = pd.to_datetime(out.index)
+    return out
+
+
 def extract_era5(years: range) -> pd.DataFrame:
     """Serie diaria da caixa Nino 3.4 para as variaveis ERA5. Cacheia em parquet;
-    se o cache cobre os anos pedidos, reusa (reexecucao instantanea)."""
+    se o cache cobre os anos pedidos, reusa (reexecucao instantanea). Anos sem o
+    layout anual por variavel sao completados pelos stores mensais por tipo."""
+    cached = None
     if ERA5_DAILY_CACHE.exists():
         try:
             cached = pd.read_parquet(ERA5_DAILY_CACHE)
             cached.index = pd.to_datetime(cached.index)
-            if cached.index.min().year <= min(years) and cached.index.max().year >= max(years):
-                cov = f"{cached.index.min().year}-{cached.index.max().year}"
-                print(f"  [era5] cache reusado ({cov}); sem reabrir zarr")
-                return cached.loc[f"{min(years)}-01-01":f"{max(years)}-12-31"].sort_index()
         except Exception as exc:
             print(f"  [era5] cache ignorado ({exc}); reextraindo")
+            cached = None
+    if cached is not None:
+        missing = [y for y in years if y not in set(cached.index.year)]
+        if not missing:
+            cov = f"{cached.index.min().year}-{cached.index.max().year}"
+            print(f"  [era5] cache reusado ({cov}); sem reabrir zarr")
+            return cached.loc[f"{min(years)}-01-01":f"{max(years)}-12-31"].sort_index()
+        # completa apenas os anos ausentes via stores mensais por tipo
+        extra = [f for f in (_monthly_kind_frames(y) for y in missing) if not f.empty]
+        if extra:
+            df = pd.concat([cached] + extra).sort_index()
+            df = df[~df.index.duplicated(keep="last")]
+            try:
+                df.to_parquet(ERA5_DAILY_CACHE)
+                print(f"  [era5] cache estendido com {[int(y) for y in missing]}: {df.index.max().date()}")
+            except Exception as exc:
+                print(f"  [era5] nao consegui gravar cache ({exc})")
+            return df.loc[f"{min(years)}-01-01":f"{max(years)}-12-31"].sort_index()
     cols = {}
     for var, out in ERA5_SINGLE.items():
         parts = []
@@ -150,6 +195,12 @@ def extract_era5(years: range) -> pd.DataFrame:
     df = pd.DataFrame(cols)
     df.index = pd.to_datetime(df.index)
     df = df.sort_index()
+    missing = [y for y in years if df.empty or y not in set(df.index.year)]
+    extra = [f for f in (_monthly_kind_frames(y) for y in missing) if not f.empty]
+    if extra:
+        df = pd.concat([df] + extra).sort_index()
+        df = df[~df.index.duplicated(keep="last")]
+        print(f"  [era5] anos completados por stores mensais: {[int(y) for y in missing]}")
     try:
         df.to_parquet(ERA5_DAILY_CACHE)
         print(f"  [era5] cache gravado: {ERA5_DAILY_CACHE.name} {df.shape}")
@@ -244,66 +295,4 @@ def ctd_validation(master: pd.DataFrame, years: range) -> pd.DataFrame:
     rows = []
     for y in years:
         f = CTD / f"{y}/wod_ctd_{y}.zarr"
-        if not f.exists():
-            continue
-        try:
-            d = _open(f)
-        except Exception:
-            continue
-        lat = d["lat"].values
-        lon = d["lon"].values
-        lon180 = np.where(lon > 180, lon - 360, lon)
-        m = (lat >= NINO34["lat"][0]) & (lat <= NINO34["lat"][1]) & \
-            (lon180 >= NINO34["lon"][0]) & (lon180 <= NINO34["lon"][1])
-        if m.sum() == 0 or "thermocline_depth" not in d:
-            continue
-        tc = np.asarray(d["thermocline_depth"].values)[m]
-        tc = tc[np.isfinite(tc)]
-        if tc.size == 0:
-            continue
-        rea = master.loc[f"{y}-01-01":f"{y}-12-31", "d20_m"].mean()
-        rows.append({
-            "ano": y,
-            "n_perfis_ctd_nino34": int(m.sum()),
-            "termoclina_ctd_media_m": round(float(np.mean(tc)), 1),
-            "d20_reanalise_media_m": round(float(rea), 1) if np.isfinite(rea) else np.nan,
-            "diferenca_m": round(float(np.mean(tc)) - float(rea), 1) if np.isfinite(rea) else np.nan,
-        })
-    return pd.DataFrame(rows)
-
-
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--era5-years", default="1981:2026")
-    ap.add_argument("--no-ctd", action="store_true")
-    ap.add_argument("--ocean-only", action="store_true",
-                    help="monta so oceano (17 vars) + tau_x do cache; sem extrair ERA5")
-    args = ap.parse_args(argv)
-    a, b = (int(x) for x in args.era5_years.split(":"))
-    years = range(a, b + 1)
-
-    master = build(years, ocean_only=args.ocean_only)
-    out = FEAT / "nino34_master_weekly.csv"
-    _atomic_to_csv(master, out)
-    print(f"[master] {out.relative_to(ROOT)} {master.shape} | colunas: {list(master.columns)}")
-
-    aud = audit(master)
-    _atomic_to_csv(aud.set_index("variavel"), STATS / "phase2_master_audit.csv")
-    print(f"[audit] phase2_master_audit.csv ({len(aud)} vars)")
-
-    val = validate(master)
-    _atomic_to_csv(val.set_index("checagem"), STATS / "phase2_master_validation.csv")
-    print(f"[validate]\n{val.to_string(index=False)}")
-    if not bool(val["passou"].all()):
-        print("AVISO: uma ou mais checagens de integridade falharam.")
-
-    if not args.no_ctd:
-        vc = ctd_validation(master, years)
-        if not vc.empty:
-            _atomic_to_csv(vc.set_index("ano"), STATS / "phase2_ctd_validation.csv")
-            print(f"[ctd] phase2_ctd_validation.csv ({len(vc)} anos)")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+        i

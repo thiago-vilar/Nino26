@@ -21,6 +21,7 @@ Este README e a porta de entrada do projeto. Os documentos longos ficam em
 | Fechamento da Fase 2 oceanica | [docs/RUNBOOK_FASE2_OCEANO.md](docs/RUNBOOK_FASE2_OCEANO.md) | Execucao completa UFS, GLORYS/GLO12, ORAS5 mensal e auditorias. |
 | Fase 3 fisica | [docs/FASE3_RECOMENDACOES.md](docs/FASE3_RECOMENDACOES.md) | Diagnostico fisico Nino 3.4 com OISST local, eventos derivados da propria SST, subsuperficie e Kelvin. |
 | Metodologia cientifica | [docs/METODOLOGIA.md](docs/METODOLOGIA.md) | Regras de climatologia, anomalias, diagnosticos fisicos e auditoria. |
+| Pico como faixa | [docs/PICO_FAIXA_BIBLIOGRAFIA.md](docs/PICO_FAIXA_BIBLIOGRAFIA.md) | Bibliografia e motivacao pratica para delimitar o pico do El Nino como janela (faixa), definicao adotada e saidas correspondentes. |
 | Fontes de dados | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | Variaveis, dominios, caminhos de raw/interim/processed e politica de armazenamento. |
 | Pareceres e paineis | [docs/PARECERES](docs/PARECERES) | Pareceres tecnicos recebidos e paineis descritivos derivados deles. |
 | Documentos historicos | [docs/LEGADO](docs/LEGADO) | Escopo, plano diretor, arquitetura RN anterior e README operacional anterior. |
@@ -54,6 +55,7 @@ como comparativo visual, nunca como metrica, rotulo ou entrada do pipeline.
 | Chuva oficial | CHIRPS e insumo da Fase 4: teleconexao pixel-a-pixel, extremos/secas, P90 e lags semanais. Nao entra na Fase 3. |
 | SST/SSTA principal | NOAA OISST diario baixado/local. |
 | Indice ENSO | Eventos sao derivados da propria SST/SSTA OISST baixada com criterio termico NOAA/ONI local: media movel de 3 meses >= +0,5 C por 5 estacoes moveis; intensidade por pico ONI local fraco/moderado/forte/muito forte. |
+| Pico dos eventos | O pico e delimitado como FAIXA (meses com ONI local >= pico - 0,1 C), alem do mes central de maximo; ver [docs/PICO_FAIXA_BIBLIOGRAFIA.md](docs/PICO_FAIXA_BIBLIOGRAFIA.md). |
 | Memoria subsuperficial | NOAA UFS 1981-1992 como ponte historica, GLORYS12 diario desde 1993 como fonte principal, GLO12 operacional na cauda; ORAS5 mensal independente. |
 | Validacao in situ | CTD/WOD, TAO/TRITON e Argo validam D20/OHC/termoclina onde houver cobertura; nao substituem os cubos gridded. |
 | Matriz semanal Fase 2 | `nino34_master_weekly.csv`: 17 variaveis oceanicas unificadas + 14 variaveis atmosfericas ERA5 + `ocean_source_code` como metadado de fonte. |
