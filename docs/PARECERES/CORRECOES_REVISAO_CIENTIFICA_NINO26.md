@@ -17,7 +17,7 @@ correcoes obrigatorias.
 | Skill por mes/estacao e barreira de primavera | Configuracao e metodologia exigem skill por mes de inicializacao e estacao-alvo. |
 | Benchmarks obrigatorios | Configuracao exige climatologia, persistencia amortecida, oscilador de recarga simples e plume dinamico/operacional quando disponivel. |
 | Fase 3F Kelvin/SLA/vento | A Fase 3 foi reestruturada em 3A-3K; o 3F agora descreve ondas de Kelvin, SLA/SSH equatorial e anomalia zonal de vento, sem metrica acumulada superficial. |
-| Fase 4 4A-4D | A Fase 4 foi reorganizada para alvo chuva no Brasil: 4A regionalizacao, 4B correlacao/regressao, 4C modos acoplados e 4D atribuicao Pacifico vs Atlantico, composicoes, estabilidade e gate para ML. |
+| Fase 4 4A-4D | A Fase 4 foi reorganizada para alvo chuva no Brasil: 4A ciclo ENSO, 4B determinantes estatisticos, 4C distribuicao pixel-a-pixel com lags e 4D clusterizacao descritiva com estabilidade e gate estatistico da hipotese NEB seco / Sul umido em El Nino. |
 | Politica temporal | Formalizada a hierarquia diario -> semanal -> mensal: diario para insumo/Kelvin, semanal como eixo canonico de analise, mensal apenas para series nativas/sensibilidade. |
 
 ## Arquivos tocados

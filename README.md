@@ -11,7 +11,7 @@ Este README e a porta de entrada do projeto. Os documentos longos ficam em
 
 | Necessidade | Arquivo | Uso |
 |---|---|---|
-| Fonte canonica das fases | [docs/DIRETRIZES_FASES.md](docs/DIRETRIZES_FASES.md) | Espinha dorsal atual: Fases 1-6, FaseWEB, gates e regras cientificas. Se houver divergencia, este documento prevalece. |
+| Fonte canonica das fases | [docs/DIRETRIZES_FASES.md](docs/DIRETRIZES_FASES.md) | Espinha dorsal atual: matriz 2x3 (Fases 1-8) - 3/5/7 mecanismo do ciclo (estatistica/ML/ConvLSTM), 4/6/8 distribuicao no Brasil (estatistica/ML/ConvLSTM); FaseWEB, gates e regras cientificas. Se houver divergencia, este documento prevalece. |
 | Parecer de organizacao | [docs/PARECER_ORGANIZACAO_2026-07-09.md](docs/PARECER_ORGANIZACAO_2026-07-09.md) | Leitura curta do estado real do projeto, inconsistencias corrigidas e pendencias. |
 | Cronograma operacional | [docs/CRONOGRAMA.md](docs/CRONOGRAMA.md) | Estado em disco e ordem de execucao Fase 2 -> Fase 4. |
 | Status executivo local | [painel_executivo.md](painel_executivo.md) | Painel gerado automaticamente com cobertura de dados, lacunas e proximo comando recomendado. |

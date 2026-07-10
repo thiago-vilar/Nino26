@@ -6,6 +6,14 @@ import matplotlib
 
 matplotlib.use("Agg")
 import geopandas as gpd
+import matplotlib.pyplot as plt
+
+from nino_brasil.maps.plot_pixel_maps import (
+    FIGURE_DPI,
+    NO_DATA_COLOR,
+    add_interpretive_caption,
+    yellow_neutral_diverging_cmap,
+)
 
 
 def _label_columns(gdf: gpd.GeoDataFrame, column: str) -> list[str]:
@@ -52,16 +60,35 @@ def save_choropleth(
     *,
     table_output_path: str | Path | None = None,
     export_table: bool = True,
+    interpretation: str | None = None,
+    metadata: str | None = None,
+    cmap=None,
 ) -> Path:
-    """Save a basic choropleth map."""
+    """Save a spacious, high-resolution choropleth with a numeric companion."""
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     if export_table:
         export_choropleth_table(gdf, column, table_output_path or output.with_suffix(".csv"))
-    ax = gdf.plot(column=column, legend=True, figsize=(8, 8), edgecolor="0.4", linewidth=0.3)
+    chosen_cmap = cmap or yellow_neutral_diverging_cmap()
+    ax = gdf.plot(
+        column=column,
+        legend=True,
+        figsize=(13.5, 11.5),
+        edgecolor="#374151",
+        linewidth=0.7,
+        cmap=chosen_cmap,
+        missing_kwds={"color": NO_DATA_COLOR, "label": "Sem dado"},
+    )
     ax.set_axis_off()
-    ax.set_title(title)
+    ax.set_title(title, fontsize=18, pad=14, fontweight="bold")
     fig = ax.get_figure()
-    fig.tight_layout()
-    fig.savefig(output, dpi=160)
+    if interpretation:
+        add_interpretive_caption(
+            fig,
+            metadata=metadata or f"Variável: {column}",
+            interpretation=interpretation,
+        )
+    fig.tight_layout(rect=(0, 0.08 if interpretation else 0, 1, 1))
+    fig.savefig(output, dpi=FIGURE_DPI, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
     return output

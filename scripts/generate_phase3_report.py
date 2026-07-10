@@ -28,8 +28,8 @@ FIGURE_CATALOG = [
     ("3C", "3C2_mapa_lon_lag.png", "Longitude x lag", "Mostra onde no Pacifico equatorial o sinal antecedente aparece por longitude.", "phase3C_lag_correlacoes.csv"),
     ("3D", "3D1_forest_ic95.png", "Forest IC95", "Aplica N_eff, FDR e IC95 para reduzir falsos positivos.", "phase3D_ranking_significativo.csv"),
     ("3D", "3D2_mapa_lon_lag_fdr.png", "Mapa FDR", "Mostra regioes longitude-lag que sobrevivem ao controle estatistico.", "phase3D_testes_completos.csv"),
-    ("3E", "3E1_scatter_estabilidade.png", "Estabilidade", "Compara correlacoes 1993-2009 vs 2010-presente.", "phase3E_estabilidade.csv"),
-    ("3E", "3E2_mapa_lon_lag_subperiodos.png", "Subperiodos", "Testa se o padrao longitudinal se repete em regimes diferentes.", "phase3E_estabilidade.csv"),
+    ("3E", "Fig_3E1_sensibilidade_bootstrap_loo.png", "Sensibilidade sem breakpoint", "Compara r completo, envelope IC95 do bootstrap movel e faixa leave-one-event-out; nao define exclusao.", "phase3E_sensibilidade_resumo.csv"),
+    ("3E", "Fig_3E2_influencia_eventos_loo.png", "Influencia de eventos", "Mostra quanto r muda ao retirar cada evento EN/LN, sem dividir a serie por ano.", "phase3E_leave_one_event_out.csv"),
     ("3F", "3F1_hovmoller_sla_kelvin.png", "Kelvin por SLA", "Diagnostico visual de propagacao oeste-leste por SLA/SSH em eventos fortes.", "phase3F_kelvin_eventos_resumo.csv"),
     ("3F", "3F2_taux_sla_eventos.png", "Vento e SLA", "Resume tau_x_anom na Nino 3.4 junto ao sinal de SLA por evento.", "phase3F_kelvin_eventos_resumo.csv"),
     ("3G", "3G1_composto_ssta_noaa.png", "SSTA por classe", "Compara a evolucao termica media por classe NOAA/ONI.", "phase3G_composto_ssta_classes_noaa.csv"),
@@ -37,7 +37,7 @@ FIGURE_CATALOG = [
     ("3G", "3G3_mapa_ssta_lon.png", "SSTA longitude", "Compara fortes/super historicos com a formacao atual 2025/26 por longitude.", "phase3G_mapa_ssta_lon_eventos_forte_super.csv"),
     ("3H", "3H1_compostos_onset.png", "Onset por classe", "Mostra quais variaveis se separam na genese dos eventos.", "phase3H_estado_precursor_por_classe.csv"),
     ("3H", "3H2_ciclo_vida.png", "Ciclo de vida", "Resume genese, crescimento, pico e decaimento com variaveis em z-score.", "phase3H_ciclo_vida_media.csv"),
-    ("3I", "3I1_sintese_parecer.png", "Sintese do parecer", "Organiza quais evidencias entram, entram com ressalva ou ficam fora.", "phase3I_conclusoes_decisao.csv"),
+    ("3I", "3I1_sintese_parecer.png", "Sintese do parecer", "Organiza evidencias do 3D por bloco fisico, lag e metricas continuas de sensibilidade do 3E.", "phase3I_conclusoes_decisao.csv"),
     ("3I", "3I2_antecipacao_pico.png", "Antecipacao", "Mostra variaveis candidatas para antecipar o aquecimento maximo.", "phase3I_conjunto_antecipacao_pico.csv"),
     ("3I", "3I3_previsao_condicional_nested.png", "Nested LOO", "Avalia selecao+ajuste por nested LOO e gera projecao condicional.", "phase3I_nested_loo_metricas.csv"),
     ("3K", "3K1_skill_loo_nested.png", "Skill PCA", "Testa se PCA reduz redundancia sem perder skill preditivo.", "phase3K_previsao_pico_nested_loo_metricas.csv"),
@@ -55,7 +55,7 @@ NOTEBOOK_SUMMARY = [
     ("3B", "Define eventos NOAA/ONI locais, classes, ciclo e memoria.", "Pergunta: como eventos nascem, crescem, picam e decaem?", "Autocorrelacao vira baseline de persistencia."),
     ("3C", "Faz triagem bruta de lags preditivos.", "Pergunta: quem antecede a SSTA e com quantas semanas?", "Ranking bruto guia, mas nao basta sem rigor."),
     ("3D", "Aplica N_eff, FDR e IC95.", "Pergunta: o que sobrevive ao controle estatistico?", "Reduz falsos positivos e define evidencias robustas."),
-    ("3E", "Testa estabilidade entre subperiodos.", "Pergunta: o sinal vale antes e depois de 2010?", "WWV fica com ressalva; OHC/SSH/tilt seguem fortes."),
+    ("3E", "Quantifica sensibilidade sem breakpoint.", "Pergunta: a relacao depende da autocorrelacao ou de um evento ENSO isolado?", "Bootstrap movel + LOO por evento informam incerteza; nao criam gate."),
     ("3F", "Avalia leitura qualitativa de ondas de Kelvin por SLA/SSH e vento.", "Pergunta: ha propagacao dinamica compativel com Kelvin?", "Kelvin e diagnostico visual/dinamico, nao detector automatico."),
     ("3G", "Compara SSTA por classe NOAA/ONI e com 2025/26.", "Pergunta: como intensidade, duracao e propagacao longitudinal se organizam?", "SSTA por classe mostra escala termica sem metricas acumuladas auxiliares."),
     ("3H", "Mostra genese e ciclo de vida fisico.", "Pergunta: o estado pre-onset separa classes?", "Recarga cresce antes do pico e descarrega depois."),
@@ -196,7 +196,7 @@ def build_report(cat: pd.DataFrame, gallery: Path | None) -> str:
     proj = read_csv("phase3I_projecao_pico_2026.csv")
     pca_nested = read_csv("phase3K_previsao_pico_nested_loo_metricas.csv")
     best_var = best_by_variable()
-    est = read_csv("phase3E_estabilidade.csv")
+    est = read_csv("phase3E_sensibilidade_resumo.csv")
     eventos = read_csv("phase3I_medias_classes_noaa.csv")
     audit = read_csv("phase3_temporal_integrity_audit.csv")
 
@@ -212,8 +212,11 @@ def build_report(cat: pd.DataFrame, gallery: Path | None) -> str:
         "mae_loo_c", "skill_vs_climatologia",
     ])
     est_txt = md_table(est, [
-        "variavel", "lag_semanas", "r_full", "r_1993_2009",
-        "p_1993_2009", "r_2010_hoje", "p_2010_hoje", "estavel",
+        "variavel", "lag_semanas", "r_full",
+        "bootstrap_ic95_inf_envelope", "bootstrap_ic95_sup_envelope",
+        "bootstrap_min_fracao_mesmo_sinal", "loo_eventos_n",
+        "loo_eventos_r_min", "loo_eventos_r_max",
+        "loo_evento_maior_influencia", "loo_max_delta_r", "papel_3E",
     ])
     eventos_txt = md_table(eventos)
     audit_txt = md_table(audit, [
@@ -253,7 +256,7 @@ estado atual do pipeline, e o bloco de **recarga/subsuperficie**:
 - `ssh_m`: proxy dinamico de expansao/recarga da coluna d'agua.
 - `tau_x_anom_nino34_pa`: acoplamento vento-superficie; anomalias de oeste favorecem downwelling Kelvin e aquecimento.
 - `ohc_0_700`, `tilt_m` e `d20_m`: confirmam profundidade/inclinacao da termoclina e memoria subsuperficial.
-- `wwv`: variavel fisica classica de recarga basinwide; entra com ressalva local porque perdeu significancia em 2010-presente.
+- `wwv`: volume acima da isoterma de 20 C integrado em area no Pacifico equatorial; candidato do bloco de recarga, derivado de D20 e nao representante obrigatorio.
 
 ## Fechamento contra a diretriz atual da Fase 3
 
@@ -295,7 +298,7 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 
 {best_txt}
 
-## Estabilidade por subperiodo
+## Sensibilidade temporal sem breakpoint
 
 {est_txt}
 
@@ -322,9 +325,10 @@ calor e alterar a estrutura vertical/oceanica. OHC0-300, SSH, D20 e tilt medem
 essa recarga e a geometria da termoclina. O `tau_x_anom` representa o elo de
 acoplamento com a atmosfera: anomalias de oeste reduzem/alteram os alisios,
 favorecem ondas Kelvin de downwelling e aprofundam a termoclina no centro-leste
-do Pacifico. O WWV e teoricamente central no oscilador de recarga, mas nesta
-implementacao local fica menos estavel nos subperiodos; por isso entra com
-ressalva. A Fase 3 nao usa metricas acumuladas artificiais como preditoras:
+do Pacifico. O WWV e um indicador classico do oscilador de recarga, mas e
+derivado de D20 e compartilha informacao com D20/OHC/SSH/tilt; por isso fica
+como candidato, sem privilegio a priori. O 3E usa bootstrap em blocos e
+leave-one-event-out apenas como sensibilidade, sem corte cronologico. A Fase 3 nao usa metricas acumuladas artificiais como preditoras:
 o foco interpretativo fica em SSTA, recarga/subsuperficie e acoplamento do vento.
 
 ## Interpretacao para pessoas comuns

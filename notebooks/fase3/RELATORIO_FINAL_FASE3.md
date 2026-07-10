@@ -1,6 +1,6 @@
 # Relatorio final interpretativo - Fase 3 NINO26
 
-Gerado em: 2026-07-09 14:42
+Gerado em: 2026-07-10 07:23
 
 ## Veredito executivo
 
@@ -16,7 +16,7 @@ estado atual do pipeline, e o bloco de **recarga/subsuperficie**:
 - `ssh_m`: proxy dinamico de expansao/recarga da coluna d'agua.
 - `tau_x_anom_nino34_pa`: acoplamento vento-superficie; anomalias de oeste favorecem downwelling Kelvin e aquecimento.
 - `ohc_0_700`, `tilt_m` e `d20_m`: confirmam profundidade/inclinacao da termoclina e memoria subsuperficial.
-- `wwv`: variavel fisica classica de recarga basinwide; entra com ressalva local porque perdeu significancia em 2010-presente.
+- `wwv`: volume acima da isoterma de 20 C integrado em area no Pacifico equatorial; candidato do bloco de recarga, derivado de D20 e nao representante obrigatorio.
 
 ## Fechamento contra a diretriz atual da Fase 3
 
@@ -83,36 +83,49 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | --- | --- | --- | --- | --- | --- |
 | ohc_0_300 | OHC0-300 | 20 | 0.866 | 0.214 | 0.615 |
 | ssh_m | SSH | 20 | 0.793 | 0.24 | 0.568 |
+| t100m | T100m | 20 | 0.837 | 0.247 | 0.557 |
+| ohc_0_100 | OHC0-100 | 4 | 0.865 | 0.248 | 0.555 |
+| u850_anom | u850 anom. | 15 | 0.781 | 0.258 | 0.537 |
 | tau_x_anom_nino34_pa | tau_x anom. | 15 | 0.85 | 0.278 | 0.501 |
 | ohc_0_700 | OHC0-700 | 20 | 0.801 | 0.278 | 0.501 |
+| t50m | T50m | 26 | 0.77 | 0.288 | 0.482 |
+| u10_anom | u10 anom. | 15 | 0.82 | 0.298 | 0.464 |
+| tcwv_anom | TCWV anom. | 20 | 0.692 | 0.307 | 0.448 |
 | tilt_m | Tilt | 15 | 0.726 | 0.353 | 0.366 |
+| mslp_anom | MSLP anom. | 12 | 0.652 | 0.366 | 0.342 |
 | d20_m | D20 | 20 | 0.629 | 0.379 | 0.319 |
+| tilt_slope | Tilt slope | 8 | 0.624 | 0.403 | 0.275 |
+| t150m | T150m | 15 | 0.475 | 0.467 | 0.16 |
+| t200m | T200m | 15 | 0.422 | 0.469 | 0.157 |
+| v10_anom | v10 anom. | 4 | 0.153 | 0.47 | 0.156 |
+| t300m | T300m | 15 | 0.161 | 0.471 | 0.154 |
 | wwv | WWV | 12 | -0.204 | 0.518 | 0.069 |
+| ohc_300_700 | OHC300-700 | 20 | -0.209 | 0.522 | 0.062 |
 
-## Estabilidade por subperiodo
+## Sensibilidade temporal sem breakpoint
 
-| variavel | lag_semanas | r_full | r_1993_2009 | p_1993_2009 | r_2010_hoje | p_2010_hoje | estavel |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| ohc_0_100 | 1 | 0.901 | 0.895 | 0.0 | 0.909 | 0.0 | True |
-| t50m | 0 | 0.887 | 0.878 | 0.0001 | 0.896 | 0.0001 | True |
-| tilt_m | 0 | 0.772 | 0.803 | 0.0006 | 0.807 | 0.0008 | True |
-| ssh_m | 6 | 0.755 | 0.781 | 0.0002 | 0.757 | 0.0005 | True |
-| tcwv_anom | 0 | 0.754 | 0.717 | 0.0 | 0.794 | 0.0 | True |
-| tilt_slope | 0 | 0.744 | 0.755 | 0.0005 | 0.809 | 0.0001 | True |
-| ohc_0_300 | 6 | 0.738 | 0.745 | 0.0011 | 0.728 | 0.0019 | True |
-| sshf_anom | 0 | -0.737 | -0.772 | 0.0 | -0.758 | 0.0 | True |
-| ohc_0_700 | 6 | 0.701 | 0.713 | 0.0015 | 0.689 | 0.0024 | True |
-| t100m | 7 | 0.697 | 0.702 | 0.0045 | 0.687 | 0.0063 | True |
-| omega850_anom | 0 | -0.68 | -0.664 | 0.0 | -0.705 | 0.0 | True |
-| u850_anom | 1 | 0.637 | 0.651 | 0.0 | 0.626 | 0.0 | True |
-| ssr_anom | 0 | -0.606 | -0.597 | 0.0 | -0.627 | 0.0 | True |
-| u200_anom | 0 | -0.594 | -0.601 | 0.0 | -0.602 | 0.0 | True |
-| omega500_anom | 0 | -0.556 | -0.548 | 0.0 | -0.595 | 0.0 | True |
-| d20_m | 15 | 0.545 | 0.546 | 0.0323 | 0.527 | 0.0404 | True |
-| t300m | 0 | 0.525 | 0.588 | 0.0097 | 0.455 | 0.0506 | False |
-| wwv | 20 | 0.516 | 0.558 | 0.0479 | 0.483 | 0.1095 | False |
-| slhf_anom | 0 | -0.507 | -0.541 | 0.0 | -0.469 | 0.0 | True |
-| u10_anom | 1 | 0.503 | 0.509 | 0.0 | 0.544 | 0.0 | True |
+| variavel | lag_semanas | r_full | bootstrap_ic95_inf_envelope | bootstrap_ic95_sup_envelope | bootstrap_min_fracao_mesmo_sinal | loo_eventos_n | loo_eventos_r_min | loo_eventos_r_max | loo_evento_maior_influencia | loo_max_delta_r | papel_3E |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ohc_0_100 | 1 | 0.901127344049803 | 0.8650958262983891 | 0.9286592983727526 | 1.0 | 17 | 0.8920043679915188 | 0.9038356583113186 | el_nino_2014_2016 | 0.0091229760582841 | sensibilidade; nao filtro e nao breakpoint |
+| t50m | 0 | 0.8870888363817138 | 0.8452146877772103 | 0.9173272714338172 | 1.0 | 17 | 0.877247791721817 | 0.8879412828178476 | el_nino_2014_2016 | 0.0098410446598967 | sensibilidade; nao filtro e nao breakpoint |
+| tilt_m | 0 | 0.7716180623939572 | 0.6859132597539398 | 0.8383406825507499 | 1.0 | 17 | 0.7383677316284221 | 0.7919881653479552 | el_nino_1997_1998 | 0.0332503307655351 | sensibilidade; nao filtro e nao breakpoint |
+| ssh_m | 6 | 0.7550882065024468 | 0.6283847063591925 | 0.8353922792718873 | 1.0 | 17 | 0.7085610347811976 | 0.7835715791376043 | el_nino_2014_2016 | 0.0465271717212492 | sensibilidade; nao filtro e nao breakpoint |
+| tcwv_anom | 0 | 0.7543093014617543 | 0.6381369679555698 | 0.8291514430719443 | 1.0 | 17 | 0.7128701550292744 | 0.759135336590127 | el_nino_2014_2016 | 0.0414391464324799 | sensibilidade; nao filtro e nao breakpoint |
+| tilt_slope | 0 | 0.7435991388912174 | 0.6556409394478065 | 0.8147047418359621 | 1.0 | 17 | 0.7162138691130584 | 0.7828536485919182 | la_nina_1998_2001 | 0.0392545097007007 | sensibilidade; nao filtro e nao breakpoint |
+| ohc_0_300 | 6 | 0.7378748716208156 | 0.631914991568351 | 0.8123927424026339 | 1.0 | 17 | 0.7009624933556625 | 0.7573874010916146 | el_nino_2014_2016 | 0.036912378265153 | sensibilidade; nao filtro e nao breakpoint |
+| sshf_anom | 0 | -0.7327297009741839 | -0.8014862622770246 | -0.6317487465023917 | 1.0 | 17 | -0.7442138112062037 | -0.7010395488931159 | el_nino_2014_2016 | 0.0316901520810679 | sensibilidade; nao filtro e nao breakpoint |
+| ohc_0_700 | 6 | 0.7011917526322371 | 0.5787130270471066 | 0.7892879344697546 | 1.0 | 17 | 0.6606547957929061 | 0.7241010238668134 | el_nino_2014_2016 | 0.040536956839331 | sensibilidade; nao filtro e nao breakpoint |
+| t100m | 7 | 0.6972796083645345 | 0.5652437918494642 | 0.7796482932811626 | 1.0 | 17 | 0.6581402526988291 | 0.7144787202217117 | el_nino_2014_2016 | 0.0391393556657053 | sensibilidade; nao filtro e nao breakpoint |
+| omega850_anom | 0 | -0.6775532342936518 | -0.7615455873408787 | -0.5315882128564898 | 1.0 | 17 | -0.6906448443156772 | -0.6269119270970991 | el_nino_1997_1998 | 0.0506413071965526 | sensibilidade; nao filtro e nao breakpoint |
+| u850_anom | 1 | 0.6380052447528571 | 0.5238604433329366 | 0.711927039366737 | 1.0 | 17 | 0.5914333713268134 | 0.6420899969134545 | el_nino_1997_1998 | 0.0465718734260437 | sensibilidade; nao filtro e nao breakpoint |
+| ssr_anom | 0 | -0.6051958175363696 | -0.7074161120371584 | -0.4371590857540167 | 1.0 | 17 | -0.6129286036068726 | -0.552002034133702 | el_nino_2014_2016 | 0.0531937834026676 | sensibilidade; nao filtro e nao breakpoint |
+| u200_anom | 0 | -0.5922666981715743 | -0.6657932071880895 | -0.4881226609234909 | 1.0 | 17 | -0.6027859386980073 | -0.5552918356421997 | el_nino_1997_1998 | 0.0369748625293745 | sensibilidade; nao filtro e nao breakpoint |
+| omega500_anom | 0 | -0.5524333783663237 | -0.667217593746322 | -0.3618222757416269 | 1.0 | 17 | -0.5726431366276363 | -0.4869482637294496 | el_nino_1997_1998 | 0.065485114636874 | sensibilidade; nao filtro e nao breakpoint |
+| d20_m | 15 | 0.5448633312768664 | 0.3836516387105952 | 0.6617180053380558 | 1.0 | 17 | 0.4787594919295452 | 0.5730722005622646 | la_nina_1998_2001 | 0.0661038393473211 | sensibilidade; nao filtro e nao breakpoint |
+| t300m | 0 | 0.52479912104495 | 0.3728147632453253 | 0.6469716848946215 | 1.0 | 17 | 0.4734018497325896 | 0.5438365611891595 | el_nino_2014_2016 | 0.0513972713123603 | sensibilidade; nao filtro e nao breakpoint |
+| wwv | 20 | 0.5161023343556324 | 0.3174695765936826 | 0.6644869744364796 | 1.0 | 17 | 0.424300135824424 | 0.5745706988227898 | la_nina_1998_2001 | 0.0918021985312083 | sensibilidade; nao filtro e nao breakpoint |
+| slhf_anom | 0 | -0.5033972789981962 | -0.6091981565033457 | -0.3989539732023314 | 1.0 | 17 | -0.5234452896976901 | -0.4481818949120392 | la_nina_1998_2001 | 0.055215384086157 | sensibilidade; nao filtro e nao breakpoint |
+| u10_anom | 1 | 0.503438417258845 | 0.3177892917009577 | 0.6281477041271021 | 1.0 | 17 | 0.4183403939372054 | 0.5564711739330652 | el_nino_1997_1998 | 0.0850980233216395 | sensibilidade; nao filtro e nao breakpoint |
 
 ## Classes El Nino NOAA/ONI locais
 
@@ -131,7 +144,7 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3B | Define eventos NOAA/ONI locais, classes, ciclo e memoria. | Pergunta: como eventos nascem, crescem, picam e decaem? | Autocorrelacao vira baseline de persistencia. |
 | 3C | Faz triagem bruta de lags preditivos. | Pergunta: quem antecede a SSTA e com quantas semanas? | Ranking bruto guia, mas nao basta sem rigor. |
 | 3D | Aplica N_eff, FDR e IC95. | Pergunta: o que sobrevive ao controle estatistico? | Reduz falsos positivos e define evidencias robustas. |
-| 3E | Testa estabilidade entre subperiodos. | Pergunta: o sinal vale antes e depois de 2010? | WWV fica com ressalva; OHC/SSH/tilt seguem fortes. |
+| 3E | Quantifica sensibilidade sem breakpoint. | Pergunta: a relacao depende da autocorrelacao ou de um evento ENSO isolado? | Bootstrap movel + LOO por evento informam incerteza; nao criam gate. |
 | 3F | Avalia leitura qualitativa de ondas de Kelvin por SLA/SSH e vento. | Pergunta: ha propagacao dinamica compativel com Kelvin? | Kelvin e diagnostico visual/dinamico, nao detector automatico. |
 | 3G | Compara SSTA por classe NOAA/ONI e com 2025/26. | Pergunta: como intensidade, duracao e propagacao longitudinal se organizam? | SSTA por classe mostra escala termica sem metricas acumuladas auxiliares. |
 | 3H | Mostra genese e ciclo de vida fisico. | Pergunta: o estado pre-onset separa classes? | Recarga cresce antes do pico e descarrega depois. |
@@ -153,8 +166,8 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3C | 3C2_mapa_lon_lag.png | Longitude x lag | Mostra onde no Pacifico equatorial o sinal antecedente aparece por longitude. | phase3C_lag_correlacoes.csv | True | True |
 | 3D | 3D1_forest_ic95.png | Forest IC95 | Aplica N_eff, FDR e IC95 para reduzir falsos positivos. | phase3D_ranking_significativo.csv | True | True |
 | 3D | 3D2_mapa_lon_lag_fdr.png | Mapa FDR | Mostra regioes longitude-lag que sobrevivem ao controle estatistico. | phase3D_testes_completos.csv | True | True |
-| 3E | 3E1_scatter_estabilidade.png | Estabilidade | Compara correlacoes 1993-2009 vs 2010-presente. | phase3E_estabilidade.csv | True | True |
-| 3E | 3E2_mapa_lon_lag_subperiodos.png | Subperiodos | Testa se o padrao longitudinal se repete em regimes diferentes. | phase3E_estabilidade.csv | True | True |
+| 3E | Fig_3E1_sensibilidade_bootstrap_loo.png | Sensibilidade sem breakpoint | Compara r completo, envelope IC95 do bootstrap movel e faixa leave-one-event-out; nao define exclusao. | phase3E_sensibilidade_resumo.csv | True | True |
+| 3E | Fig_3E2_influencia_eventos_loo.png | Influencia de eventos | Mostra quanto r muda ao retirar cada evento EN/LN, sem dividir a serie por ano. | phase3E_leave_one_event_out.csv | True | True |
 | 3F | 3F1_hovmoller_sla_kelvin.png | Kelvin por SLA | Diagnostico visual de propagacao oeste-leste por SLA/SSH em eventos fortes. | phase3F_kelvin_eventos_resumo.csv | True | True |
 | 3F | 3F2_taux_sla_eventos.png | Vento e SLA | Resume tau_x_anom na Nino 3.4 junto ao sinal de SLA por evento. | phase3F_kelvin_eventos_resumo.csv | True | True |
 | 3G | 3G1_composto_ssta_noaa.png | SSTA por classe | Compara a evolucao termica media por classe NOAA/ONI. | phase3G_composto_ssta_classes_noaa.csv | True | True |
@@ -162,7 +175,7 @@ embargo temporal, barreira de primavera e baseline de persistencia amortecida.
 | 3G | 3G3_mapa_ssta_lon.png | SSTA longitude | Compara fortes/super historicos com a formacao atual 2025/26 por longitude. | phase3G_mapa_ssta_lon_eventos_forte_super.csv | True | True |
 | 3H | 3H1_compostos_onset.png | Onset por classe | Mostra quais variaveis se separam na genese dos eventos. | phase3H_estado_precursor_por_classe.csv | True | True |
 | 3H | 3H2_ciclo_vida.png | Ciclo de vida | Resume genese, crescimento, pico e decaimento com variaveis em z-score. | phase3H_ciclo_vida_media.csv | True | True |
-| 3I | 3I1_sintese_parecer.png | Sintese do parecer | Organiza quais evidencias entram, entram com ressalva ou ficam fora. | phase3I_conclusoes_decisao.csv | True | True |
+| 3I | 3I1_sintese_parecer.png | Sintese do parecer | Organiza evidencias do 3D por bloco fisico, lag e metricas continuas de sensibilidade do 3E. | phase3I_conclusoes_decisao.csv | True | True |
 | 3I | 3I2_antecipacao_pico.png | Antecipacao | Mostra variaveis candidatas para antecipar o aquecimento maximo. | phase3I_conjunto_antecipacao_pico.csv | True | True |
 | 3I | 3I3_previsao_condicional_nested.png | Nested LOO | Avalia selecao+ajuste por nested LOO e gera projecao condicional. | phase3I_nested_loo_metricas.csv | True | True |
 | 3K | 3K1_skill_loo_nested.png | Skill PCA | Testa se PCA reduz redundancia sem perder skill preditivo. | phase3K_previsao_pico_nested_loo_metricas.csv | True | True |
@@ -186,9 +199,10 @@ calor e alterar a estrutura vertical/oceanica. OHC0-300, SSH, D20 e tilt medem
 essa recarga e a geometria da termoclina. O `tau_x_anom` representa o elo de
 acoplamento com a atmosfera: anomalias de oeste reduzem/alteram os alisios,
 favorecem ondas Kelvin de downwelling e aprofundam a termoclina no centro-leste
-do Pacifico. O WWV e teoricamente central no oscilador de recarga, mas nesta
-implementacao local fica menos estavel nos subperiodos; por isso entra com
-ressalva. A Fase 3 nao usa metricas acumuladas artificiais como preditoras:
+do Pacifico. O WWV e um indicador classico do oscilador de recarga, mas e
+derivado de D20 e compartilha informacao com D20/OHC/SSH/tilt; por isso fica
+como candidato, sem privilegio a priori. O 3E usa bootstrap em blocos e
+leave-one-event-out apenas como sensibilidade, sem corte cronologico. A Fase 3 nao usa metricas acumuladas artificiais como preditoras:
 o foco interpretativo fica em SSTA, recarga/subsuperficie e acoplamento do vento.
 
 ## Interpretacao para pessoas comuns

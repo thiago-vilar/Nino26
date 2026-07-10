@@ -45,7 +45,7 @@ Execucao headless completa:
 | 3B | Como eventos nascem, crescem, picam e decaem? Quanta memoria ha? | taxas por evento, trajetorias por classe NOAA/ONI local, e-folding, mapa composto de pico |
 | 3C | O que antecede o pico do Nino 3.4, e com quantas semanas? | ranking preliminar de lags, heatmap, mapa lon x lag |
 | 3D | O que sobrevive a N_eff + FDR + IC95? | testes completos, ranking significativo, forest plot, mapa FDR |
-| 3E | O sinal vale em 1993-2009 E 2010-presente? | tabela de estabilidade, scatter r1 x r2, mapas por subperiodo |
+| 3E | A relacao depende da autocorrelacao ou de um evento ENSO isolado? | bootstrap movel em blocos 26/52/78 semanas, leave-one-event-out, IC95 e influencia por evento; sem breakpoint e sem gate |
 | 3F | Kelvin e visivel na dinamica SLA/SSH + vento? | Hovmoller SLA/SSH, resumo por evento e tau_x |
 | 3G | (extra) Como SSTA por classe se organiza e como 2025/26 se compara? | composto SSTA por classe, escalonamento termico, mapa SSTA-lon |
 | 3H | (extra) Que estado fisico precede o onset? A genese separa classes NOAA? | compostos onset-alinhados por classe, retrato precursor por classe, separacao Spearman |
@@ -53,8 +53,9 @@ Execucao headless completa:
 | 3I | Qual e a interpretacao integrada da Fase 3? Como ler classes NOAA e 2026? | conclusoes executivas, classificacao NOAA, medias por classe, nested LOO, estado 2026, texto para parecer |
 | 3L | O protocolo EN/LN completo fecha a diretriz? | eventos EN/LN, ciclo por evento, duracao por fase, discriminantes e PCA por fase |
 
-**Regra de corte do parecer:** so entra o que sobrevive a **3D e 3E**.
-O 3F e diagnostico dinamico de Kelvin; o 3G caracteriza o alvo termico SSTA;
+**Regra de evidencia do parecer:** o 3D controla N_eff, IC95 e FDR. O 3E
+acompanha o resultado com sensibilidade bootstrap/LOO, mas nao cria corte
+binario nem descarta variaveis. O 3F e diagnostico dinamico de Kelvin; o 3G caracteriza o alvo termico SSTA;
 o 3I consolida a interpretacao, mas nao cria evidencia nova.
 
 ## Referencias oficiais de longitude

@@ -27,7 +27,7 @@ cd /d C:\DEV\NINO26
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3B_alvo_eventos_ciclo_vida.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3C_precursores_lags.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3D_rigor_estatistico.ipynb --inplace --ExecutePreprocessor.timeout=1200
-.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3E_estabilidade_subperiodos.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3E_sensibilidade_temporal.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3F_kelvin_sla.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3G_compostos_ssta.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3H_genese_precursores_classe.ipynb --inplace --ExecutePreprocessor.timeout=1200
@@ -59,7 +59,7 @@ media:
 | 3B | Qual e a memoria da SSTA e o ciclo de vida dos eventos? | A autocorrelacao e o baseline de persistencia que qualquer previsao deve superar. |
 | 3C | Quais variaveis lideram a SSTA em lag bruto? | Triagem ordenada por maior abs(r); lag positivo = precursor antecede a SSTA alvo. |
 | 3D | O que sobrevive a N_eff, IC95 e FDR? | Primeiro filtro defensavel; forest plot mostra r, lag, N_eff e IC95. |
-| 3E | O sinal e estavel antes/depois de 2010? | Estavel entra no parecer; instavel entra como ressalva de regime. |
+| 3E | A relacao depende da autocorrelacao ou de um evento ENSO isolado? | Bootstrap movel + leave-one-event-out quantificam sensibilidade; nao ha breakpoint nem gate adicional. |
 | 3F | Kelvin e visivel na dinamica equatorial? | SLA/SSH Hovmoller e tau_x dao evidencia qualitativa de propagacao Kelvin. |
 | 3G | Como SSTA por classe se organiza e como 2025/26 se compara? | Compara eventos fortes/super com a formacao atual por SSTA longitudinal; atual e alinhado ao ultimo dado. |
 | 3H | A genese separa classes NOAA? | Mostra onset e ciclo alinhado ao pico real para todos, moderados, fortes e super. |
@@ -85,6 +85,9 @@ data\processed\parquet\statistics\phase3A_cobertura_variaveis.csv
 data\processed\parquet\statistics\phase3C_ranking_lags.csv
 data\processed\parquet\statistics\phase3D_ranking_significativo.csv
 data\processed\parquet\statistics\phase3E_estabilidade.csv
+data\processed\parquet\statistics\phase3E_sensibilidade_resumo.csv
+data\processed\parquet\statistics\phase3E_bootstrap_blocos.csv
+data\processed\parquet\statistics\phase3E_leave_one_event_out.csv
 data\processed\parquet\statistics\phase3G_mapa_ssta_lon_eventos_forte_super.csv
 data\processed\parquet\statistics\phase3H_ciclo_vida_classes_pico.csv
 data\processed\parquet\statistics\phase3I_conjunto_antecipacao_pico.csv
@@ -94,7 +97,8 @@ data\processed\parquet\statistics\phase3I_estado_2026.csv
 ## 7. Parecer defensavel
 
 O bloco de recarga/subsuperficie e o eixo fisico central: D20, SSH, OHC, WWV e
-tilt descrevem o reservatorio oceanico que permite amplificar a SSTA. `tau_x`
+tilt descrevem o reservatorio oceanico que permite amplificar a SSTA. WWV e
+um candidato derivado de D20, nao o representante obrigatorio desse bloco. `tau_x`
 anomalo representa o acoplamento vento-superficie. A interpretacao final evita
 metricas acumuladas auxiliares e prioriza variaveis dinamicas para antecipar o
 pico.

@@ -52,17 +52,40 @@ PHASES: tuple[ProjectPhase, ...] = (
     ),
     ProjectPhase(
         5,
-        "ml_rfxgb_teleconnection_xai",
-        "Mesmo estudo da Fase 4 com ML e XAI",
-        "Random Forest e XGBoost com explicabilidade; series semanais e diarias quando possivel; comparacao contra climatologia/persistencia.",
-        "Modelos RF/XGBoost so avancam se superarem a triagem estatistica da Fase 4 e os baselines.",
+        "ml_cycle_rfxgb_xai",
+        "Ciclo ENSO com Machine Learning (RF/XGBoost) e XAI",
+        "Mesmo mecanismo da Fase 3 (genese, crescimento, pico, decaimento) com Random "
+        "Forest e XGBoost: identifica ciclos EN/LN, mapeia as 4 fases, seleciona variaveis "
+        "por RFECV e projeta pico/tempo-para-pico/duracao com XAI (SHAP, PDP).",
+        "RF/XGBoost so avancam se superarem a caracterizacao estatistica da Fase 3 e os "
+        "baselines de climatologia/persistencia.",
     ),
     ProjectPhase(
         6,
-        "native_neural_networks_xai",
-        "Redes neurais nativas + XAI",
-        "CNN espacial, memoria espaco-temporal e decoder de teleconexao, apenas se Fase 5 justificar a complexidade.",
-        "Redes neurais precisam superar climatologia, persistencia, Fase 4 e Fase 5.",
+        "ml_brazil_teleconnection_xai",
+        "Distribuicao no Brasil com Machine Learning (RF/XGBoost) e XAI",
+        "Mesmo estudo espaco-temporal da Fase 4 (Pacifico -> anomalia de chuva no Brasil) "
+        "com RF/XGBoost e XAI, por fase do ciclo, regiao IBGE e bioma; series semanais e "
+        "diarias quando possivel.",
+        "RF/XGBoost so avancam se superarem a triagem estatistica da Fase 4 e os baselines.",
+    ),
+    ProjectPhase(
+        7,
+        "convlstm_cycle",
+        "Ciclo ENSO com redes neurais ConvLSTM",
+        "Mesmo mecanismo das Fases 3 e 5 com ConvLSTM: aprende a evolucao espaco-temporal "
+        "do Pacifico equatorial, identifica ciclos EN/LN, mapeia as 4 fases e ranqueia "
+        "variaveis por etapa com XAI.",
+        "A rede so se justifica se superar climatologia, persistencia, a Fase 3 e a Fase 5.",
+    ),
+    ProjectPhase(
+        8,
+        "convlstm_brazil_teleconnection",
+        "Distribuicao no Brasil com redes neurais ConvLSTM",
+        "Mesmo estudo espaco-temporal das Fases 4 e 6 com ConvLSTM: projeta a influencia "
+        "do El Nino/La Nina sobre a chuva do Brasil no espaco e no tempo, por fase, regiao "
+        "e bioma.",
+        "A rede so se justifica se superar climatologia, persistencia, a Fase 4 e a Fase 6.",
     ),
     ProjectPhase(
         None,

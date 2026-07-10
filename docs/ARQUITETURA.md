@@ -14,7 +14,7 @@ flowchart TD
     D --> E["nino34_master_weekly.csv: 17 oceanicas + 14 ERA5 + metadado de fonte"]
     E --> F["Fase 3: diagnostico fisico Nino 3.4, sem ML/RN"]
     E --> G["Fase 4: teleconexao ENSO -> chuva Brasil, sem ML/RN"]
-    G --> H["Gate G1"]
+    G --> H["Gate G1 estatistico"]
     H --> I["Fase 5: RF/XGBoost + XAI"]
     I --> J["Gate G2"]
     J --> K["Fase 6: redes neurais nativas + XAI"]
@@ -33,19 +33,22 @@ flowchart TD
 | Fase 2 | Disponibiliza todas as variaveis baixadas com serie temporal auditavel, principalmente para uso semanal 1981-2026. |
 | Fase 3 | Caracteriza o Pacifico/Nino 3.4: eventos EN/LN, duracao, genese, crescimento, pico, decaimento, Hovmoller, Bjerknes, Kelvin, mapas, PCA/EOF e estatistica. Sem ML/RN. |
 | Fase 4 | Avalia teleconexao ENSO -> chuva Brasil com CHIRPS, pixel-a-pixel, P90 do periodo de aquecimento, anomalias de chuva, lags semanais, N_eff e FDR. Sem ML/RN. |
-| Fase 5 | Repite o estudo da Fase 4 com Random Forest e XGBoost + XAI, se G1 justificar. |
+| Fase 5 | Repite o estudo da Fase 4 com Random Forest e XGBoost + XAI, apenas fora da Fase 4 e somente se o G1 estatistico justificar. |
 | Fase 6 | Redes neurais nativas + XAI, apenas se vencer climatologia, persistencia, Fase 4 e Fase 5. |
 | FaseWEB | Publicacao, painel e operacao recorrente. |
 | Saida visual | Figuras analiticas do projeto precisam nascer de CSV/Zarr numerico; graficos oficiais espelhados sao referencia externa visual. |
+| Auditoria figura->tabela | Toda figura em `data/processed/figures/` precisa ter CSVs congelados e manifesto em `data/processed/numeric-tables/`, gerados por `scripts/export_numeric_tables_for_figures.py --force --strict`. |
+| Gate G1 estatistico | Avalia se a hipotese "El Nino -> secas no NEB e chuvas extremas no Sul" e sustentada por pixels/clusters com N_eff/FDR, sentido fisico, lag defensavel e estabilidade temporal. Nao treina ML. |
 
 ## Comandos Ativos
 
 ```powershell
 .\.venv\Scripts\python scripts\build_master_weekly.py --era5-years 1981:2026
 .\.venv\Scripts\python scripts\fase3_build_inputs.py --force
-.\.venv\Scripts\python -m jupyter nbconvert --to notebook --execute --inplace --allow-errors --ExecutePreprocessor.timeout=7200 notebooks\fase2\2Z_sanidade_variaveis.ipynb
+.\.venv\Scripts\python -m jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=7200 notebooks\fase2\2Z_sanidade_variaveis.ipynb
 .\.venv\Scripts\python scripts\run_fase3_all.py
 .\.venv\Scripts\python scripts\run_fase4_all.py
+.\.venv\Scripts\python scripts\export_numeric_tables_for_figures.py --force --strict
 .\.venv\Scripts\python scripts\update_painel_executivo.py
 ```
 
@@ -65,6 +68,7 @@ flowchart TD
 | Auditoria da Fase 3 | `data/audit/phase3_diagnostics_audit.json` |
 | Saidas Fase 3 | `data/processed/parquet/statistics/` e `data/processed/figures/fase3/` |
 | Saidas Fase 4 | `data/processed/parquet/statistics/` e `data/processed/figures/fase4/` |
+| Auditoria figura->tabela | `data/processed/numeric-tables/figure_numeric_tables_manifest.csv` |
 
 ## Regra De Interpretacao
 
@@ -72,3 +76,8 @@ Uma figura analitica gerada pelo projeto so entra no trabalho se houver um
 arquivo numerico anterior capaz de responder a mesma pergunta sem depender de
 cor no mapa. Graficos oficiais espelhados sao permitidos como comparativo visual
 e precisam ser citados como externos, sem alimentar metricas.
+
+Na pratica, a regra e operacionalizada por `data/processed/numeric-tables/`:
+cada PNG tem uma pasta propria com CSVs de representacao e `figure_manifest.csv`
+contendo origem, tipo de fonte, dimensoes e hash SHA-256. Se uma figura existir
+sem mapeamento numerico, o exportador em modo `--strict` falha.

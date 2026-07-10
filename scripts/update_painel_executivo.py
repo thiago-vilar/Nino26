@@ -312,8 +312,10 @@ def phase_status_rows() -> list[list[str]]:
         "standardization_anomalies_lags_regridding": phase2_status,
         "nino34_physical_signal_diagnostics": phase3_status,
         "enso_brazil_rainfall_teleconnection": "Em execucao: Fase 4 reorganizada para CHIRPS semanal, P90, lags e testes pixel-a-pixel com N_eff/FDR; sem ML/RN.",
-        "ml_rfxgb_teleconnection_xai": "Nao iniciada: so deve avancar depois do gate G1; escopo restrito a Random Forest/XGBoost + XAI.",
-        "native_neural_networks_xai": "Nao iniciada: so deve avancar depois do gate G2 e precisa vencer baselines simples.",
+        "ml_cycle_rfxgb_xai": "Nao iniciada: mesmo mecanismo da Fase 3 com RF/XGBoost + XAI (RFECV, SHAP, PDP); avanca apos o gate G2.",
+        "ml_brazil_teleconnection_xai": "Nao iniciada: mesma distribuicao da Fase 4 com RF/XGBoost + XAI por fase/regiao/bioma; avanca apos o gate G3.",
+        "convlstm_cycle": "Nao iniciada: mesmo mecanismo das Fases 3/5 com ConvLSTM; avanca apos o gate G4 e precisa vencer baselines.",
+        "convlstm_brazil_teleconnection": "Nao iniciada: mesma distribuicao das Fases 4/6 com ConvLSTM; avanca apos o gate G5 e precisa vencer baselines.",
         "faseweb_publication_operation": "Esqueleto: publicacao/painel recorrente e rotina operacional.",
     }
     rows: list[list[str]] = []

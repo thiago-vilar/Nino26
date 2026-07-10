@@ -75,7 +75,7 @@ time:
       compatible_sources: ["oras5", "gridded_argo", "wod_climatologies", "nino34_monthly_oisst"]
     ocean_choice: "glorys12_daily_primary_for_weekly_d20_ohc_wwv; oras5_monthly_cross_check_only"
     effective_n_policy: "all weekly significance and confidence intervals use Bretherton N_eff; nominal weekly N must not be interpreted as independent samples"
-    weekly_lag_equivalence: "WWV 6-9 months ~= 26-39 weeks; 0-18 months ~= 0-78 weeks"
+    weekly_lag_equivalence: "0-18 months ~= 0-78 weeks for every prespecified candidate; no variable has a required optimum lag"
   weekly_climatology:
     method: "fourier_harmonic_annual_cycle"
     annual_harmonics: 3
@@ -186,25 +186,28 @@ modeling:
       B_target: "nascimento, crescimento, decaimento e persistencia do Nino 3.4; eventos derivados da propria SST OISST local"
       C_precursors: "precursores fisicos do pico do Nino 3.4, lead semanal e forca"
       D_rigor: "N_eff, teste-t, IC95 Fisher-z e FDR"
-      E_stability: "repeticao por subperiodos 1993-2009 e 2010-presente"
+      E_temporal_sensitivity: "moving-block bootstrap and leave-one-event-out at the lag fixed by D; no prespecified breakpoint and no inclusion gate"
       F_kelvin_sla: "ondas de Kelvin, SLA/SSH equatorial e anomalia zonal de vento"
-    predictor_cut_rule: "variables are retained only for the Phase 3 physical report; no downstream ML scope is active"
+    predictor_cut_rule: "statistical evidence is defined in D; E quantifies temporal/event sensitivity but does not remove variables; collinear recharge candidates are reduced separately"
     weekly_lag_weeks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 32, 36, 40, 44, 48, 52, 60, 68, 78]
     monthly_lag_months_legacy_labeling_only: [0, 1, 2, 3, 4, 5, 6, 9, 12, 15, 18]
     fdr_alpha: 0.10
-    stability_periods:
-      - ["1993-01-01", "2009-12-31"]
-      - ["2010-01-01", "latest_available"]
+    temporal_sensitivity:
+      role: "diagnostic_only_not_a_structural_break_or_gate"
+      moving_block_lengths_weeks: [26, 52, 78]
+      bootstrap_replicates: 1000
+      event_influence: "leave_one_el_nino_or_la_nina_event_out_at_a_time"
+      breakpoint_policy: "none_prespecified; a structural break requires a separate formal change-point study"
     persistence_matrix_shape: "12_initial_months_x_12_leads"
     event_definition: "local OISST-derived Nino 3.4 3-month mean >= 0.5 C for at least 5 months"
     raw_acceleration_policy: "discard raw second-difference acceleration; use 3-month smoothed growth/decay rates"
-    recharge_phase_diagram: "WWV_anomaly_x_Nino34_SSTA quadrants"
+    recharge_phase_diagram: "optional representative_of_recharge_block_x_Nino34_SSTA; WWV is not mandatory"
     collinearity_representatives:
-      recharge_block_primary: "wwv"
-      recharge_block_sensitivity: ["d20", "ohc_0_300", "ohc_0_700"]
+      recharge_block_candidates: ["d20", "ohc_0_300", "ohc_0_700", "ssh", "thermocline_tilt", "wwv"]
+      recharge_block_representative_policy: "select by PCA/loading, physical interpretability and validated skill; never fix WWV a priori"
     sanity_acceptance:
-      wwv_lead_months_expected: [6, 9]
-      wwv_west_stronger_than_total: true
+      lag_policy: "report estimated lag and uncertainty for every candidate; literature ranges are comparison references, not acceptance criteria"
+      recharge_redundancy_check: true
       persistence_spring_drop_months: [5, 6]
     outputs:
       indices_mensais: "data/processed/parquet/features/phase3_indices_mensais.csv"
@@ -214,7 +217,8 @@ modeling:
       persistencia_semanal: "data/processed/parquet/features/phase3_persistencia_semanal.csv"
       lag_correlacoes: "data/processed/parquet/features/phase3_lag_correlacoes.csv"
       fases_recarga: "data/processed/parquet/features/phase3_fases_recarga.csv"
-      estabilidade_subperiodos: "data/processed/parquet/features/phase3_estabilidade_subperiodos.csv"
+      sensibilidade_temporal: "data/processed/parquet/statistics/phase3E_sensibilidade_resumo.csv"
+      estabilidade_legacy_alias: "data/processed/parquet/statistics/phase3E_estabilidade.csv"
       kelvin_leadlag: "data/processed/parquet/features/phase3f_kelvin_leadlag.csv"
     item_3_10b_nino34_p90_anomaly:
       enabled: true

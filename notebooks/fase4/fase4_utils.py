@@ -14,8 +14,9 @@ Desenho cientifico da Fase 4 (parecer 2026-07-08, expandido):
    determinam cada fase (I. Genese, II. Crescimento, III. Pico, IV. Decaimento).
 3. 4C distribui o sinal PIXEL-A-PIXEL: conjunto Pacifico x precipitacao CHIRPS
    0.25, lags semanais, Brasil inteiro e depois recortes NEB e Sul.
-4. 4D SO DEPOIS clusteriza os alvos mais afetados, com lag de atuacao por tipo
-   de sinal, estabilidade temporal e gate para as fases de modelagem.
+4. 4D SO DEPOIS agrupa descritivamente os alvos mais afetados, com lag de
+   atuacao por tipo de sinal, estabilidade temporal e gate estatistico da
+   hipotese NEB seco / Sul umido em El Nino.
 Escopo estritamente Pacifico -> Brasil.
 """
 from __future__ import annotations
@@ -35,6 +36,7 @@ STATS = ROOT / "data/processed/parquet/statistics"
 FIGS = ROOT / "data/processed/figures/fase4"
 ZSTATS = ROOT / "data/processed/zarr/statistics"
 RAIN_ZARR = ROOT / "data/processed/zarr/brazil_precipitation"
+MASTER = FEAT / "nino34_master_weekly.csv"
 for _p in (STATS, FIGS, ZSTATS):
     _p.mkdir(parents=True, exist_ok=True)
 
@@ -51,13 +53,66 @@ PICO_FRACAO = 0.90    # pico = |ONI| >= 90% do |ONI| maximo do evento
 LIMIAR_ONI = 0.5      # NOAA/ONI local
 MIN_ESTACOES = 5      # estacoes moveis sobrepostas
 
-PACIFIC_VARS = ["nino34_ssta", "d20_m", "ohc_0_300", "ohc_0_700",
-                "ssh_m", "tilt_m", "wwv", "tau_x_anom_nino34_pa"]
+PACIFIC_VARS = [
+    "nino34_ssta",
+    "d20_m", "tilt_m", "tilt_slope",
+    "ohc_0_100", "ohc_0_300", "ohc_0_700", "ohc_300_700",
+    "ssh_m", "wwv",
+    "t50m", "t100m", "t150m", "t200m", "t300m", "t500m", "t700m",
+    "tau_x_anom", "u10_anom", "v10_anom",
+    "mslp_anom", "tcwv_anom",
+    "slhf_anom", "sshf_anom", "ssr_anom", "str_anom",
+    "u850_anom", "u200_anom",
+    "omega850_anom", "omega500_anom", "div850_anom",
+]
+
+VAR_META = {
+    "nino34_ssta": ("SSTA Nino 3.4", "C", "oceano_superficie"),
+    "d20_m": ("Profundidade da isoterma 20 C (D20)", "m", "oceano_recarga"),
+    "tilt_m": ("Inclinacao zonal da termoclina", "m", "oceano_recarga"),
+    "tilt_slope": ("Gradiente zonal da termoclina", "m/grau", "oceano_recarga"),
+    "ohc_0_100": ("Conteudo de calor 0-100 m", "J m-2", "oceano_recarga"),
+    "ohc_0_300": ("Conteudo de calor 0-300 m", "J m-2", "oceano_recarga"),
+    "ohc_0_700": ("Conteudo de calor 0-700 m", "J m-2", "oceano_recarga"),
+    "ohc_300_700": ("Conteudo de calor 300-700 m", "J m-2", "oceano_recarga"),
+    "ssh_m": ("Altura dinamica/superficie do mar", "m", "oceano_recarga"),
+    "wwv": ("Volume de agua quente", "m3", "oceano_recarga"),
+    "t50m": ("Temperatura 50 m", "C", "oceano_subsuperficie"),
+    "t100m": ("Temperatura 100 m", "C", "oceano_subsuperficie"),
+    "t150m": ("Temperatura 150 m", "C", "oceano_subsuperficie"),
+    "t200m": ("Temperatura 200 m", "C", "oceano_subsuperficie"),
+    "t300m": ("Temperatura 300 m", "C", "oceano_subsuperficie"),
+    "t500m": ("Temperatura 500 m", "C", "oceano_subsuperficie"),
+    "t700m": ("Temperatura 700 m", "C", "oceano_subsuperficie"),
+    "tau_x_anom": ("Tensao zonal do vento", "Pa", "atmosfera_bjerknes"),
+    "u10_anom": ("Vento zonal 10 m", "m s-1", "atmosfera_bjerknes"),
+    "v10_anom": ("Vento meridional 10 m", "m s-1", "atmosfera_bjerknes"),
+    "mslp_anom": ("Pressao ao nivel medio do mar", "Pa", "atmosfera_bjerknes"),
+    "tcwv_anom": ("Vapor d'agua integrado na coluna", "kg m-2", "atmosfera_bjerknes"),
+    "slhf_anom": ("Fluxo turbulento de calor latente", "J m-2", "atmosfera_bjerknes"),
+    "sshf_anom": ("Fluxo turbulento de calor sensivel", "J m-2", "atmosfera_bjerknes"),
+    "ssr_anom": ("Radiacao solar liquida na superficie", "J m-2", "atmosfera_bjerknes"),
+    "str_anom": ("Radiacao termica liquida na superficie", "J m-2", "atmosfera_bjerknes"),
+    "u850_anom": ("Vento zonal 850 hPa", "m s-1", "atmosfera_bjerknes"),
+    "u200_anom": ("Vento zonal 200 hPa", "m s-1", "atmosfera_bjerknes"),
+    "omega850_anom": ("Velocidade vertical omega 850 hPa", "Pa s-1", "atmosfera_bjerknes"),
+    "omega500_anom": ("Velocidade vertical omega 500 hPa", "Pa s-1", "atmosfera_bjerknes"),
+    "div850_anom": ("Divergencia 850 hPa", "s-1", "atmosfera_bjerknes"),
+}
 
 VAR_SHORT = {
-    "nino34_ssta": "SSTA", "d20_m": "D20", "ohc_0_300": "OHC0-300",
-    "ohc_0_700": "OHC0-700", "ssh_m": "SSH", "tilt_m": "Tilt",
-    "wwv": "WWV", "tau_x_anom_nino34_pa": "tau_x anom.",
+    "nino34_ssta": "SSTA", "d20_m": "D20", "tilt_m": "Tilt",
+    "tilt_slope": "Tilt slope", "ohc_0_100": "OHC0-100",
+    "ohc_0_300": "OHC0-300", "ohc_0_700": "OHC0-700",
+    "ohc_300_700": "OHC300-700", "ssh_m": "SSH", "wwv": "WWV",
+    "t50m": "T50", "t100m": "T100", "t150m": "T150", "t200m": "T200",
+    "t300m": "T300", "t500m": "T500", "t700m": "T700",
+    "tau_x_anom": "tau_x", "u10_anom": "U10", "v10_anom": "V10",
+    "mslp_anom": "MSLP", "tcwv_anom": "TCWV", "slhf_anom": "SLHF",
+    "sshf_anom": "SSHF", "ssr_anom": "SSR", "str_anom": "STR",
+    "u850_anom": "U850", "u200_anom": "U200",
+    "omega850_anom": "Omega850", "omega500_anom": "Omega500",
+    "div850_anom": "Div850",
 }
 
 EN_CLASSES = [(2.0, "muito_forte"), (1.5, "forte"), (1.0, "moderado"), (0.5, "fraco")]
@@ -68,15 +123,56 @@ FASE_CORES = {"genese": "#93c5fd", "crescimento": "#fca5a5", "pico": "#111827", 
 
 
 def var_label(name: str, *, short: bool = True) -> str:
-    return VAR_SHORT.get(name, name)
+    if short:
+        return VAR_SHORT.get(name, name)
+    return VAR_META.get(name, (name, "", ""))[0]
+
+
+def var_unit(name: str) -> str:
+    return VAR_META.get(name, ("", "", ""))[1]
+
+
+def var_group(name: str) -> str:
+    return VAR_META.get(name, ("", "", "outros"))[2]
 
 
 # ---------------------------------------------------------------- IO basico
 def load_pacific_weekly() -> pd.DataFrame:
-    """Matriz semanal canonica da Fase 3 (somente Pacifico; sem metricas auxiliares)."""
-    w = pd.read_csv(FEAT / "phase3_indices_semanais.csv",
-                    parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
+    """Matriz semanal canonica completa da Fase 2/3 usada na Fase 4.
+
+    Inclui todas as variaveis numericas do master semanal: oceano unificado
+    (1981-09-06 a 2026-06-14 quando valido) e ERA5 atmosferico
+    (1981-01-04 a 2026-07-05). Cada teste usa a intersecao valida da variavel.
+    """
+    w = pd.read_csv(MASTER, parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
     return w[[c for c in PACIFIC_VARS if c in w.columns]]
+
+
+def pacific_variable_inventory(w: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Tabela auditavel de variaveis usadas pela Fase 4 e sua cobertura real."""
+    if w is None:
+        w = load_pacific_weekly()
+    rows = []
+    for c in w.columns:
+        s = pd.to_numeric(w[c], errors="coerce")
+        ok = s.notna()
+        first = w.index[ok].min() if ok.any() else pd.NaT
+        last = w.index[ok].max() if ok.any() else pd.NaT
+        rows.append({
+            "fonte": "master semanal NINO26",
+            "variavel": c,
+            "nome": var_label(c, short=False),
+            "abreviacao": var_label(c),
+            "grupo": var_group(c),
+            "unidade": var_unit(c),
+            "serie_temporal_valida": (
+                f"{first.date()} a {last.date()}" if pd.notna(first) else ""
+            ),
+            "n_semanas_validas": int(ok.sum()),
+            "cobertura_%": round(100 * float(ok.mean()), 2),
+            "intervalo_coleta_analise": "semanal W-SUN",
+        })
+    return pd.DataFrame(rows)
 
 
 def load_oni_monthly() -> pd.Series:
@@ -277,8 +373,15 @@ def build_chirps_weekly_zanom(*, force: bool = False, min_cov: float = 0.95) -> 
         print(f"  [chirps] {s.name} ok")
     wk_all = xr.concat(weekly_parts, dim="time")
     wk_all = wk_all.groupby("time").mean("time")  # semanas duplicadas na virada de ano
-    df = wk_all.to_dataframe(name="p").reset_index()
-    mat = df.pivot_table(index="time", columns=["latitude", "longitude"], values="p")
+    stacked = wk_all.stack(pixel=("latitude", "longitude")).transpose("time", "pixel")
+    mat = pd.DataFrame(
+        stacked.values,
+        index=pd.to_datetime(stacked["time"].values),
+        columns=pd.MultiIndex.from_arrays(
+            [stacked["latitude"].values, stacked["longitude"].values],
+            names=["latitude", "longitude"],
+        ),
+    )
     cov = mat.notna().mean()
     mat = mat.loc[:, cov >= min_cov]
     z = harmonic_standardized_anomaly(mat)
@@ -332,6 +435,114 @@ def lagged_corr_pixel(x: pd.Series, R: pd.DataFrame, lags: list[int],
         p = 2.0 * st.t.sf(np.abs(t), neff - 2)
         r_out[i], p_out[i], n_out[i] = r, p, neff
     return {"r": r_out, "p": p_out, "n_eff": n_out, "lags": np.array(lags)}
+
+
+def lagged_corr_pixel_matrix(X: pd.DataFrame, R: pd.DataFrame, lags: list[int],
+                             mask_weeks: pd.Series | None = None) -> dict:
+    """Correlacao defasada para muitas variaveis ao mesmo tempo.
+
+    Retorna arrays com dimensoes (variavel, lag, pixel). A estatistica e a mesma
+    de `lagged_corr_pixel`, mas usa produto matricial por grupo de variaveis com
+    a mesma mascara valida em cada lag, acelerando a Fase 4C completa.
+    """
+    from scipy import stats as st
+
+    X = X.reindex(R.index)
+    vars_ = list(X.columns)
+    Rv = R.to_numpy(dtype="float64")
+    b = _lag1(Rv)
+    base_mask = np.ones(len(R), dtype=bool) if mask_weeks is None else mask_weeks.reindex(R.index).fillna(False).to_numpy()
+
+    r_out = np.full((len(vars_), len(lags), R.shape[1]), np.nan, dtype="float32")
+    p_out = np.full_like(r_out, np.nan)
+    n_out = np.full_like(r_out, np.nan)
+
+    for li, L in enumerate(lags):
+        Xl = X.shift(L)
+        Xv = Xl.to_numpy(dtype="float64")
+        groups: dict[bytes, tuple[np.ndarray, list[int]]] = {}
+        for vi in range(len(vars_)):
+            m = base_mask & np.isfinite(Xv[:, vi])
+            if int(m.sum()) < 30:
+                continue
+            key = m.tobytes()
+            if key not in groups:
+                groups[key] = (m, [])
+            groups[key][1].append(vi)
+
+        for m, vis in groups.values():
+            n = int(m.sum())
+            Xg = Xv[m][:, vis]
+            Rm = Rv[m]
+            x_mean = np.nanmean(Xg, axis=0)
+            x_std = np.nanstd(Xg, axis=0)
+            r_mean = np.nanmean(Rm, axis=0)
+            r_std = np.nanstd(Rm, axis=0)
+            x_std[x_std == 0] = np.nan
+            r_std[r_std == 0] = np.nan
+            Xz = (Xg - x_mean) / x_std
+            Rz = (Rm - r_mean) / r_std
+            corr = (Xz.T @ Rz) / n
+            corr = np.clip(corr, -0.999999, 0.999999)
+
+            a = _lag1(Xg)
+            neff = np.clip(n * (1 - a[:, None] * b[None, :]) / (1 + a[:, None] * b[None, :]), 4, None)
+            t = corr * np.sqrt((neff - 2) / np.clip(1 - corr**2, 1e-9, None))
+            p = 2.0 * st.t.sf(np.abs(t), neff - 2)
+
+            r_out[vis, li, :] = corr.astype("float32")
+            p_out[vis, li, :] = p.astype("float32")
+            n_out[vis, li, :] = neff.astype("float32")
+
+    return {"r": r_out, "p": p_out, "n_eff": n_out, "lags": np.array(lags), "variavel": vars_}
+
+
+def lag_window_inventory(x: pd.Series, target_index: pd.DatetimeIndex, lags: list[int],
+                         conditions: dict[str, pd.Series | None]) -> pd.DataFrame:
+    """Descreve as janelas de pareamento usadas para identificar cada lag.
+
+    Para um lag L, a janela estatistica e sempre:
+
+        variavel_pacifico(t-L) pareada com anomalia_chuva_pixel(t)
+
+    Portanto, para cada semana-alvo t no CHIRPS, o preditor vem L semanas antes.
+    A tabela registra inicio/fim da janela-alvo, inicio/fim da janela do
+    preditor e numero de pares validos por condicao.
+    """
+    rows = []
+    target_index = pd.DatetimeIndex(target_index)
+    for cond, mask in conditions.items():
+        base_mask = np.ones(len(target_index), dtype=bool)
+        if mask is not None:
+            base_mask = mask.reindex(target_index).fillna(False).to_numpy()
+        for L in lags:
+            xl = x.shift(L).reindex(target_index)
+            m = base_mask & xl.notna().to_numpy()
+            alvo = target_index[m]
+            if len(alvo):
+                pred = alvo - pd.to_timedelta(L, unit="W")
+                rows.append({
+                    "condicao": cond,
+                    "lag_sem": int(L),
+                    "janela_alvo_inicio": alvo.min().date(),
+                    "janela_alvo_fim": alvo.max().date(),
+                    "janela_pacifico_inicio": pred.min().date(),
+                    "janela_pacifico_fim": pred.max().date(),
+                    "n_pares_semanais": int(len(alvo)),
+                    "regra": "Pacifico(t-lag) pareado com anomalia_chuva_pixel(t)",
+                })
+            else:
+                rows.append({
+                    "condicao": cond,
+                    "lag_sem": int(L),
+                    "janela_alvo_inicio": "",
+                    "janela_alvo_fim": "",
+                    "janela_pacifico_inicio": "",
+                    "janela_pacifico_fim": "",
+                    "n_pares_semanais": 0,
+                    "regra": "Pacifico(t-lag) pareado com anomalia_chuva_pixel(t)",
+                })
+    return pd.DataFrame(rows)
 
 
 def fdr_bh(p: np.ndarray, alpha: float = 0.10) -> np.ndarray:

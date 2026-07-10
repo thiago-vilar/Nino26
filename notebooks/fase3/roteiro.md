@@ -11,7 +11,7 @@ cd /d C:\DEV\NINO26
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3B_alvo_eventos_ciclo_vida.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3C_precursores_lags.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3D_rigor_estatistico.ipynb --inplace --ExecutePreprocessor.timeout=1200
-.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3E_estabilidade_subperiodos.ipynb --inplace --ExecutePreprocessor.timeout=1200
+.venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3E_sensibilidade_temporal.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3F_kelvin_sla.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3G_compostos_ssta.ipynb --inplace --ExecutePreprocessor.timeout=1200
 .venv\Scripts\python -m jupyter nbconvert --to notebook --execute notebooks/fase3/3H_genese_precursores_classe.ipynb --inplace --ExecutePreprocessor.timeout=1200
@@ -42,7 +42,7 @@ estacoes moveis sobrepostas. Intensidade:
 | 3B | Eventos NOAA/ONI locais, ciclo de vida e autocorrelacao/persistencia da SSTA. |
 | 3C | Ranking bruto de lags, ordenado pelo maior abs(r), e mapa longitude-lag. |
 | 3D | Relacoes que sobrevivem a N_eff, FDR e IC95. |
-| 3E | Estabilidade das relacoes entre 1993-2009 e 2010-presente. |
+| 3E | Sensibilidade sem breakpoint: bootstrap movel e leave-one-event-out por evento EN/LN; nao e filtro de inclusao. |
 | 3F | Leitura qualitativa de ondas de Kelvin por SLA/SSH e tau_x. |
 | 3G | Compostos SSTA por classe e comparacao longitudinal dos fortes/super com 2025/26. |
 | 3H | Genese por classe e ciclo de vida alinhado ao pico real. |

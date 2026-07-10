@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Executa a Fase 3: gera artefatos EN/LN, roda os notebooks e o relatorio."""
+"""Executa a Fase 3: gera artefatos EN/LN, notebooks, relatorio e numeric-tables."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +15,7 @@ NOTEBOOKS = [
     "3B_alvo_eventos_ciclo_vida.ipynb",
     "3C_precursores_lags.ipynb",
     "3D_rigor_estatistico.ipynb",
-    "3E_estabilidade_subperiodos.ipynb",
+    "3E_sensibilidade_temporal.ipynb",
     "3F_kelvin_sla.ipynb",
     "3G_compostos_ssta.ipynb",
     "3H_genese_precursores_classe.ipynb",
@@ -55,6 +55,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_report:
         print(">>> generate_phase3_report.py", flush=True)
         subprocess.run([sys.executable, "scripts/generate_phase3_report.py"], cwd=ROOT, check=True)
+    print(">>> export_numeric_tables_for_figures.py", flush=True)
+    subprocess.run([
+        sys.executable, "scripts/export_numeric_tables_for_figures.py",
+        "--force", "--strict",
+    ], cwd=ROOT, check=True)
     print(f"Fase 3 completa em {time.time() - t0:.0f}s")
     return 0
 

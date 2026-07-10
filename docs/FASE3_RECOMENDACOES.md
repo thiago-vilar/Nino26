@@ -18,7 +18,7 @@ Janelas:
 |---|---|---|
 | Comum da Fase 3 | 1993-presente | Compara superficie e subsuperficie na mesma base, limitada por GLORYS12 |
 | So superficie | 1982-presente | Sensibilidade OISST/SSTA sem subsuperficie |
-| Estabilidade | 1993-2009 e 2010-presente | Testa mudanca de regime/lead |
+| Sensibilidade temporal | 1993-presente | Bootstrap movel e leave-one-event-out; nao pressupoe breakpoint |
 
 ## 2. Perguntas Dos Notebooks
 
@@ -33,11 +33,13 @@ fisicas sao defensaveis em um parecer auditavel.
 | **3B - Alvo** | Como os eventos nascem, crescem, atingem pico e decaem? | Eventos mensais derivados da SSTA OISST local, trajetoria semanal do Nino 3.4, taxas de crescimento/decaimento e persistencia. | Tabela de eventos, fases do evento e matriz de memoria. |
 | **3C - Precursores** | O que antecede o pico do Nino 3.4? | Correlacoes defasadas semanais, preditor liderando, lags 0-78 semanas. | Ranking preliminar de lead e forca. |
 | **3D - Rigor** | O que sobrevive estatisticamente? | `N_eff`, teste-t, IC95 Fisher-z e FDR sobre o conjunto total de testes. | Ranking filtrado por significancia robusta. |
-| **3E - Estabilidade** | O sinal vale antes e depois da mudanca recente de regime? | Repetir 3C/3D em 1993-2009 e 2010-presente. | Apenas relacoes estaveis seguem para o parecer final. |
+| **3E - Sensibilidade** | A relacao depende da autocorrelacao ou de um evento ENSO isolado? | Lag fixado pelo 3D; bootstrap movel em blocos de 26/52/78 semanas e leave-one-event-out de EN/LN. | IC95 e influencia por evento; diagnostico sem breakpoint e sem gate. |
 | **3F - Kelvin/SLA** | A dinamica equatorial mostra propagacao compativel com ondas Kelvin? | Hovmoller SLA/SSH e `tau_x_anom` por janela de evento. | Evidencia dinamica entra como diagnostico fisico, nao como detector automatico. |
 
-**Regra de corte:** so entra no parecer final da Fase 3 o que sobrevive a D **e** E.
-O 3F e evidencia dinamica qualitativa; nao cria variavel preditora nova.
+**Regra de evidencia:** o controle inferencial e feito no 3D. O 3E quantifica
+sensibilidade e deve acompanhar a interpretacao, mas nao remove variaveis por
+um corte temporal binario. O 3F e evidencia dinamica qualitativa; nao cria
+variavel preditora nova.
 
 **Limite de escopo:** o projeto ativo para na Fase 3. Nao ha etapa ativa de ML, redes neurais ou teleconexao
 Brasil neste recorte.
@@ -57,14 +59,14 @@ executiva.
 ## 4. Recomendacoes Essenciais
 
 1. **Anti-vazamento:** configuracao unica para A-E; climatologia, anomalias e z-scores fitados so no periodo de treino. No eixo semanal, usar climatologia harmonica com 2-3 harmonicos anuais, nao 52 medias semanais cruas.
-2. **Subsuperficie:** D20 por interpolacao linear da isoterma de 20 C (depth em m, positivo para baixo; paralelizar so no tempo); OHC 0-300 m = rho * cp * integral(T dz); WWV = integral de area da D20. Fonte primaria: ORAS5 ou GLORYS12, com a outra como sensibilidade. Janela real: 1993-presente.
+2. **Subsuperficie:** D20 por interpolacao linear da isoterma de 20 C (depth em m, positivo para baixo; paralelizar so no tempo); OHC 0-300 m = rho * cp * integral(T dz); WWV = integral de `D20 x area da celula` entre 5S-5N e 120E-80W, em m3. WWV e candidato do bloco de recarga, derivado de D20 e parcialmente redundante com D20/OHC/SSH/tilt; nao e eixo obrigatorio. Fonte primaria: GLORYS12 diario, com ORAS5 mensal como sensibilidade. Janela comum: 1993-presente.
 3. **Eventos (B):** criterio local OISST compativel com NOAA/ONI (media movel trimestral da SSTA Nino 3.4 >= +0,5 C por >= 5 estacoes moveis sobrepostas); intensidade pelo pico ONI local: fraco, moderado, forte e muito forte; taxas de crescimento/decaimento em serie suavizada de 3 meses; descartar aceleracao bruta. O evento mensal e projetado na grade semanal para analises de lead.
 4. **Persistencia (B):** matriz semanal por mes inicial e lead de 1-52 semanas, com resumo 12x12 mes inicial x lead mensal equivalente; quantifica memoria fisica e barreira de primavera, sem uso de ML.
 5. **Correlacoes defasadas (C/D):** lags semanais de 0-78 semanas, preditor liderando; `N_eff = N * (1 - r1_x*r1_y) / (1 + r1_x*r1_y)`; teste-t e IC95 (Fisher-z) com `N_eff`; FDR Benjamini-Hochberg (`alpha=0,10`) sobre o conjunto total de testes.
 6. **Escopo de bacia:** o projeto e estritamente Pacifico -> Brasil; nenhuma covariavel de outra bacia entra no parecer.
-7. **Diagrama de fase (C):** ocupacao dos quadrantes WWV x SSTA; sequencia esperada do oscilador: recarregado/frio -> recarregado/quente -> descarregado/quente -> descarregado/frio.
-8. **Estabilidade (E):** repetir correlacoes defasadas por subperiodo; mudanca no lead do WWV reproduz McPhaden (2012) e entra como limite fisico do parecer.
-9. **Colinearidade:** D20 ~= OHC ~= WWV ~= SSH/tilt em parte do sinal; escolher representantes por estabilidade estatistica e interpretabilidade fisica, sem contar o mesmo bloco como evidencias independentes.
+7. **Diagrama de fase (C):** opcional, usando o representante selecionado do bloco de recarga x SSTA. WWV pode ser usado, mas nao e fixado a priori.
+8. **Sensibilidade (E):** manter o lag escolhido no 3D e avaliar bootstrap movel pareado e leave-one-event-out. McPhaden (2012) comparou 1980-1999 com 2000-2010; nao justifica 1993-2009/2010+ e nao autoriza um corte estrutural nestes dados.
+9. **Colinearidade:** D20 ~= OHC ~= WWV ~= SSH/tilt em parte do sinal; escolher representantes por PCA/cargas, pergunta fisica e validacao, sem contar o mesmo bloco como evidencias independentes.
 
 ## 5. Notebook 3F - Ondas De Kelvin Por SLA/SSH E Vento
 
@@ -92,7 +94,7 @@ downwelling, e se essa leitura e acompanhada por anomalias de oeste em
 
 Falha nesses itens e tratada como bug de pipeline antes de virar interpretacao cientifica.
 
-1. Lead otimo WWV -> Nino 3.4 em aproximadamente 6-9 meses; WWV-W > WWV total.
+1. Nenhuma variavel tem lag otimo obrigatorio como teste de aceitacao; comparar lags estimados e incerteza com a literatura somente depois do calculo.
 2. Persistencia despenca cruzando maio-junho.
 3. `tau_x_anom` deve ser interpretado como vento/acoplamento, nao como definicao de El Nino.
 4. Mapas longitudinais devem manter longitude oficial 120E -> 80W, com Nino 3.4 sombreado.
@@ -111,7 +113,9 @@ data/processed/parquet/features/phase3_indices_semanais.csv
 data/processed/parquet/features/phase3_eventos.csv
 data/processed/parquet/features/phase3_persistencia_semanal.csv
 data/processed/parquet/features/phase3_fases_recarga.csv
-data/processed/parquet/features/phase3_estabilidade_subperiodos.csv
+data/processed/parquet/statistics/phase3E_sensibilidade_resumo.csv
+data/processed/parquet/statistics/phase3E_bootstrap_blocos.csv
+data/processed/parquet/statistics/phase3E_leave_one_event_out.csv
 data/processed/parquet/features/phase3f_kelvin_leadlag.csv
 data/processed/parquet/features/nino34_monthly_oisst.csv
 data/processed/parquet/statistics/phase3C_lag_correlacoes.csv
@@ -155,7 +159,10 @@ previsao conjunta de timing + amplitude pertencem a Fase 5.
 - WMO SVSLRF - verificacao por hindcast, climatologia cross-validada e metricas de skill.
 - Ambroise & McLachlan 2002 - vies de selecao quando a escolha de variaveis fica fora da validacao.
 - Cawley & Talbot 2010 - overfitting na selecao de modelo e vies na avaliacao de desempenho.
-- McPhaden 2003; McPhaden 2012 (`doi:10.1029/2012GL051826`).
+- McPhaden 2003; McPhaden 2012 (`doi:10.1029/2012GL051826`) - mudanca do lead WWV na virada do seculo; nao fundamenta corte em 2010.
 - Zhao 2021 (`doi:10.1029/2021GL094366`).
 - Bretherton 1999 - `N_eff`.
 - Wilks 2006; Wilks 2016 (`doi:10.1175/BAMS-D-15-00267.1`) - FDR e significancia de campo.
+
+Auditoria detalhada de definicao, usos e marcos temporais:
+`docs/FASE3_WWV_SENSIBILIDADE_TEMPORAL.md`.

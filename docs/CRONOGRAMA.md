@@ -28,7 +28,7 @@ cd /mnt/c/DEV/NINO26
 .venv-wsl/bin/python scripts/build_master_weekly.py --era5-years 1981:2026
 .venv-wsl/bin/python scripts/fase3_build_inputs.py --force
 .venv-wsl/bin/python -m jupyter nbconvert --to notebook --execute --inplace \
-  --allow-errors --ExecutePreprocessor.timeout=7200 \
+  --ExecutePreprocessor.timeout=7200 \
   notebooks/fase2/2Z_sanidade_variaveis.ipynb
 
 # Fase 3 e Fase 4
