@@ -68,6 +68,30 @@ LAGS = list(range(0, 79, 2))
 KEY_PREDICTOR = "nino34_ssta"
 
 
+def pixel_best_lag_fast(x, response, lags):
+    """Melhor lag por pixel (|r| max) via correlacao vetorizada rapida."""
+    import numpy as _np
+    R = response.to_numpy(dtype="float64")
+    best_r = _np.full(R.shape[1], _np.nan); best_ab = _np.full(R.shape[1], -1.0)
+    best_lag = _np.full(R.shape[1], _np.nan)
+    for L in lags:
+        xl = x.shift(L).reindex(response.index).to_numpy()
+        m = _np.isfinite(xl)
+        if m.sum() < 60:
+            continue
+        xv = xl[m]; Rm = R[m]
+        nok = _np.isfinite(Rm).sum(0)
+        xz = (xv - xv.mean()) / (xv.std() or 1.0)
+        mu = _np.nanmean(Rm, 0); sd = _np.nanstd(Rm, 0); sd[sd == 0] = _np.nan
+        Rz = (Rm - mu) / sd
+        r = _np.nansum(_np.where(_np.isfinite(Rz), Rz, 0) * xz[:, None], 0) / _np.where(nok > 0, nok, 1)
+        r = _np.where(nok >= 60, r, _np.nan)
+        upd = _np.abs(r) > best_ab
+        best_r = _np.where(upd, r, best_r); best_ab = _np.where(upd, _np.abs(r), best_ab)
+        best_lag = _np.where(upd, float(L), best_lag)
+    return best_r, best_lag
+
+
 def load_units():
     return build_analysis_units(load_ibge_regions(REG_SHP), load_ibge_biomes(BIO_SHP))
 
@@ -161,6 +185,8 @@ def main(argv: list[str]) -> int:
         predictor_names, contract = load_selected_predictors(
             STATS, available, allow_all_fallback=True
         )
+    if KEY_PREDICTOR not in predictor_names:  # o indice canonico sempre entra no mapa/heatmap
+        predictor_names = [KEY_PREDICTOR] + list(predictor_names)
     predictors = master[[c for c in predictor_names if c in master.columns]].reindex(response.index)
     print(f"[4C] preditores={list(predictors.columns)} (contrato={contract})")
 
@@ -214,6 +240,33 @@ def main(argv: list[str]) -> int:
                       metadata=meta, registry_dir=FIGS,
                       title=f"Lag por regiao e bioma ({event_type})")
         print(f"[figura] {out_png.name} (heatmap unidade x fase, {event_type})")
+    # Mapa pixel-a-pixel do preditor canonico (grade preenchida, amarelo neutro) + CSV para 4D.
+    try:
+        from nino_brasil.maps.plot_pixel_maps import plot_pixel_field, yellow_neutral_diverging_cmap
+        import matplotlib.pyplot as _plt
+        best_r, best_lag = pixel_best_lag_fast(master[KEY_PREDICTOR].reindex(response.index), response, LAGS)
+        pixel_tbl = pixels[["pixel_id", "lat", "lon"]].copy()
+        pixel_tbl["r_no_best_lag"] = best_r
+        pixel_tbl["best_lag_sem"] = best_lag
+        pixel_tbl.to_csv(STATS / "phase4C_best_lag_pixel.csv", index=False)
+        brazil = units[units["tipo_unidade"].eq("regiao")].dissolve()
+        regs = units[units["tipo_unidade"].eq("regiao")]
+        fig, ax = _plt.subplots(figsize=(13, 11))
+        mesh = plot_pixel_field(ax, pixels[["lat", "lon"]], best_r, brazil_geometry=brazil,
+                                boundaries=regs, cmap=yellow_neutral_diverging_cmap(),
+                                vmin=-0.5, vmax=0.5,
+                                title=f"r no melhor lag | {KEY_PREDICTOR} -> anomalia de chuva CHIRPS")
+        cb = fig.colorbar(mesh, ax=ax, fraction=0.035, pad=0.02)
+        cb.set_label("r (amarelo=neutro; azul=seco; vermelho=umido)")
+        from nino_brasil.maps.figure_registry import save_registered_figure
+        save_registered_figure(fig, phase=4, block="C", index=3, slug="mapa_pixel_r_melhor_lag",
+            interpretation="r por pixel no melhor lag entre " + KEY_PREDICTOR + " e a anomalia de chuva; "
+                           "cinza=fora da mascara (nao e zero); amarelo=efeito neutro; grade preenchida sem buracos.",
+            metadata=f"Fonte: CHIRPS 0.25 + OISST | Brasil pixel-a-pixel | lags {LAGS[0]}-{LAGS[-1]} sem",
+            figures_dir=FIGS, reserve_bottom=0.12)
+        print("[figura] Fig_4C3_mapa_pixel_r_melhor_lag.png + phase4C_best_lag_pixel.csv")
+    except Exception as exc:
+        print(f"[aviso] mapa pixelar 4C nao gerado: {exc}")
     print("[4C] concluido.")
     return 0
 

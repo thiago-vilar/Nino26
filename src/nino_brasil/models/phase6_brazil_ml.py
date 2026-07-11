@@ -82,6 +82,9 @@ def fit_unit_teleconnection(
 
     for unit_id in unit_series.columns:
         target = unit_series[unit_id]
+        # Persistencia na semana-CALENDARIO anterior, calculada na serie completa
+        # antes de qualquer mascara (as linhas condicionadas pulam semanas).
+        persistence_full = target.sort_index().shift(1)
         for cond in conditions:
             mask = condition_mask(cond).reindex(lagged.index).fillna(False)
             frame = lagged.join(target.rename("__y")).loc[mask].dropna()
@@ -89,22 +92,54 @@ def fit_unit_teleconnection(
                 continue
             Xv = frame[features].to_numpy()
             yv = frame["__y"].to_numpy()
+            week_of_year = frame.index.isocalendar().week.to_numpy()
             preds = np.full(len(yv), np.nan)
+            seasonal = np.full(len(yv), np.nan)
             for train, test in tscv.split(Xv):
                 estimator = _make_regressor(model, random_state)
                 estimator.fit(Xv[train], yv[train])
                 preds[test] = estimator.predict(Xv[test])
-            baseline = pd.Series(yv).expanding().mean().shift().to_numpy()
+                # Baseline sazonal: media por semana-do-ano ajustada SO no treino.
+                woy_mean = pd.Series(yv[train]).groupby(week_of_year[train]).mean()
+                fallback = float(np.mean(yv[train]))
+                seasonal[test] = np.array(
+                    [woy_mean.get(w, fallback) for w in week_of_year[test]], dtype=float
+                )
+            expanding = pd.Series(yv).expanding().mean().shift().to_numpy()
+            persistence = persistence_full.reindex(frame.index).to_numpy()
             ml = _skill(yv, preds)
-            base = _skill(yv, baseline)
+            baselines = {
+                "media_expansiva": _skill(yv, expanding),
+                "persistencia": _skill(yv, persistence),
+                "climatologia_semana_do_ano": _skill(yv, seasonal),
+            }
+            best_name, best = min(
+                ((k, v) for k, v in baselines.items() if np.isfinite(v["rmse"])),
+                key=lambda kv: kv[1]["rmse"],
+                default=("media_expansiva", baselines["media_expansiva"]),
+            )
             skill_rows.append({
                 "id_unidade": unit_id, "condicao": cond, "modelo": model,
                 "n_obs": len(frame), **{f"{k}_ml": v for k, v in ml.items()},
-                "rmse_baseline": base["rmse"],
+                "rmse_baseline": baselines["media_expansiva"]["rmse"],
+                "rmse_persistencia": baselines["persistencia"]["rmse"],
+                "rmse_clim_semana_do_ano": baselines["climatologia_semana_do_ano"]["rmse"],
+                "melhor_baseline": best_name,
+                "rmse_melhor_baseline": best["rmse"],
                 "skill_rmse_vs_baseline": (
-                    1.0 - ml["rmse"] / base["rmse"] if np.isfinite(base["rmse"]) and base["rmse"] > 0 else np.nan
+                    1.0 - ml["rmse"] / baselines["media_expansiva"]["rmse"]
+                    if np.isfinite(baselines["media_expansiva"]["rmse"])
+                    and baselines["media_expansiva"]["rmse"] > 0 else np.nan
                 ),
-                "validacao": "TimeSeriesSplit; baseline=media expansiva",
+                "skill_rmse_vs_melhor_baseline": (
+                    1.0 - ml["rmse"] / best["rmse"]
+                    if np.isfinite(best["rmse"]) and best["rmse"] > 0 else np.nan
+                ),
+                "validacao": (
+                    "TimeSeriesSplit; baselines=media expansiva, persistencia semanal, "
+                    "climatologia semana-do-ano (fit so no treino); gate G3 exige "
+                    "skill_rmse_vs_melhor_baseline > 0"
+                ),
             })
             estimator = _make_regressor(model, random_state)
             estimator.fit(Xv, yv)

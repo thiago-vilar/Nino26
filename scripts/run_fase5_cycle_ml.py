@@ -30,6 +30,7 @@ for p in (str(SRC), str(ROOT), str(ROOT / "notebooks" / "fase4")):
         sys.path.insert(0, p)
 
 import nino_brasil.models.phase5_cycle_ml as p5  # noqa: E402
+from nino_brasil.io_utils import write_csv_atomic  # noqa: E402
 from nino_brasil.maps.figure_registry import save_registered_figure  # noqa: E402
 
 FEAT = ROOT / "data/processed/parquet/features"
@@ -57,20 +58,43 @@ def main(argv: list[str]) -> int:
                               parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
 
     predictors = [c for c in PREDICTORS if c in master.columns]
-    X = p5.build_lagged_features(master[predictors], predictors, lags=LAGS)
+    # Anomaliza as variaveis oceanicas cruas (ciclo anual + detrend na base
+    # 1991-2020) antes da janela deslizante - parecer 2026-07-10. Sem isso o
+    # classificador pode usar o calendario (phase-locking) como atalho.
+    prepared = p5.prepare_pacific_predictors(master, predictors)
+    X = p5.build_lagged_features(prepared, predictors, lags=LAGS)
     result = p5.fit_phase_classifier(X, phase_table["fase"], model=args.model)
-    result.importances.to_csv(STATS / f"phase5_importancia_{args.model}.csv", index=False)
-    result.cv_scores.to_csv(STATS / f"phase5_cv_{args.model}.csv", index=False)
+    write_csv_atomic(result.importances, STATS / f"phase5_importancia_{args.model}.csv")
+    write_csv_atomic(result.cv_scores, STATS / f"phase5_cv_{args.model}.csv")
+    cv = result.cv_scores
     print(f"[5] {args.model.upper()} classificador de fases | F1-macro medio="
-          f"{result.cv_scores['f1_macro'].mean():.3f} | features={len(result.features)}")
+          f"{cv['f1_macro'].mean():.3f} | baseline semana-do-ano="
+          f"{cv['f1_baseline_semana_do_ano'].mean():.3f} | baseline persistencia="
+          f"{cv['f1_baseline_persistencia'].mean():.3f} | features={len(result.features)}")
 
     # Alvos por evento (projecao do ciclo) + leave-one-event-out.
     import fase4_utils as u  # noqa
     events = u.enso_events(u.load_oni_monthly())
     targets = p5.build_event_targets(events)
-    targets.to_csv(STATS / "phase5_alvos_por_evento.csv", index=False)
+    write_csv_atomic(targets, STATS / "phase5_alvos_por_evento.csv")
     print(f"[5] alvos por evento: {len(targets)} eventos | LOO folds="
           f"{len(p5.leave_one_event_out_indices(targets['event_id']))}")
+
+    # Regressao por evento (Y_pico, Y_tempo_para_pico, Y_duracao) com LOO -
+    # completa a arquitetura preditiva dupla prometida pela diretriz da Fase 5.
+    onset_feats = p5.precursor_features_at_onset(X, events)
+    regression = p5.fit_event_regressions(onset_feats, targets, model=args.model)
+    write_csv_atomic(regression.metrics, STATS / f"phase5_regressao_eventos_{args.model}.csv")
+    write_csv_atomic(regression.predictions, STATS / f"phase5_regressao_predicoes_{args.model}.csv")
+    write_csv_atomic(
+        regression.importances.sort_values(["alvo", "importancia_ganho"], ascending=[True, False])
+        .groupby("alvo").head(20).reset_index(drop=True),
+        STATS / f"phase5_regressao_importancias_{args.model}.csv",
+    )
+    if not regression.metrics.empty:
+        for _, row in regression.metrics.iterrows():
+            print(f"[5] regressao {row['alvo']}: r_loo={row['r_loo']} "
+                  f"mae={row['mae_loo']} skill_vs_clim={row['skill_vs_climatologia']}")
 
     if args.rfecv:
         labels = phase_table["fase"]
@@ -79,7 +103,8 @@ def main(argv: list[str]) -> int:
             labels.reindex(X.index).loc[X.dropna().index],
             task="classification",
         )
-        pd.Series(selected, name="variavel").to_csv(STATS / "phase5_rfecv_selecionadas.csv", index=False)
+        write_csv_atomic(pd.Series(selected, name="variavel").to_frame(),
+                         STATS / "phase5_rfecv_selecionadas.csv")
         print(f"[5] RFECV selecionou {len(selected)} de {X.shape[1]} features")
 
     # Figura 1: top variaveis por ganho (com destaque para precursoras de recarga).
@@ -90,8 +115,11 @@ def main(argv: list[str]) -> int:
     ax.set_title(f"5 - Importancia por ganho ({args.model.upper()}) na classificacao das 4 fases", fontsize=14)
     ax.set_xlabel("importancia (ganho/impureza)")
     interp = (
-        f"Variaveis mais determinantes das 4 fases do ciclo segundo {args.model.upper()} "
-        f"(F1-macro medio {result.cv_scores['f1_macro'].mean():.2f}, TimeSeriesSplit). "
+        f"Caracterizacao diagnostica (rotulos de fase definidos post hoc) das 4 fases do ciclo "
+        f"segundo {args.model.upper()}: F1-macro medio {cv['f1_macro'].mean():.2f} vs baselines "
+        f"semana-do-ano {cv['f1_baseline_semana_do_ano'].mean():.2f} e persistencia "
+        f"{cv['f1_baseline_persistencia'].mean():.2f} (TimeSeriesSplit). Preditores oceanicos "
+        f"anomalizados (clim. 1991-2020 + detrend). "
         f"Barras vermelhas = precursoras de recarga (OHC/SSH/D20/tau_x) nos lags 15-20 sem."
     )
     save_registered_figure(fig, phase=5, block="A", index=1, slug=f"importancia_fases_{args.model}",
@@ -104,7 +132,7 @@ def main(argv: list[str]) -> int:
     try:
         top_feats = list(result.importances["variavel"].head(4))
         pdp = p5.partial_dependence_frame(result.model, X, top_feats)
-        pdp.to_csv(STATS / f"phase5_pdp_{args.model}.csv", index=False)
+        write_csv_atomic(pdp, STATS / f"phase5_pdp_{args.model}.csv")
         fig, ax = plt.subplots(figsize=(13, 8))
         for feat, sub in pdp.groupby("variavel"):
             ax.plot(sub["valor"], sub["resposta_pdp"], marker="o", ms=3, label=feat)

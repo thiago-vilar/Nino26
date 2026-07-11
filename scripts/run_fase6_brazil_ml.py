@@ -28,6 +28,7 @@ for p in (str(ROOT / "src"), str(ROOT)):
 
 import nino_brasil.models.phase5_cycle_ml as p5  # noqa: E402
 import nino_brasil.models.phase6_brazil_ml as p6  # noqa: E402
+from nino_brasil.io_utils import write_csv_atomic  # noqa: E402
 from nino_brasil.maps.figure_registry import save_registered_figure  # noqa: E402
 from nino_brasil.maps.spatial_support import aggregate_area_weighted_response  # noqa: E402
 
@@ -66,16 +67,23 @@ def main(argv: list[str]) -> int:
                               parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
     phase_table = phase_table.reindex(response.index).fillna({"fase": "neutro", "tipo": "neutro", "event_id": ""})
     preds = [c for c in PREDICTORS if c in master.columns]
+    # Anomaliza as variaveis oceanicas cruas (parecer 2026-07-10): sem remover
+    # ciclo anual + tendencia, o ML pode aprender calendario, nao teleconexao.
+    prepared = p5.prepare_pacific_predictors(master, preds)
     lags = range(4, 29, 8) if args.quick else range(4, 53, 4)
-    X = p5.build_lagged_features(master[preds], preds, lags=lags).reindex(response.index)
+    X = p5.build_lagged_features(prepared, preds, lags=lags).reindex(response.index)
 
     conditions = ["todas"] if args.quick else ["todas", "el_nino_pico", "la_nina_pico"]
     result = p6.fit_unit_teleconnection(X, unit_series, phase_table, model=args.model,
                                         conditions=conditions, n_splits=4)
-    result.skill.to_csv(STATS / f"phase6_skill_{args.model}.csv", index=False)
-    p6.top_importances_by_unit(result.importances).to_csv(
-        STATS / f"phase6_importancias_{args.model}.csv", index=False)
+    write_csv_atomic(result.skill, STATS / f"phase6_skill_{args.model}.csv")
+    write_csv_atomic(p6.top_importances_by_unit(result.importances),
+                     STATS / f"phase6_importancias_{args.model}.csv")
     print(f"[6] {args.model.upper()} teleconexao ML: {len(result.skill)} (unidade x condicao)")
+    if not result.skill.empty and "skill_rmse_vs_melhor_baseline" in result.skill.columns:
+        vence = result.skill["skill_rmse_vs_melhor_baseline"] > 0
+        print(f"[6] unidades x condicoes que vencem o MELHOR baseline "
+              f"(persistencia/clim-semana/media): {int(vence.sum())}/{len(result.skill)}")
 
     if not result.skill.empty:
         sub = result.skill[result.skill["condicao"] == "todas"].sort_values("r_ml")
@@ -84,7 +92,9 @@ def main(argv: list[str]) -> int:
         ax.set_title(f"6 - Skill ML por unidade ({args.model.upper()}): r fora-da-amostra", fontsize=14)
         ax.set_xlabel("correlacao r (validacao cronologica)")
         interp = ("Correlacao fora-da-amostra do RF/XGB prevendo a anomalia de chuva de cada "
-                  "regiao/bioma a partir do Pacifico defasado; positivo = ha sinal aprendivel.")
+                  "regiao/bioma a partir do Pacifico defasado (oceanicas anomalizadas + detrend). "
+                  "Gate G3: exige tambem skill_rmse_vs_melhor_baseline > 0 na tabela "
+                  "phase6_skill (persistencia, climatologia semana-do-ano, media expansiva).")
         save_registered_figure(fig, phase=6, block="A", index=1, slug=f"skill_ml_unidades_{args.model}",
             interpretation=interp,
             metadata=f"Fonte: CHIRPS 0.25 + master semanal | unidades IBGE | {args.model.upper()} TimeSeriesSplit",

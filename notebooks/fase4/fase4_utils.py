@@ -137,27 +137,59 @@ def var_group(name: str) -> str:
 
 
 # ---------------------------------------------------------------- IO basico
-def load_pacific_weekly() -> pd.DataFrame:
+def ocean_raw_vars(columns) -> list[str]:
+    """Variaveis oceanicas CRUAS do master (grupos recarga/subsuperficie).
+
+    `nino34_ssta` (oceano_superficie) e as `*_anom` do ERA5 ja sao anomalias.
+    """
+    return [c for c in columns if var_group(c) in ("oceano_recarga", "oceano_subsuperficie")]
+
+
+def load_pacific_weekly(*, anomalize_ocean: bool = True, detrend: bool = True) -> pd.DataFrame:
     """Matriz semanal canonica completa da Fase 2/3 usada na Fase 4.
 
     Inclui todas as variaveis numericas do master semanal: oceano unificado
     (1981-09-06 a 2026-06-14 quando valido) e ERA5 atmosferico
     (1981-01-04 a 2026-07-05). Cada teste usa a intersecao valida da variavel.
+
+    `anomalize_ocean=True` (default apos o parecer 2026-07-10) remove das
+    variaveis oceanicas cruas o ciclo anual (climatologia harmonica ajustada em
+    CLIM_BASE) e a tendencia linear secular. Sem isso, correlacoes condicionadas
+    a semanas EN/LN misturam calendario (phase-locking sazonal) e aquecimento de
+    fundo com teleconexao interanual - o ciclo anual de D20 (~25 m) supera o
+    proprio sigma total (~15 m). SSTA e ERA5 permanecem como estao (ja sao
+    anomalias). Use `anomalize_ocean=False` para reproduzir a leitura antiga.
     """
     w = pd.read_csv(MASTER, parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
-    return w[[c for c in PACIFIC_VARS if c in w.columns]]
+    w = w[[c for c in PACIFIC_VARS if c in w.columns]]
+    if anomalize_ocean:
+        from nino_brasil.stats.climatology import harmonic_anomaly_matrix
+
+        raw = ocean_raw_vars(w.columns)
+        if raw:
+            w = harmonic_anomaly_matrix(w, raw, base=CLIM_BASE, harmonics=3, detrend=detrend)
+    return w
 
 
-def pacific_variable_inventory(w: pd.DataFrame | None = None) -> pd.DataFrame:
+def pacific_variable_inventory(w: pd.DataFrame | None = None, *,
+                               anomalize_ocean: bool = True) -> pd.DataFrame:
     """Tabela auditavel de variaveis usadas pela Fase 4 e sua cobertura real."""
     if w is None:
-        w = load_pacific_weekly()
+        w = load_pacific_weekly(anomalize_ocean=anomalize_ocean)
+    raw = set(ocean_raw_vars(w.columns))
     rows = []
     for c in w.columns:
         s = pd.to_numeric(w[c], errors="coerce")
         ok = s.notna()
         first = w.index[ok].min() if ok.any() else pd.NaT
         last = w.index[ok].max() if ok.any() else pd.NaT
+        if c in raw:
+            tratamento = (
+                "anomalia harmonica 1991-2020 + detrend linear (fit na base)"
+                if anomalize_ocean else "valor fisico cru (ciclo anual presente)"
+            )
+        else:
+            tratamento = "anomalia da fonte (Fase 2)"
         rows.append({
             "fonte": "master semanal NINO26",
             "variavel": c,
@@ -165,6 +197,7 @@ def pacific_variable_inventory(w: pd.DataFrame | None = None) -> pd.DataFrame:
             "abreviacao": var_label(c),
             "grupo": var_group(c),
             "unidade": var_unit(c),
+            "tratamento": tratamento,
             "serie_temporal_valida": (
                 f"{first.date()} a {last.date()}" if pd.notna(first) else ""
             ),
