@@ -33,7 +33,7 @@ PHASES: tuple[ProjectPhase, ...] = (
         2,
         "standardization_anomalies_lags_regridding",
         "Padronizacao, anomalias, lags e regrid",
-        "QC, climatologia sem vazamento, anomalias, acumulados, percentis, lags e grade comum 0.25 grau.",
+        "QC, unidades/sinais, climatologia sem vazamento, anomalias, lags e grades de preditores; alvos CHIRPS preservam pixels nativos.",
         "Cubos Zarr reconciliados em data/processed/zarr/regridded/.",
     ),
     ProjectPhase(
@@ -47,7 +47,7 @@ PHASES: tuple[ProjectPhase, ...] = (
         4,
         "enso_brazil_rainfall_teleconnection",
         "Teleconexao ENSO -> chuvas extremas/secas no Brasil",
-        "CHIRPS semanal, anomalias de chuva, metrica P90 do periodo de aquecimento, lags semanais e testes pixel-a-pixel com N_eff/FDR.",
+        "CHIRPS nativo semanal, anomalia/percentil/SPI/extremos, lags por EN/LN x fase e testes pixel-a-pixel com N_eff/FDR/campo.",
         "Mapas e tabelas estatisticas da teleconexao Pacifico -> Brasil, sem ML/RN.",
     ),
     ProjectPhase(
@@ -57,35 +57,33 @@ PHASES: tuple[ProjectPhase, ...] = (
         "Mesmo mecanismo da Fase 3 (genese, crescimento, pico, decaimento) com Random "
         "Forest e XGBoost: identifica ciclos EN/LN, mapeia as 4 fases, seleciona variaveis "
         "por RFECV e projeta pico/tempo-para-pico/duracao com XAI (SHAP, PDP).",
-        "RF/XGBoost so avancam se superarem a caracterizacao estatistica da Fase 3 e os "
-        "baselines de climatologia/persistencia.",
+        "Execucao independente sobre dados das Fases 1 e 2; comparacoes historicas sao opcionais.",
     ),
     ProjectPhase(
         6,
         "ml_brazil_teleconnection_xai",
         "Distribuicao no Brasil com Machine Learning (RF/XGBoost) e XAI",
-        "Mesmo estudo espaco-temporal da Fase 4 (Pacifico -> anomalia de chuva no Brasil) "
-        "com RF/XGBoost e XAI, por fase do ciclo, regiao IBGE e bioma; series semanais e "
-        "diarias quando possivel.",
-        "RF/XGBoost so avancam se superarem a triagem estatistica da Fase 4 e os baselines.",
+        "Mesmo estudo espaco-temporal da Fase 4 com RF/XGBoost em cada pixel CHIRPS "
+        "original, 31 variaveis, fase no tempo fonte e XAI OOS; regioes/biomas sao resumos.",
+        "Execucao independente sobre dados das Fases 1 e 2; comparacoes historicas sao opcionais.",
     ),
     ProjectPhase(
         7,
         "convlstm_cycle",
         "Ciclo ENSO com redes neurais ConvLSTM",
-        "Mesmo mecanismo das Fases 3 e 5 com ConvLSTM: aprende a evolucao espaco-temporal "
+        "Mesmo mecanismo das Fases 3 e 5 com PyTorch ConvLSTM: aprende a evolucao espaco-temporal "
         "do Pacifico equatorial, identifica ciclos EN/LN, mapeia as 4 fases e ranqueia "
         "variaveis por etapa com XAI.",
-        "A rede so se justifica se superar climatologia, persistencia, a Fase 3 e a Fase 5.",
+        "Pode ser executada diretamente a partir das Fases 1 e 2, sem gates intermediarios.",
     ),
     ProjectPhase(
         8,
         "convlstm_brazil_teleconnection",
         "Distribuicao no Brasil com redes neurais ConvLSTM",
-        "Mesmo estudo espaco-temporal das Fases 4 e 6 com ConvLSTM: projeta a influencia "
+        "Mesmo estudo das Fases 4 e 6 com PyTorch ConvLSTM probabilistica no grid CHIRPS nativo: projeta a influencia "
         "do El Nino/La Nina sobre a chuva do Brasil no espaco e no tempo, por fase, regiao "
         "e bioma.",
-        "A rede so se justifica se superar climatologia, persistencia, a Fase 4 e a Fase 6.",
+        "Pode ser executada diretamente a partir das Fases 1 e 2, sem gates intermediarios.",
     ),
     ProjectPhase(
         None,

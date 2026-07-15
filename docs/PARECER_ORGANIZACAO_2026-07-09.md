@@ -127,7 +127,7 @@ continua suficiente para substituir UFS/GLORYS/GLO12.
 
 | Risco | Severidade | Acao recomendada |
 |---|---:|---|
-| Worktree Git tem muitas alteracoes preexistentes e arquivos gerados | alta | nao fazer `git add .`; separar commits por tema depois de revisar diffs |
+| Worktree Git tem muitas alteracoes preexistentes e arquivos gerados | media | `git add .` e outros comandos praticos sao permitidos; revisar o diff antes do commit continua recomendado |
 | Relatorios historicos ainda podem conter linguagem antiga | media | manter `DIRETRIZES_FASES.md` e este parecer como fonte atual; nao apagar legado sem decisao |
 | Fase 3 precisa congelar artefatos oficiais | media | usar `docs/FASE3_PENDENCIAS.md` como checklist de fechamento e evitar misturar saidas antigas |
 | CTD tem cobertura irregular | media | usar como validacao in situ, sempre com `n_perfis_ctd_nino34` e diferenca anual |
