@@ -273,7 +273,22 @@ def main(argv: list[str] | None = None) -> int:
         else:
             executed_ok += 1
 
-    if not args.no_validate:
+    if not args.no_validate and args.only:
+        # Execução seletiva não pode ser reprovada por artefatos de outras
+        # fases. Confere somente os pares públicos dos notebooks solicitados.
+        figure_root = ROOT / "data/processed/figures"
+        table_root = ROOT / "data/processed/numeric-tables"
+        for rel in alvo:
+            code = Path(rel).stem.split("_", 1)[0]
+            figures = list(figure_root.rglob(f"Fig{code}*.png"))
+            tables = list(table_root.rglob(f"Tab{code}*.csv"))
+            if not figures:
+                falhas.append(f"figuras selecionadas ausentes:{code}")
+            if not tables:
+                falhas.append(f"tabelas selecionadas ausentes:{code}")
+            if figures and tables:
+                print(f"[validação seletiva] {code}: figuras={len(figures)} tabelas={len(tables)}")
+    elif not args.no_validate:
         if run([sys.executable, "scripts/validar_notebooks.py", "--strict"]) != 0:
             falhas.append("validar_notebooks.py --strict")
         if run([
