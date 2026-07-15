@@ -202,6 +202,7 @@ def standardize_dataset_to_daily(
             "nino_brasil_temporal_standard": "daily",
             "nino_brasil_source_frequency": source_frequency,
             "nino_brasil_daily_transform": daily_transform,
+            "nino_brasil_daily_aggregation": aggregation,
         }
     )
     return daily
@@ -294,9 +295,14 @@ def netcdf_to_zarr(
     consolidated: bool = True,
 ) -> Path:
     if zarr_path.exists() and not overwrite:
-        validate_zarr(zarr_path)
-        print(f"zarr exists: {zarr_path}")
-        return zarr_path
+        try:
+            validate_zarr(zarr_path)
+        except BaseException as exc:
+            print(f"zarr inválido; reconstruindo somente este produto: {zarr_path} ({type(exc).__name__})")
+            shutil.rmtree(zarr_path)
+        else:
+            print(f"[skip] zarr já existe e foi validado: {zarr_path}")
+            return zarr_path
 
     if zarr_path.exists() and overwrite:
         shutil.rmtree(zarr_path)
@@ -333,10 +339,19 @@ def netcdf_to_daily_zarr(
 ) -> Path:
     """Convert NetCDF cache to a daily Zarr store, optionally one variable at a time."""
     if zarr_path.exists() and not overwrite:
-        validate_zarr(zarr_path)
-        if not quiet:
-            print(f"daily zarr exists: {zarr_path}")
-        return zarr_path
+        try:
+            validate_zarr(zarr_path)
+        except BaseException as exc:
+            if not quiet:
+                print(
+                    "zarr diário inválido; reconstruindo somente este produto: "
+                    f"{zarr_path} ({type(exc).__name__})"
+                )
+            shutil.rmtree(zarr_path)
+        else:
+            if not quiet:
+                print(f"[skip] zarr diário já existe e foi validado: {zarr_path}")
+            return zarr_path
 
     if zarr_path.exists() and overwrite:
         shutil.rmtree(zarr_path)

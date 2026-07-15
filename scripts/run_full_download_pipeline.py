@@ -16,6 +16,12 @@ if str(SRC) not in sys.path:
 
 REPORT_DIR = ROOT / "data" / "state" / "pipeline_reports"
 
+
+def ensure_processed_output_roots() -> None:
+    """Recria os diretórios contratuais removidos durante uma limpeza local."""
+    for relative in ("data/processed/figures", "data/processed/numeric-tables"):
+        (ROOT / relative).mkdir(parents=True, exist_ok=True)
+
 from nino_brasil.config import load_config
 from nino_brasil.data.availability import iter_available_years, requested_end_date
 from nino_brasil.data.download_cds import (
@@ -106,53 +112,59 @@ def validate_variable_filters(args: argparse.Namespace) -> None:
 
 
 def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
+    ensure_processed_output_roots()
     validate_variable_filters(args)
     common_years = ["--start-year", str(args.start_year), *maybe_end_year(args.end_year)]
     core_limit = ["--limit", "0"]
     retry = ["--retries", str(args.retries), "--retry-wait", str(args.retry_wait)]
     fast = ["--fast"] if args.fast_check else []
-    keep_going = ["--continue-on-error"]
+    keep_going = ["--continue-on-error"] if args.continue_on_error else []
     months = args.month or list(range(1, 13))
     regions = args.region or list(ATMOSPHERE_AREAS)
     era5_single_variables = selected_variables(args.era5_variable, ERA5_SINGLE_VARIABLES)
     era5_pressure_variables = selected_variables(args.era5_variable, ERA5_PRESSURE_VARIABLES)
 
-    source_years: dict[str, set[int]] = {
-        "chirps": set(years_for("chirps", args.start_year, args.end_year)),
-        "noaa_oisst": set(years_for("noaa_oisst", args.start_year, args.end_year)),
-    }
+    # CHIRPS/OISST são curados em uma única execução global abaixo. Criar um
+    # subprocesso por ano/estágio fazia a retomada validar centenas de vezes os
+    # mesmos produtos que já estavam íntegros.
+    source_years: dict[str, set[int]] = {"chirps": set(), "noaa_oisst": set()}
     if args.include_cds:
         cds_years = years_for if args.month else complete_years_for
         source_years["era5"] = set(cds_years("era5", args.start_year, args.end_year))
     if args.include_ctd:
         source_years["noaa_wod_ctd"] = set(years_for("noaa_wod_ctd", args.start_year, args.end_year))
 
+    if not args.full_history:
+        # Atualização recorrente: fontes remotas pesadas processam somente o
+        # último ano elegível. A auditoria global de CHIRPS/OISST continua
+        # cobrindo todo o histórico e reconstrói apenas suas lacunas reais.
+        for source in ("era5", "noaa_wod_ctd"):
+            available = source_years.get(source, set())
+            if available:
+                source_years[source] = {max(available)}
+
     steps: list[tuple[str, list[str]]] = [
         (
-            "01_curadoria_inicial",
+            "01_curadoria_core_incremental",
             python_cmd(
                 "scripts/curate_and_resume_downloads.py",
                 "--source",
-                "all" if args.include_cds else "core",
+                "core",
                 "--stage",
-                "all",
+                "all" if args.include_transforms else "raw",
                 *common_years,
-                *fast,
-            ),
-        ),
-        (
-            "02_ibge",
-            python_cmd(
-                "scripts/curate_and_resume_downloads.py",
-                "--source",
-                "ibge",
-                "--stage",
-                "raw",
+                "--chirps-resolution",
+                args.chirps_resolution,
                 "--execute",
                 *core_limit,
+                *retry,
                 *fast,
                 *keep_going,
             ),
+        ),
+        (
+            "02_auditoria_ibge",
+            python_cmd("scripts/audit_ibge_boundaries.py"),
         ),
     ]
 
@@ -267,7 +279,7 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                     region,
                                     "--annual-zarr",
                                     "--request-mode",
-                                    "annual-kind",
+                                    "annual-variable",
                                     "--delete-raw-after-zarr",
                                     *era5_vars,
                                     "--execute",
@@ -290,7 +302,7 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                     region,
                                     "--annual-zarr",
                                     "--request-mode",
-                                    "annual-kind",
+                                    "annual-variable",
                                     "--delete-raw-after-zarr",
                                     *era5_vars,
                                     "--execute",
@@ -315,6 +327,34 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                 )
             )
 
+    steps.append(
+        (
+            "fonte_oras5_mensal_incremental",
+            python_cmd(
+                "scripts/ocean_monthly_pipeline.py",
+                "ingest",
+                "--start-year",
+                str(args.start_year),
+                "--build-features",
+                "--delete-raw-after-zarr",
+                "--execute",
+                *keep_going,
+            ),
+        )
+    )
+
+    steps.append(
+        (
+            "auditoria_oras5_mensal",
+            python_cmd(
+                "scripts/ocean_monthly_pipeline.py",
+                "audit",
+                "--start-year",
+                str(args.start_year),
+            ),
+        )
+    )
+
     steps.extend(
         [
             (
@@ -324,9 +364,9 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
             (
                 "zz_curadoria_final",
                 python_cmd(
-                    "scripts/curate_and_resume_downloads.py",
-                    "--source",
-                    "all" if args.include_cds else "core",
+                "scripts/curate_and_resume_downloads.py",
+                "--source",
+                    "core",
                     "--stage",
                     "all",
                     *common_years,
@@ -443,6 +483,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--retries", type=int, default=5)
     parser.add_argument("--retry-wait", type=int, default=60)
     parser.add_argument("--fast-check", action="store_true", help="Use existence checks instead of opening metadata in curation steps.")
+    parser.add_argument(
+        "--full-history",
+        action="store_true",
+        help="Audita/reprocessa todo o histórico remoto de ERA5 e CTD. O padrão é a atualização incremental do último ano elegível.",
+    )
     parser.add_argument("--execute", action="store_true", help="Actually run the planned steps. Without this, only prints the plan.")
     parser.add_argument("--report-only", action="store_true", help="Deprecated alias for the default plan-only mode.")
     parser.add_argument("--print-plan-limit", type=int, default=60, help="Maximum planned steps printed to the terminal.")

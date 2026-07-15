@@ -102,9 +102,21 @@ def oras5_request(
     }
 
 
-def oras5_raw_path(root: Path, year: int, kind: str, variable: str | None = None) -> Path:
+def oras5_raw_path(
+    root: Path,
+    year: int,
+    kind: str,
+    variable: str | None = None,
+    months: Sequence[int] | None = None,
+) -> Path:
     suffix = f"_{variable}" if variable else ""
-    return root / str(year) / "_annual_kind" / f"oras5_{kind}{suffix}_{year}.zip"
+    period = "" if not months or list(months) == list(range(1, 13)) else f"_through_{max(months):02d}"
+    return root / str(year) / "_annual_kind" / f"oras5_{kind}{suffix}_{year}{period}.zip"
+
+
+def _oras5_size_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    return any(marker in text for marker in ("cost limit", "costs exceeded", "too large", "payload", "maximum retrieve"))
 
 
 def oras5_variable_zarr_path(root: Path, year: int, variable: str) -> Path:
@@ -400,7 +412,7 @@ def ingest_oras5_year(
     all_outputs: list[Path] = []
     for kind in ("single", "all"):
         request = oras5_request(year, kind, months)
-        raw_path = oras5_raw_path(raw_root, year, kind)
+        raw_path = oras5_raw_path(raw_root, year, kind, months=months)
         variables = ORAS5_SINGLE_LEVEL_VARIABLES if kind == "single" else ORAS5_ALL_LEVEL_VARIABLES
         outputs = [oras5_variable_zarr_path(output_root, year, variable) for variable in variables]
         all_outputs.extend(outputs)
@@ -471,7 +483,7 @@ def ingest_oras5_year(
                 error_type=type(exc).__name__,
                 error=str(exc),
             )
-            if not fallback_split_variables:
+            if not fallback_split_variables or not _oras5_size_error(exc):
                 raise
             print(f"ORAS5 {year} {kind}: grouped request failed; splitting only this group by variable")
             for variable in variables:
@@ -479,7 +491,7 @@ def ingest_oras5_year(
                 if oras5_monthly_store_valid(output, variable, year, months) and not overwrite:
                     dataset_summary(output, zarr=True)
                     continue
-                variable_raw = oras5_raw_path(raw_root, year, kind, variable)
+                variable_raw = oras5_raw_path(raw_root, year, kind, variable, months=months)
                 variable_request = oras5_request(year, kind, months, variables=[variable])
                 variable_task = f"oras5_monthly_{variable}_{year}"
                 audit.record(

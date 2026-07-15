@@ -39,6 +39,10 @@ class MonthlyOceanPipelineTests(unittest.TestCase):
         self.assertEqual(latest_complete_oras5_month(pd.Timestamp("2026-06-20")), (2026, 5))
         self.assertEqual(latest_complete_oras5_month(pd.Timestamp("2026-06-10")), (2026, 4))
 
+    def test_request_selects_official_product_stream_by_year(self) -> None:
+        self.assertEqual(oras5_request(2014, "single", [12])["product_type"], "consolidated")
+        self.assertEqual(oras5_request(2015, "all", [1])["product_type"], "operational")
+
     def test_causal_alignment_does_not_expose_month_before_release(self) -> None:
         monthly = xr.Dataset(
             {"ohc": ("time", [10.0, 20.0])},

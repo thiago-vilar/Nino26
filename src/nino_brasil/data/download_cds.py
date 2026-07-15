@@ -52,6 +52,21 @@ ERA5_PRESSURE_VARIABLES = [
 
 ERA5_PRESSURE_LEVELS = ["200", "500", "850"]
 
+# O CDS entrega estes fluxos/radiações como acumulações horárias em J m-2.
+# A soma diária preserva a grandeza acumulada. Campos instantâneos usam média.
+ERA5_SINGLE_ACCUMULATED_VARIABLES = frozenset(
+    {
+        "surface_latent_heat_flux",
+        "surface_sensible_heat_flux",
+        "surface_net_solar_radiation",
+        "surface_net_thermal_radiation",
+    }
+)
+
+
+def era5_daily_aggregation(variable: str) -> str:
+    return "sum" if variable in ERA5_SINGLE_ACCUMULATED_VARIABLES else "mean"
+
 ERA5_SINGLE_VARIABLE_ALIASES = {
     "mean_sea_level_pressure": ["msl"],
     "10m_u_component_of_wind": ["u10"],
@@ -189,6 +204,14 @@ def _zarr_valid(path: Path, *, expected_variable: str | None = None) -> bool:
         return False
     if expected_variable and expected_variable not in variables:
         return False
+    if expected_variable:
+        expected_aggregation = era5_daily_aggregation(expected_variable)
+        recorded = str(summary.get("attrs", {}).get("nino_brasil_daily_aggregation", ""))
+        # Produtos legados instantâneos já eram calculados por média e podem
+        # ser reutilizados. Acumulações legadas sem contrato explícito devem
+        # ser refeitas, pois antes também recebiam média indevidamente.
+        if recorded != expected_aggregation and not (not recorded and expected_aggregation == "mean"):
+            return False
     return True
 
 
@@ -703,7 +726,7 @@ def ingest_era5_single_month(
                 variables=requested_variables,
                 variable_aliases=ERA5_SINGLE_VARIABLE_ALIASES,
                 source_frequency="subdaily",
-                aggregation="mean",
+                aggregation=era5_daily_aggregation(variable),
                 daily_start=start,
                 daily_end=end,
                 overwrite=overwrite,
@@ -764,7 +787,7 @@ def ingest_era5_pressure_month(
                 variables=requested_variables,
                 variable_aliases=ERA5_PRESSURE_VARIABLE_ALIASES,
                 source_frequency="subdaily",
-                aggregation="mean",
+                aggregation=era5_daily_aggregation(variable),
                 daily_start=start,
                 daily_end=end,
                 overwrite=overwrite,
@@ -1157,7 +1180,7 @@ def _ingest_era5_year_kind(
                     variables=[variable],
                     variable_aliases=variable_aliases,
                     source_frequency="subdaily",
-                    aggregation="mean",
+                    aggregation=era5_daily_aggregation(variable),
                     daily_start=f"{year}-01-01",
                     daily_end=f"{year}-12-31",
                     overwrite=overwrite,
