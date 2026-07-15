@@ -611,8 +611,8 @@ CANONICAL_NOTEBOOKS: tuple[NotebookSpec, ...] = tuple(
         NotebookSpec(
             "F2Z",
             "notebooks/fase2/F2Z_sanidade_variaveis.ipynb",
-            "F2Z — Sanidade das 31 variáveis",
-            "As 31 variáveis físicas possuem cobertura, unidade e continuidade adequadas?",
+            "F2Z — Sanidade das variáveis semanais contratadas",
+            "Todas as variáveis físicas contratadas possuem cobertura, unidade e continuidade adequadas?",
             "Auditoria de cobertura, distribuição, continuidade temporal e contratos de unidade antes de qualquer inferência.",
             "HIP0",
             context=(
@@ -625,7 +625,7 @@ CANONICAL_NOTEBOOKS: tuple[NotebookSpec, ...] = tuple(
                 "A auditoria é descritiva e contratual porque qualidade de entrada não deve ser inferida pelo desempenho posterior. Cobertura por variável, intervalos temporais, unidades, valores ausentes e descontinuidades são avaliados explicitamente e registrados antes da Fase 3."
             ),
             expected_outputs=(
-                "inventário das 31 variáveis com fonte, unidade e cobertura temporal",
+                "inventário completo das variáveis contratadas com fonte, unidade e cobertura temporal",
                 "diagnóstico de lacunas, duplicidades, descontinuidades e faixas implausíveis",
                 "frescor real por variável, sem confundir extensão do eixo com dado válido",
                 "validação CTD/WOD de UFS+GLORYS e auditoria das malhas IBGE quando disponível",

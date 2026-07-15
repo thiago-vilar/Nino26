@@ -123,6 +123,11 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     regions = args.region or list(ATMOSPHERE_AREAS)
     era5_single_variables = selected_variables(args.era5_variable, ERA5_SINGLE_VARIABLES)
     era5_pressure_variables = selected_variables(args.era5_variable, ERA5_PRESSURE_VARIABLES)
+    print(
+        "Inventário atmosférico solicitado: "
+        f"{len(era5_single_variables)} single-level + {len(era5_pressure_variables)} pressure-level "
+        f"em {len(regions)} região(ões); a F2 contará suas colunas derivadas pelo contrato produzido."
+    )
 
     # CHIRPS/OISST são curados em uma única execução global abaixo. Criar um
     # subprocesso por ano/estágio fazia a retomada validar centenas de vezes os

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Build and audit the Phase 2 weekly Pacific master.
 
-Outputs are atomic and include the compatibility/raw master (31 physical
+Outputs are atomic and include the compatibility/raw master (all contracted physical
 variables), an explicitly versioned source-adjusted companion, the variable
 contract, coverage/validation/seam tables, CTD validation, and a SHA256 run
 manifest.  ``ocean_source_code`` is provenance metadata and never one of the
-31 physical predictors.
+contracted physical predictors.
 
 Examples
 --------
@@ -568,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"master={args.output}")
         print(f"master_zarr={args.zarr_output}")
         print(f"source_adjusted_v1={args.adjusted_output}")
-        print(f"contract=31 physical variables + ocean_source_code metadata")
+        print(f"contract={len(PHYSICAL_COLUMNS)} physical variables + ocean_source_code metadata")
         return 0 if args.physical_input.exists() or args.validate_only else 2
 
     if args.validate_only:

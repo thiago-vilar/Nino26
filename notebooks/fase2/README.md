@@ -1,6 +1,6 @@
 # Fase 2 — disponibilização semanal e validação
 
-- `F2Z_sanidade_variaveis.ipynb`: disponibilidade, continuidade e sanidade das 31 variáveis da matriz semanal.
+- `F2Z_sanidade_variaveis.ipynb`: disponibilidade, continuidade e sanidade de todas as variáveis contratadas na matriz semanal; a quantidade é calculada durante a execução.
 - `F2V_validacao_insitu.ipynb`: inventário e validação independente com CTD/WOD, TAO/TRITON e Argo; semanas sem observação não são preenchidas.
 
 Execução completa no WSL2:

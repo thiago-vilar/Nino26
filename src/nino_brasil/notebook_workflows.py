@@ -748,7 +748,7 @@ class NotebookWorkflow:
                 ]
             return [
                 (self.root / "data/processed/parquet/features/nino34_master_weekly.csv", True, "master F2"),
-                (self.root / "data/processed/parquet/statistics/phase2_variable_contract.csv", True, "contrato das 31 variáveis"),
+                (self.root / "data/processed/parquet/statistics/phase2_variable_contract.csv", True, "contrato dinâmico das variáveis semanais"),
                 (self.root / "data/processed/parquet/statistics/phase2_master_source_adjusted_v1_audit.csv", True, "auditoria de cobertura F2"),
                 (self.root / "data/processed/parquet/statistics/phase2_master_validation.csv", True, "validação estrutural F2"),
                 (self.root / "data/processed/parquet/statistics/phase2_master_audit.csv", True, "frescor e cobertura por variável"),
@@ -760,7 +760,7 @@ class NotebookWorkflow:
                 "A": [
                     (self._f3_table("A", 2, "estatisticas_por_fase"), True, "estatísticas evento-fase"),
                     (self.root / "data/processed/parquet/features/nino34_master_weekly.csv", True, "índices semanais F2"),
-                    (self.root / "data/processed/parquet/statistics/phase2_variable_contract.csv", True, "contrato das 31 variáveis"),
+                    (self.root / "data/processed/parquet/statistics/phase2_variable_contract.csv", True, "contrato dinâmico das variáveis semanais"),
                 ],
                 "B": [
                     (self._f3_table("B", 1, "eventos"), True, "catálogo completo de eventos"),
