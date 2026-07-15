@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Executa a atualização da F1 e, após sucesso, reconstrói a F2 semanal."""
+"""Atualiza todas as fontes da F1 e, após sucesso, reconstrói a base semanal F2."""
 from __future__ import annotations
 
 import argparse

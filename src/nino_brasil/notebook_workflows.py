@@ -987,18 +987,27 @@ class NotebookWorkflow:
             "atmosférico ERA5": last_complete_week(atmosphere_table),
             "SST/SSTA Niño 3.4": last_complete_week(anomaly_table),
         }
-        group_status = pd.DataFrame(
-            {
-                "grupo": list(group_weeks),
-                "ultima_semana_valida_w_sun": list(group_weeks.values()),
-                "frequencia": "semanal W-SUN",
-                "criterio": "semana com valor válido em todas as variáveis do grupo",
-            }
-        )
-        fig_status, axis_status = plt.subplots(figsize=(10, 3.8))
-        status_plot = group_status.dropna(subset=["ultima_semana_valida_w_sun"])
-        axis_status.scatter(status_plot["ultima_semana_valida_w_sun"], status_plot["grupo"], s=70, color="#15803d")
-        axis_status.set_title("F2 — última semana válida por grupo (fechamento W-SUN)")
+        numeric_master = master.set_index("week_ending_sunday")[variables].apply(pd.to_numeric, errors="coerce")
+        complete_base = numeric_master.dropna(how="any")
+        common_week = pd.to_datetime(complete_base.index, errors="coerce").max()
+        variable_status = contract[["variavel", "familia", "fonte", "unidade"]].copy()
+        last_by_variable = {
+            variable: pd.to_datetime(numeric_master.index[numeric_master[variable].notna()], errors="coerce").max()
+            for variable in variables
+        }
+        variable_status["ultima_semana_valida_w_sun"] = variable_status["variavel"].map(last_by_variable)
+        variable_status["ultima_semana_comum_base_w_sun"] = common_week
+        variable_status["semanas_validas"] = variable_status["variavel"].map(numeric_master.notna().sum())
+        variable_status["frequencia_produto"] = "semanal W-SUN"
+        variable_status["criterio"] = "último fechamento semanal com valor observado para a variável"
+        fig_status, axis_status = plt.subplots(figsize=(12, max(7, 0.28 * len(variable_status))))
+        status_plot = variable_status.dropna(subset=["ultima_semana_valida_w_sun"]).sort_values("ultima_semana_valida_w_sun")
+        colors = status_plot["familia"].astype("category").cat.codes
+        axis_status.scatter(status_plot["ultima_semana_valida_w_sun"], status_plot["variavel"], c=colors, cmap="viridis", s=42)
+        if pd.notna(common_week):
+            axis_status.axvline(common_week, color="#b91c1c", ls="--", lw=1, label=f"semana comum da base: {week_label(common_week)}")
+            axis_status.legend(loc="lower right", fontsize=8)
+        axis_status.set_title("F2 — atualização semanal completa das variáveis e semana comum da base")
         axis_status.set_xlabel("semana de término")
         axis_status.grid(axis="x", alpha=0.2)
         fig_status.tight_layout()
@@ -1007,7 +1016,7 @@ class NotebookWorkflow:
         ctd_table = pd.read_csv(self.input_paths()[5][0])
         diagnostics = [
             (1, "contrato_disponibilidade", contract, self._phase2_availability_figure(contract), "Painel de disponibilidade e contrato F2"),
-            (2, "ultima_semana_valida_grupos", group_status, fig_status, "Última semana válida por grupo — grade semanal W-SUN"),
+            (2, "status_atualizacao_base_completa", variable_status, fig_status, "Relação completa das variáveis, fontes e últimas semanas válidas"),
             (3, "series_oceanograficas", ocean_table, self._phase2_series_figure(ocean_table, title=f"F2 — grupo oceanográfico · última semana completa {week_label(group_weeks['oceanográfico'])}"), "Sanidade temporal — grupo oceanográfico"),
             (4, "series_atmosfericas", atmosphere_table, self._phase2_series_figure(atmosphere_table, title=f"F2 — grupo atmosférico ERA5 · última semana completa {week_label(group_weeks['atmosférico ERA5'])}"), "Sanidade temporal — grupo atmosférico"),
             (5, "serie_anomalia_nino34", anomaly_table, self._phase2_series_figure(anomaly_table, title=f"F2 — grupo SST/SSTA Niño 3.4 · última semana completa {week_label(group_weeks['SST/SSTA Niño 3.4'])}", max_columns=1), "Sanidade temporal — grupo SST/SSTA Niño 3.4"),
@@ -1029,7 +1038,8 @@ class NotebookWorkflow:
             f"{int(contract['apta_sem_tratamento_extra'].sum())}/{len(contract)} variáveis atendem ao contrato para estatística semanal sem limpeza adicional.",
             "As entradas nativas são diárias (ERA5 parte de registros horários) e o produto da F2 é semanal; não há variável mensal independente nesta fase.",
             "A reconstituição da F2 usa exclusivamente períodos semanais com fechamento no domingo (W-SUN); datas diárias são apenas insumos da agregação.",
-            "Últimas semanas completas: " + "; ".join(f"{group}: {week_label(value)}" for group, value in group_weeks.items()) + ".",
+            f"A última semana comum às {len(variables)} variáveis da base é {week_label(common_week)}; a tabela de atualização preserva também a última semana individual de cada variável.",
+            "A relação completa é publicada por variável, família e fonte; os agrupamentos servem apenas para organizar os gráficos e não substituem a auditoria integral da base.",
             f"A maior data válida observada no audit é {pd.to_datetime(freshness_source['fim']).max():%d/%m/%Y}; o eixo semanal sozinho não comprova atualização das fontes.",
             "O notebook publica a validação CTD/WOD e, quando disponível, a auditoria IBGE produzida pela F1.",
         ]
