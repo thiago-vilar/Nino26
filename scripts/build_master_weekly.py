@@ -30,6 +30,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -58,6 +59,7 @@ CTD = ROOT / "data/processed/zarr/ctd_noaa/wod"
 DEFAULT_PHYSICAL = FEAT / "nino34_physical_signal.csv"
 DEFAULT_ERA5_CACHE = FEAT / "era5_nino34_daily_cache.parquet"
 DEFAULT_MASTER = FEAT / "nino34_master_weekly.csv"
+DEFAULT_MASTER_ZARR = ROOT / "data/processed/zarr/features/nino34_master_weekly.zarr"
 DEFAULT_ADJUSTED = FEAT / "nino34_master_weekly_source_adjusted_v1.csv"
 DEFAULT_AUDIT = STATS / "phase2_master_audit.csv"
 DEFAULT_ADJUSTED_AUDIT = STATS / "phase2_master_source_adjusted_v1_audit.csv"
@@ -168,6 +170,26 @@ def _atomic_to_json(value: dict[str, Any], path: Path) -> None:
     os.replace(temporary, path)
 
 
+def _atomic_weekly_zarr(frame: pd.DataFrame, path: Path) -> None:
+    import shutil
+    dataset = xr.Dataset.from_dataframe(frame)
+    dataset.attrs.update(frequency="weekly", weekly_anchor="W-SUN", canonical=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    staging = path.with_name(path.name + ".staging")
+    if staging.exists():
+        shutil.rmtree(staging)
+    dataset.to_zarr(staging, mode="w", consolidated=True, zarr_format=2)
+    check = xr.open_zarr(staging, consolidated=True)
+    try:
+        if check.sizes.get("week_ending_sunday", 0) != len(frame):
+            raise ValueError("Zarr semanal não preservou toda a grade W-SUN")
+    finally:
+        check.close()
+    if path.exists():
+        shutil.rmtree(path)
+    staging.replace(path)
+
+
 def _monthly_kind_frame(year: int) -> pd.DataFrame:
     rows: list[pd.DataFrame] = []
     for month in range(1, 13):
@@ -210,12 +232,13 @@ def _annual_variable_series(years: range) -> pd.DataFrame:
             paths = glob.glob(str(ERA5 / f"single_levels/{year}/{variable}/*nino34*.zarr"))
             if not paths:
                 continue
-            dataset = _open_zarr(paths[0])
-            try:
-                name = str(next(iter(dataset.data_vars)))
-                parts.append(_box_mean(dataset[name]).to_pandas())
-            finally:
-                dataset.close()
+            for path in sorted(paths):
+                dataset = _open_zarr(path)
+                try:
+                    name = str(next(iter(dataset.data_vars)))
+                    parts.append(_box_mean(dataset[name]).to_pandas())
+                finally:
+                    dataset.close()
         if parts:
             columns[output] = pd.concat(parts).sort_index()
             print(f"  [era5] {output}: {len(columns[output])} dias")
@@ -225,14 +248,15 @@ def _annual_variable_series(years: range) -> pd.DataFrame:
             paths = glob.glob(str(ERA5 / f"pressure_levels/{year}/{variable}/*nino34*.zarr"))
             if not paths:
                 continue
-            dataset = _open_zarr(paths[0])
-            try:
-                name = str(next(iter(dataset.data_vars)))
-                level_name = "pressure_level" if "pressure_level" in dataset.coords else "level"
-                for output, level in levels:
-                    pieces[output].append(_box_mean(dataset[name].sel({level_name: level})).to_pandas())
-            finally:
-                dataset.close()
+            for path in sorted(paths):
+                dataset = _open_zarr(path)
+                try:
+                    name = str(next(iter(dataset.data_vars)))
+                    level_name = "pressure_level" if "pressure_level" in dataset.coords else "level"
+                    for output, level in levels:
+                        pieces[output].append(_box_mean(dataset[name].sel({level_name: level})).to_pandas())
+                finally:
+                    dataset.close()
         for output, _ in levels:
             if pieces[output]:
                 columns[output] = pd.concat(pieces[output]).sort_index()
@@ -251,26 +275,10 @@ def extract_era5(
     force_reextract: bool = False,
 ) -> pd.DataFrame:
     """Extract raw daily box means; unit/sign conversion occurs after caching."""
-    cached = pd.DataFrame()
-    if cache_path.exists() and not force_reextract:
-        try:
-            cached = pd.read_parquet(cache_path)
-            cached.index = pd.to_datetime(cached.index)
-            cached = cached.sort_index()
-        except Exception as exc:
-            print(f"  [era5] cache ignorado: {exc}")
-            cached = pd.DataFrame()
-    requested = set(years)
-    available = set(cached.index.year) if len(cached) else set()
-    # O último ano é mutável: sua presença no parquet não significa que a
-    # série esteja completa. Releia-o dos Zarrs publicados pela F1 em toda
-    # execução; anos históricos permanecem no cache e não são refeitos.
-    refresh = set(requested) if force_reextract else (requested - available)
-    if requested:
-        refresh.add(max(requested))
-    if force_reextract:
-        cached = pd.DataFrame()
-    for year in sorted(refresh):
+    # A F2 lê diretamente os Zarrs canônicos da F1. O antigo Parquet diário
+    # duplicava a série e podia ficar dessincronizado com a cauda operacional.
+    frames: list[pd.DataFrame] = []
+    for year in years:
         annual = _annual_variable_series(range(year, year + 1))
         monthly = _monthly_kind_frame(year)
         if annual.empty:
@@ -279,19 +287,14 @@ def extract_era5(
             replacement = annual
         else:
             replacement = annual.combine_first(monthly)
-        if replacement.empty:
-            continue
-        if not cached.empty:
-            cached = cached.loc[cached.index.year != year]
-        cached = pd.concat([cached, replacement]).sort_index()
-        cached = cached[~cached.index.duplicated(keep="last")]
-    if not cached.empty:
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = cache_path.with_suffix(cache_path.suffix + ".tmp")
-        cached.to_parquet(temporary)
-        os.replace(temporary, cache_path)
-        print(f"  [era5] cache raw: {_display_path(cache_path)} {cached.shape}")
-    return cached.loc[f"{min(years)}-01-01":f"{max(years)}-12-31"].sort_index()
+        if not replacement.empty:
+            frames.append(replacement)
+    if not frames:
+        return pd.DataFrame(columns=ATMO_RAW_COLUMNS)
+    direct = pd.concat(frames).sort_index()
+    direct = direct[~direct.index.duplicated(keep="last")]
+    print(f"  [era5] leitura direta dos Zarrs F1: {direct.shape}")
+    return direct.loc[f"{min(years)}-01-01":f"{max(years)}-12-31"].sort_index()
 
 
 def _atmospheric_weekly(era5_raw: pd.DataFrame) -> pd.DataFrame:
@@ -510,6 +513,7 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--physical-input", type=Path, default=DEFAULT_PHYSICAL)
     parser.add_argument("--era5-cache", type=Path, default=DEFAULT_ERA5_CACHE)
     parser.add_argument("--output", type=Path, default=DEFAULT_MASTER)
+    parser.add_argument("--zarr-output", type=Path, default=DEFAULT_MASTER_ZARR)
     parser.add_argument("--adjusted-output", type=Path, default=DEFAULT_ADJUSTED)
     parser.add_argument("--audit-output", type=Path, default=DEFAULT_AUDIT)
     parser.add_argument("--adjusted-audit-output", type=Path, default=DEFAULT_ADJUSTED_AUDIT)
@@ -535,6 +539,7 @@ def _resolve_paths(args: argparse.Namespace) -> None:
         "physical_input",
         "era5_cache",
         "output",
+        "zarr_output",
         "adjusted_output",
         "audit_output",
         "adjusted_audit_output",
@@ -559,8 +564,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"run_id={run_id}")
         print(f"physical_input={args.physical_input} exists={args.physical_input.exists()}")
         print(f"era5_years={min(args.era5_years)}:{max(args.era5_years)} ocean_only={args.ocean_only}")
-        print(f"era5_cache={args.era5_cache} exists={args.era5_cache.exists()}")
+        print("era5_input=Zarrs canônicos da F1 (leitura direta; sem cache Parquet diário)")
         print(f"master={args.output}")
+        print(f"master_zarr={args.zarr_output}")
         print(f"source_adjusted_v1={args.adjusted_output}")
         print(f"contract=31 physical variables + ocean_source_code metadata")
         return 0 if args.physical_input.exists() or args.validate_only else 2
@@ -631,6 +637,7 @@ def main(argv: list[str] | None = None) -> int:
         _atomic_to_csv(contract, args.contract_output, index=False)
         outputs = [
             args.output,
+            args.zarr_output,
             args.adjusted_output,
             args.audit_output,
             args.adjusted_audit_output,
@@ -646,6 +653,7 @@ def main(argv: list[str] | None = None) -> int:
         # The canonical compatibility master is committed last among the data
         # tables, so an earlier partial failure cannot replace the prior one.
         _atomic_to_csv(raw, args.output)
+        _atomic_weekly_zarr(raw, args.zarr_output)
         manifest = _manifest(
             run_id=run_id,
             args=args,

@@ -41,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         command.append("--validate-only")
     run(command)
     execute_viewer("F2Z", kernel=args.kernel, timeout=args.timeout)
+    execute_viewer("F2V", kernel=args.kernel, timeout=args.timeout)
     return 0
 
 

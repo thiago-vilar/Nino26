@@ -47,7 +47,7 @@ from nino_brasil.data.download_ctd_noaa import (
 )
 from nino_brasil.data.download_ibge import download_ibge
 from nino_brasil.data.download_oisst import download_oisst_year
-from nino_brasil.data.download_validation_insitu import download_argo_year, download_tao_triton_year
+from nino_brasil.data.download_validation_insitu import download_argo_year, download_tao_triton_year, validation_csv_to_zarr
 from nino_brasil.data.regrid import normalize_for_common_grid, regrid_dataset, target_grid_from_config
 from nino_brasil.data.zarr_store import ZARR_FORMAT, chunk_plan, dataframe_to_zarr, validate_zarr
 from nino_brasil.data.anomalies import daily_anomaly, dayofyear_climatology
@@ -1502,6 +1502,8 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
 def cmd_download_validation(args: argparse.Namespace) -> int:
     raw_tao = project_path("data/raw/tao_triton")
     raw_argo = project_path("data/raw/argo")
+    zarr_tao = project_path("data/processed/zarr/validation/tao_triton")
+    zarr_argo = project_path("data/processed/zarr/validation/argo")
     audit = AuditLog()
     end_date = date.fromisoformat(args.end_date) if args.end_date else date.today()
     end_year = args.end_year or end_date.year
@@ -1511,7 +1513,7 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
         tao_products = args.tao_product or ["temperature", "salinity"]
         tasks = [(year, product) for year in years for product in tao_products]
         for year, product in tqdm(tasks, desc="TAO/TRITON validation", unit="task"):
-            run_or_continue(
+            raw_path = run_or_continue(
                 f"TAO/TRITON {product} {year}",
                 lambda year=year, product=product: download_tao_triton_year(
                     year=year,
@@ -1526,11 +1528,18 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
                 ),
                 continue_on_error=args.continue_on_error,
             )
+            if args.execute and args.etl_zarr and raw_path is not None and raw_path.exists():
+                validation_csv_to_zarr(
+                    raw_path,
+                    zarr_tao / product / f"tao_triton_{product}_{year}.zarr",
+                    source=f"TAO/TRITON {product}",
+                    delete_raw_after_zarr=args.delete_raw_after_zarr,
+                )
 
     if args.source in {"argo", "all"}:
         argo_start = max(args.start_year, args.argo_start_year)
         for year in tqdm(range(argo_start, end_year + 1), desc="Argo validation", unit="year"):
-            run_or_continue(
+            raw_path = run_or_continue(
                 f"Argo Nino34 {year}",
                 lambda year=year: download_argo_year(
                     year=year,
@@ -1544,6 +1553,13 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
                 ),
                 continue_on_error=args.continue_on_error,
             )
+            if args.execute and args.etl_zarr and raw_path is not None and raw_path.exists():
+                validation_csv_to_zarr(
+                    raw_path,
+                    zarr_argo / f"argo_nino34_{year}.zarr",
+                    source="Argo GDAC",
+                    delete_raw_after_zarr=args.delete_raw_after_zarr,
+                )
     return 0
 
 
@@ -1951,6 +1967,8 @@ def build_parser() -> argparse.ArgumentParser:
     validation_p.add_argument("--argo-start-year", type=int, default=1999, help="First Argo year to query when --source is argo/all.")
     validation_p.add_argument("--execute", action="store_true", help="Actually download files.")
     validation_p.add_argument("--overwrite", action="store_true")
+    validation_p.add_argument("--etl-zarr", action="store_true", help="Converte os downloads em Zarr canônico.")
+    validation_p.add_argument("--delete-raw-after-zarr", action="store_true", help="Apaga CSV bruto somente após validar o Zarr.")
     validation_p.add_argument("--hash", action="store_true", help="Compute SHA256 for raw files.")
     validation_p.add_argument("--continue-on-error", action="store_true", help="Log item failures and keep processing later tasks.")
     validation_p.set_defaults(func=cmd_download_validation)

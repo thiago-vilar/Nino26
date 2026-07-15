@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -168,6 +168,29 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
         ),
     ]
 
+    if args.include_cds and not args.month:
+        available_era5 = date.today() - timedelta(days=7)
+        current_year = available_era5.year
+        for month in range(1, available_era5.month + 1):
+            for region in regions:
+                for kind, variables in (("single", era5_single_variables), ("pressure", era5_pressure_variables)):
+                    if args.era5_kind not in {kind, "both"}:
+                        continue
+                    for variable in variables:
+                        steps.append(
+                            (
+                                f"fonte_era5_cauda_{current_year}_{month:02d}_{kind}_{safe_step_name(region)}_{safe_step_name(variable)}",
+                                python_cmd(
+                                    "scripts/data_pipeline.py", "download-era5",
+                                    "--start-year", str(current_year), "--end-year", str(current_year),
+                                    "--month", str(month), "--kind", kind, "--region", region,
+                                    "--variable", variable,
+                                    *(["--overwrite"] if month == available_era5.month else []),
+                                    "--execute", *keep_going,
+                                ),
+                            )
+                        )
+
     for year in sorted(source_years.get("chirps", set())):
         year_args = single_year(year)
         for stage in ["raw", *(["zarr", "regrid"] if args.include_transforms else [])]:
@@ -191,6 +214,29 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                     ),
                 )
             )
+
+    # TAO/TRITON e Argo são validações independentes, não preenchimento da
+    # série principal. O ano corrente é sobrescrito para incorporar a cauda
+    # quase em tempo real, convertido em Zarr e o CSV bruto é descartado.
+    current_year = datetime.now().year
+    steps.append(
+        (
+            f"fonte_validacao_insitu_ano_{current_year}",
+            python_cmd(
+                "scripts/data_pipeline.py",
+                "download-validation",
+                "--source", "all",
+                "--start-year", str(current_year),
+                "--end-year", str(current_year),
+                "--max-depth", "300",
+                "--overwrite",
+                "--etl-zarr",
+                "--delete-raw-after-zarr",
+                "--execute",
+                *keep_going,
+            ),
+        )
+    )
 
     for year in sorted(source_years.get("noaa_oisst", set())):
         year_args = single_year(year)

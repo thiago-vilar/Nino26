@@ -1,23 +1,12 @@
-# Fase 2 - Notebook de sanidade
+# Fase 2 — disponibilização semanal e validação
 
-`2Z_sanidade_variaveis.ipynb` - inspecao sensorial de **todas** as variaveis da
-matriz-mestre semanal unificada (`nino34_master_weekly.csv`), em graficos grandes,
-com El Nino (vermelho) e La Nina (azul) sombreados. Roda ao fim da Fase 2, antes
-de qualquer analise da Fase 3/4.
+- `F2Z_sanidade_variaveis.ipynb`: disponibilidade, continuidade e sanidade das 31 variáveis da matriz semanal.
+- `F2V_validacao_insitu.ipynb`: inventário e validação independente com CTD/WOD, TAO/TRITON e Argo; semanas sem observação não são preenchidas.
 
-Pre-requisito: gerar a matriz-mestre na maquina de origem:
+Execução completa no WSL2:
 
-```cmd
-.venv\Scripts\python scripts\build_master_weekly.py --era5-years 1981:2026
+```bash
+cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase2_all.py
 ```
 
-Isso materializa `data/processed/parquet/features/nino34_master_weekly.csv`
-(17 oceanicas candidatas da base UFS+GLORYS + 14 atmosfericas ERA5 semanais para o
-feedback de Bjerknes), mais as auditorias `phase2_master_audit.csv`,
-`phase2_master_validation.csv` e a validacao in situ `phase2_ctd_validation.csv`.
-
-Para uma base de teste rapida (so oceano + tau_x, sem extrair ERA5):
-
-```cmd
-.venv\Scripts\python scripts\build_master_weekly.py --ocean-only
-```
+A fonte canônica do ERA5 é o conjunto de Zarrs diários produzido pela Fase 1. A Fase 2 lê esses Zarrs diretamente, agrega os dados em períodos `W-SUN` e publica `data/processed/zarr/features/nino34_master_weekly.zarr`. O CSV semanal permanece como exportação de compatibilidade para consumidores ainda não migrados; o antigo cache diário em Parquet não é necessário.

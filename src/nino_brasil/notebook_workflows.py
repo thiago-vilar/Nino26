@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from nino_brasil.stats.phase3_inference import confirmed_friedman_discriminants
 
@@ -739,6 +740,12 @@ class NotebookWorkflow:
         phase = self.parsed.phase
         block = self.parsed.block
         if phase == 2:
+            if self.code == "F2V":
+                return [
+                    (self.root / "data/processed/zarr/ctd_noaa/wod", True, "CTD/WOD em Zarr"),
+                    (self.root / "data/processed/zarr/validation/tao_triton", False, "TAO/TRITON em Zarr"),
+                    (self.root / "data/processed/zarr/validation/argo", False, "Argo em Zarr"),
+                ]
             return [
                 (self.root / "data/processed/parquet/features/nino34_master_weekly.csv", True, "master F2"),
                 (self.root / "data/processed/parquet/statistics/phase2_variable_contract.csv", True, "contrato das 31 variáveis"),
@@ -1044,6 +1051,32 @@ class NotebookWorkflow:
             "O notebook publica a validação CTD/WOD e, quando disponível, a auditoria IBGE produzida pela F1.",
         ]
         return diagnostics, takeaways
+
+    def _phase2_insitu_diagnostics(self):
+        roots = {
+            "CTD/WOD": self.root / "data/processed/zarr/ctd_noaa/wod",
+            "TAO/TRITON": self.root / "data/processed/zarr/validation/tao_triton",
+            "Argo": self.root / "data/processed/zarr/validation/argo",
+        }
+        rows = []
+        for source, root in roots.items():
+            for path in sorted(root.rglob("*.zarr")) if root.exists() else []:
+                dataset = xr.open_zarr(path, consolidated=None)
+                try:
+                    times = pd.to_datetime(dataset["time"].values, errors="coerce") if "time" in dataset else pd.DatetimeIndex([])
+                    rows.append({"fonte": source, "zarr": str(path.relative_to(self.root)), "observacoes": int(dataset.sizes.get("index", dataset.sizes.get("time", dataset.sizes.get("profile", 0)))), "inicio": times.min() if len(times) else pd.NaT, "fim": times.max() if len(times) else pd.NaT, "variaveis": ", ".join(sorted(dataset.data_vars))})
+                finally:
+                    dataset.close()
+        table = pd.DataFrame(rows, columns=["fonte", "zarr", "observacoes", "inicio", "fim", "variaveis"])
+        summary = table.groupby("fonte", as_index=False).agg(arquivos_zarr=("zarr", "count"), observacoes=("observacoes", "sum"), inicio=("inicio", "min"), ultima_observacao=("fim", "max")) if len(table) else pd.DataFrame(columns=["fonte", "arquivos_zarr", "observacoes", "inicio", "ultima_observacao"])
+        fig, axis = plt.subplots(figsize=(10, 4.5))
+        if len(summary):
+            axis.barh(summary["fonte"], summary["observacoes"], color="#2563eb")
+        axis.set_title("F2V — observações in situ disponíveis para validação")
+        axis.set_xlabel("observações/perfis nos Zarrs")
+        axis.grid(axis="x", alpha=0.2)
+        fig.tight_layout()
+        return [(1, "inventario_validacao_insitu", table, fig, "Cobertura CTD/WOD, TAO/TRITON e Argo")], ["As fontes in situ validam UFS+GLORYS e não preenchem lacunas da matriz principal.", "Comparações temporais usam fechamento semanal W-SUN somente quando existe observação."]
 
     @staticmethod
     def _f3_weekly_trend_figure(long: pd.DataFrame, *, title: str, columns: int = 3):
@@ -1562,7 +1595,7 @@ class NotebookWorkflow:
             run_id = str(manifest.get("run_id") or "").strip()
             if not run_id:
                 raise RuntimeError("run_id auditável ausente para F2Z")
-            diagnostics, takeaways = self._phase2_diagnostics()
+            diagnostics, takeaways = self._phase2_insitu_diagnostics() if self.code == "F2V" else self._phase2_diagnostics()
             from nino_brasil.viz import registrar_par_notebook
 
             artifacts = []

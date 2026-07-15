@@ -6,8 +6,8 @@ from nino_brasil.notebook_catalog import CANONICAL_NOTEBOOKS, specs_for_phase
 def test_catalog_has_unique_codes_and_paths():
     codes = [spec.code for spec in CANONICAL_NOTEBOOKS]
     paths = [spec.relative_path for spec in CANONICAL_NOTEBOOKS]
-    assert len(codes) == len(set(codes)) == 31
-    assert len(paths) == len(set(paths)) == 31
+    assert len(codes) == len(set(codes)) == 32
+    assert len(paths) == len(set(paths)) == 32
 
 
 def test_every_f3_signal_has_all_scientific_blocks():

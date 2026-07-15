@@ -5,6 +5,8 @@ from pathlib import Path
 from urllib.parse import quote
 
 import requests
+import pandas as pd
+import xarray as xr
 from tqdm import tqdm
 
 from nino_brasil.data.audit import AuditLog, file_info
@@ -199,3 +201,49 @@ def _year_time_bounds(year: int, *, end_date: date | None = None) -> tuple[str, 
         datetime.combine(start_date, datetime.min.time()).strftime("%Y-%m-%dT00:00:00Z"),
         datetime.combine(final_date, datetime.max.time()).strftime("%Y-%m-%dT23:59:59Z"),
     )
+
+
+def validation_csv_to_zarr(
+    raw_path: Path,
+    output_path: Path,
+    *,
+    source: str,
+    delete_raw_after_zarr: bool = False,
+) -> Path:
+    """Converte a resposta tabular in situ em Zarr e só então remove o bruto."""
+    if not raw_path.exists():
+        return output_path
+    frame = pd.read_csv(raw_path, low_memory=False)
+    if frame.empty:
+        return output_path
+    frame.columns = [str(column).split(" (")[0].strip() for column in frame.columns]
+    if "time" not in frame:
+        raise ValueError(f"time ausente em {raw_path}")
+    frame["time"] = pd.to_datetime(frame["time"], utc=True, errors="coerce").dt.tz_localize(None)
+    frame = frame.dropna(subset=["time"]).sort_values("time").reset_index(drop=True)
+    dataset = xr.Dataset.from_dataframe(frame)
+    dataset.attrs.update(
+        source=source,
+        temporal_role="independent_in_situ_validation",
+        canonical_storage="zarr",
+        raw_removed_after_validation=bool(delete_raw_after_zarr),
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    staging = output_path.with_name(output_path.name + ".staging")
+    if staging.exists():
+        import shutil
+        shutil.rmtree(staging)
+    dataset.to_zarr(staging, mode="w", consolidated=True, zarr_format=2)
+    check = xr.open_zarr(staging, consolidated=True)
+    try:
+        if check.sizes.get("index", 0) != len(frame) or "time" not in check:
+            raise ValueError(f"Zarr in situ inválido: {staging}")
+    finally:
+        check.close()
+    if output_path.exists():
+        import shutil
+        shutil.rmtree(output_path)
+    staging.replace(output_path)
+    if delete_raw_after_zarr:
+        raw_path.unlink()
+    return output_path

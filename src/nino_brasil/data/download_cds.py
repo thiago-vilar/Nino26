@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import time
 import zipfile
+from datetime import date, timedelta
 from pathlib import Path
 
 import cdsapi
@@ -96,6 +97,11 @@ ATMOSPHERE_AREAS = {
 
 def _days(year: int, month: int) -> list[str]:
     last_day = calendar.monthrange(year, month)[1]
+    available = date.today() - timedelta(days=7)
+    if (year, month) == (available.year, available.month):
+        last_day = min(last_day, available.day)
+    elif (year, month) > (available.year, available.month):
+        return []
     return [f"{day:02d}" for day in range(1, last_day + 1)]
 
 
@@ -112,7 +118,10 @@ def _month(month: int) -> str:
 
 
 def _month_bounds(year: int, month: int) -> tuple[str, str]:
-    last_day = calendar.monthrange(year, month)[1]
+    days = _days(year, month)
+    if not days:
+        raise ValueError(f"ERA5 ainda indisponível para {year}-{month:02d}")
+    last_day = int(days[-1])
     return f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day:02d}"
 
 
@@ -692,6 +701,8 @@ def ingest_era5_single_month(
 ) -> Path:
     audit = audit or AuditLog()
     requested_variables = _resolve_variables(variables, ERA5_SINGLE_VARIABLES)
+    if len(requested_variables) != 1:
+        raise ValueError("ERA5 mensal deve ser solicitado por variável para preservar a agregação diária correta.")
     slug = _variable_slug(variables)
     task_id = f"era5_single_{region}_{slug}_{year}{month:02d}" if slug else f"era5_single_{region}_{year}{month:02d}"
     request = _era5_single_request(year, month, region, variables=variables)
@@ -726,12 +737,15 @@ def ingest_era5_single_month(
                 variables=requested_variables,
                 variable_aliases=ERA5_SINGLE_VARIABLE_ALIASES,
                 source_frequency="subdaily",
-                aggregation=era5_daily_aggregation(variable),
+                aggregation=era5_daily_aggregation(requested_variables[0]),
                 daily_start=start,
                 daily_end=end,
                 overwrite=overwrite,
             )
         _record_ok(audit, task_id=task_id, dataset="era5_single", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
+        if raw_path.exists():
+            raw_path.unlink()
+            print(f"{task_id} - raw cache apagado")
         return zarr_path
     except BaseException as exc:
         _record_error(audit, task_id=task_id, dataset="era5_single", error=exc)
@@ -753,6 +767,8 @@ def ingest_era5_pressure_month(
 ) -> Path:
     audit = audit or AuditLog()
     requested_variables = _resolve_variables(variables, ERA5_PRESSURE_VARIABLES)
+    if len(requested_variables) != 1:
+        raise ValueError("ERA5 mensal deve ser solicitado por variável para preservar a agregação diária correta.")
     slug = _variable_slug(variables)
     task_id = f"era5_pressure_{region}_{slug}_{year}{month:02d}" if slug else f"era5_pressure_{region}_{year}{month:02d}"
     request = _era5_pressure_request(year, month, region, variables=variables)
@@ -787,12 +803,15 @@ def ingest_era5_pressure_month(
                 variables=requested_variables,
                 variable_aliases=ERA5_PRESSURE_VARIABLE_ALIASES,
                 source_frequency="subdaily",
-                aggregation=era5_daily_aggregation(variable),
+                aggregation=era5_daily_aggregation(requested_variables[0]),
                 daily_start=start,
                 daily_end=end,
                 overwrite=overwrite,
             )
         _record_ok(audit, task_id=task_id, dataset="era5_pressure", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
+        if raw_path.exists():
+            raw_path.unlink()
+            print(f"{task_id} - raw cache apagado")
         return zarr_path
     except BaseException as exc:
         _record_error(audit, task_id=task_id, dataset="era5_pressure", error=exc)

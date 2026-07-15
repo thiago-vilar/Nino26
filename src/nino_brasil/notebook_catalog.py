@@ -631,6 +631,14 @@ CANONICAL_NOTEBOOKS: tuple[NotebookSpec, ...] = tuple(
                 "validação CTD/WOD de UFS+GLORYS e auditoria das malhas IBGE quando disponível",
             ),
         ),
+        NotebookSpec(
+            "F2V",
+            "notebooks/fase2/F2V_validacao_insitu.ipynb",
+            "F2V — Validação independente in situ",
+            "Qual é a cobertura observacional disponível em CTD/WOD, TAO/TRITON e Argo para validar UFS+GLORYS?",
+            "Inventário dos Zarrs observacionais, cobertura temporal e vertical e agregação comparativa semanal W-SUN sem preenchimento artificial.",
+            "HIP0",
+        ),
         *_f3_specs(),
         NotebookSpec(
             "F4NinoC",
