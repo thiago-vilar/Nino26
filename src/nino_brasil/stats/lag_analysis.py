@@ -373,16 +373,33 @@ def _pooled_within_segment_corr(
     for segment in pd.unique(segments):
         if not segment:
             continue
-        segment_valid = valid & (segments == segment)[:, None]
+        # Work only on the rows of the current ENSO event.  The previous
+        # implementation broadcast the event mask over the complete
+        # time-by-pixel field for every event.  That was algebraically correct,
+        # but needlessly rebuilt a very large matrix (and all centred copies)
+        # once per event.  Row selection is exactly equivalent because rows
+        # outside this segment contributed zeros to every accumulated sum.
+        segment_rows = segments == segment
+        segment_valid = valid[segment_rows]
+        segment_left = left[segment_rows]
+        segment_right = right[segment_rows]
         count = segment_valid.sum(axis=0).astype(int)
         usable = count >= 2
         if not usable.any():
             continue
         safe_count = np.where(count > 0, count, 1)
-        left_mean = np.where(segment_valid, left, 0.0).sum(axis=0) / safe_count
-        right_mean = np.where(segment_valid, right, 0.0).sum(axis=0) / safe_count
-        left_centered = np.where(segment_valid, left - left_mean, 0.0)
-        right_centered = np.where(segment_valid, right - right_mean, 0.0)
+        left_mean = (
+            np.where(segment_valid, segment_left, 0.0).sum(axis=0) / safe_count
+        )
+        right_mean = (
+            np.where(segment_valid, segment_right, 0.0).sum(axis=0) / safe_count
+        )
+        left_centered = np.where(
+            segment_valid, segment_left - left_mean, 0.0
+        )
+        right_centered = np.where(
+            segment_valid, segment_right - right_mean, 0.0
+        )
         numerator += np.where(usable, (left_centered * right_centered).sum(axis=0), 0.0)
         left_ss += np.where(usable, (left_centered**2).sum(axis=0), 0.0)
         right_ss += np.where(usable, (right_centered**2).sum(axis=0), 0.0)
@@ -422,8 +439,16 @@ def pearson_columns_with_segmented_neff(
         y = y[:, None]
     if len(times) != len(x) or y.shape[0] != len(x):
         raise ValueError("predictor, response and target_index lengths differ.")
-    valid = np.isfinite(x)[:, None] & np.isfinite(y)
-    r, n_pairs = _columnwise_corr(x, y, valid)
+    # A phase-conditioned predictor is NaN outside its source weeks.  Slice
+    # those common-invalid rows before expanding the per-pixel validity mask:
+    # they contribute nothing to Pearson's sufficient statistics, but keeping
+    # them made every phase scan traverse the entire 2,366-week CHIRPS field.
+    correlation_rows = np.isfinite(x)
+    correlation_y = y[correlation_rows]
+    correlation_valid = np.isfinite(correlation_y)
+    r, n_pairs = _columnwise_corr(
+        x[correlation_rows], correlation_y, correlation_valid
+    )
 
     consecutive = np.zeros(len(times) - 1, dtype=bool)
     if len(times) > 1:
@@ -434,25 +459,29 @@ def pearson_columns_with_segmented_neff(
             raise ValueError("source_event_id length differs from target_index.")
         consecutive &= (segments[:-1] != "") & (segments[:-1] == segments[1:])
 
-    ar_valid = (
-        consecutive[:, None]
-        & valid[:-1]
-        & valid[1:]
-        & np.isfinite(x[:-1])[:, None]
-        & np.isfinite(x[1:])[:, None]
+    # Preserve the original weekly adjacency test before row selection.  Only
+    # pairs that can be valid for at least one pixel are retained; pixel-level
+    # CHIRPS missingness is still applied exactly below.
+    common_ar_rows = (
+        consecutive & np.isfinite(x[:-1]) & np.isfinite(x[1:])
     )
+    ar_left_x = x[:-1][common_ar_rows]
+    ar_right_x = x[1:][common_ar_rows]
+    ar_left_y = y[:-1][common_ar_rows]
+    ar_right_y = y[1:][common_ar_rows]
+    ar_valid = np.isfinite(ar_left_y) & np.isfinite(ar_right_y)
     if source_event_id is None:
-        rho_x, n_ar_pairs = _columnwise_corr(x[:-1], x[1:], ar_valid)
-        rho_y, _ = _columnwise_corr(y[:-1], y[1:], ar_valid)
+        rho_x, n_ar_pairs = _columnwise_corr(ar_left_x, ar_right_x, ar_valid)
+        rho_y, _ = _columnwise_corr(ar_left_y, ar_right_y, ar_valid)
     else:
         # Each AR(1) covariance is centred inside its own ENSO event.  Pooling
         # globally would mistake between-event mean differences for persistence.
-        pair_segments = segments[1:]
+        pair_segments = segments[1:][common_ar_rows]
         rho_x, n_ar_pairs = _pooled_within_segment_corr(
-            x[:-1], x[1:], ar_valid, pair_segments
+            ar_left_x, ar_right_x, ar_valid, pair_segments
         )
         rho_y, _ = _pooled_within_segment_corr(
-            y[:-1], y[1:], ar_valid, pair_segments
+            ar_left_y, ar_right_y, ar_valid, pair_segments
         )
 
     product = np.clip(rho_x * rho_y, -0.99, 0.99)
@@ -559,7 +588,7 @@ def lagged_correlation_exact(
     return out
 
 
-def fdr_bh(p_values: np.ndarray, alpha: float = 0.10) -> np.ndarray:
+def fdr_bh(p_values: np.ndarray, alpha: float = 0.05) -> np.ndarray:
     """Benjamini-Hochberg mask over all finite tests supplied by the caller."""
 
     if not 0.0 < alpha < 1.0:
@@ -579,6 +608,190 @@ def fdr_bh(p_values: np.ndarray, alpha: float = 0.10) -> np.ndarray:
         cutoff = sorted_p[np.flatnonzero(accepted)[-1]]
         rejected[finite] = values <= cutoff
     return rejected.reshape(p.shape)
+
+
+def fdr_bh_adjusted(p_values: np.ndarray) -> np.ndarray:
+    """Benjamini-Hochberg adjusted p-values (q-values) with NaNs preserved."""
+
+    p = np.asarray(p_values, dtype=float)
+    flat = p.ravel()
+    finite = np.isfinite(flat)
+    adjusted = np.full(flat.shape, np.nan, dtype=float)
+    if not finite.any():
+        return adjusted.reshape(p.shape)
+    values = flat[finite]
+    order = np.argsort(values, kind="mergesort")
+    ranked = values[order]
+    m = len(ranked)
+    raw = ranked * m / np.arange(1, m + 1)
+    monotone = np.minimum.accumulate(raw[::-1])[::-1]
+    restored = np.empty(m, dtype=float)
+    restored[order] = np.clip(monotone, 0.0, 1.0)
+    adjusted[finite] = restored
+    return adjusted.reshape(p.shape)
+
+
+def spatial_field_significance_from_null(
+    observed_p: np.ndarray,
+    null_p: np.ndarray,
+    lags: Sequence[int],
+    *,
+    point_alpha: float = 0.05,
+) -> pd.DataFrame:
+    """Permutation field significance for each lag, corrected for lag search.
+
+    ``observed_p`` has shape ``(lag, pixel)`` and ``null_p`` has shape
+    ``(permutation, lag, pixel)``.  Spatial dependence is retained because each
+    null replicate must come from a whole-field temporal permutation, not from
+    independently shuffling pixels.  ``p_field_max_lag`` compares each observed
+    affected-area fraction to the maximum null fraction over all searched lags,
+    therefore controlling the additional lag-selection multiplicity.
+    """
+
+    observed = np.asarray(observed_p, dtype=float)
+    null = np.asarray(null_p, dtype=float)
+    lags = np.asarray(lags)
+    if observed.ndim != 2:
+        raise ValueError("observed_p must have shape (lag, pixel).")
+    if null.ndim != 3 or null.shape[1:] != observed.shape:
+        raise ValueError("null_p must have shape (permutation, lag, pixel).")
+    if len(lags) != observed.shape[0]:
+        raise ValueError("lags length differs from observed_p.")
+    if null.shape[0] < 1:
+        raise ValueError("At least one whole-field null permutation is required.")
+    if not 0.0 < point_alpha < 1.0:
+        raise ValueError("point_alpha must lie in (0, 1).")
+
+    observed_valid = np.isfinite(observed)
+    observed_fraction = np.divide(
+        ((observed <= point_alpha) & observed_valid).sum(axis=1),
+        observed_valid.sum(axis=1),
+        out=np.full(observed.shape[0], np.nan),
+        where=observed_valid.sum(axis=1) > 0,
+    )
+    null_valid = np.isfinite(null)
+    null_fraction = np.divide(
+        ((null <= point_alpha) & null_valid).sum(axis=2),
+        null_valid.sum(axis=2),
+        out=np.full(null.shape[:2], np.nan),
+        where=null_valid.sum(axis=2) > 0,
+    )
+    finite_max = np.where(np.isfinite(null_fraction), null_fraction, -np.inf)
+    null_max_over_lags = finite_max.max(axis=1)
+    null_max_over_lags[~np.isfinite(null_fraction).any(axis=1)] = np.nan
+    rows: list[dict[str, object]] = []
+    for index, lag in enumerate(lags):
+        valid_null = np.isfinite(null_fraction[:, index])
+        valid_max = np.isfinite(null_max_over_lags)
+        if np.isfinite(observed_fraction[index]) and valid_null.any():
+            p_field = (
+                1
+                + np.sum(null_fraction[valid_null, index] >= observed_fraction[index])
+            ) / (1 + int(valid_null.sum()))
+        else:
+            p_field = np.nan
+        if np.isfinite(observed_fraction[index]) and valid_max.any():
+            p_field_max = (
+                1 + np.sum(null_max_over_lags[valid_max] >= observed_fraction[index])
+            ) / (1 + int(valid_max.sum()))
+        else:
+            p_field_max = np.nan
+        rows.append(
+            {
+                "lag_sem": int(lag),
+                "point_alpha": point_alpha,
+                "fracao_campo_ponto_significativo": observed_fraction[index],
+                "fracao_nula_media": np.nanmean(null_fraction[:, index]),
+                "fracao_nula_p95": np.nanquantile(null_fraction[:, index], 0.95),
+                "p_field_por_lag": p_field,
+                "p_field_max_lag": p_field_max,
+                "n_permutacoes_campo": int(valid_null.sum()),
+                "field_significant_confirmatory_max_lag": bool(
+                    np.isfinite(p_field_max) and p_field_max < point_alpha
+                ),
+                "metodo_field": (
+                    "whole-field circular temporal shift; affected-area fraction; "
+                    "max over searched lags"
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def circular_shift_field_significance(
+    predictor: pd.Series,
+    response: pd.DataFrame,
+    lags: Sequence[int],
+    condition: SourceCondition,
+    phase_table: pd.DataFrame,
+    *,
+    n_permutations: int = 199,
+    seed: int = 42,
+    minimum_shift_weeks: int | None = None,
+    point_alpha: float = 0.05,
+    min_pairs: int = 30,
+) -> tuple[dict[str, np.ndarray], pd.DataFrame, np.ndarray]:
+    """Exact lag statistics plus spatial field significance under a field null.
+
+    Every permutation rolls the *entire* response field by one common temporal
+    offset.  Thus the cross-pixel covariance and each map's spatial structure
+    are unchanged.  Seasonal cycles must already have been removed from both
+    predictor and response.  Offsets smaller than the maximum searched lag plus
+    26 weeks are excluded to avoid retaining the tested lead/lag neighbourhood.
+    """
+
+    if n_permutations < 1:
+        raise ValueError("n_permutations must be positive.")
+    n_time = len(response)
+    if n_time < 3 * (max(lags, default=0) + 26):
+        raise ValueError("Response is too short for defensible circular-shift nulls.")
+    minimum = (
+        int(minimum_shift_weeks)
+        if minimum_shift_weeks is not None
+        else int(max(lags, default=0) + 26)
+    )
+    candidates = np.arange(minimum, n_time - minimum + 1, dtype=int)
+    if len(candidates) < n_permutations:
+        raise ValueError(
+            f"Only {len(candidates)} admissible whole-field shifts for "
+            f"{n_permutations} requested permutations."
+        )
+    rng = np.random.default_rng(seed)
+    shifts = np.sort(rng.choice(candidates, size=n_permutations, replace=False))
+    observed = lagged_correlation_exact(
+        predictor,
+        response,
+        lags,
+        condition,
+        phase_table,
+        min_pairs=min_pairs,
+    )
+    null_p: list[np.ndarray] = []
+    values = response.to_numpy(dtype=float)
+    for shift in shifts:
+        shifted = pd.DataFrame(
+            np.roll(values, int(shift), axis=0),
+            index=response.index,
+            columns=response.columns,
+        )
+        result = lagged_correlation_exact(
+            predictor,
+            shifted,
+            lags,
+            condition,
+            phase_table,
+            min_pairs=min_pairs,
+        )
+        null_p.append(np.asarray(result["p"]))
+    field = spatial_field_significance_from_null(
+        np.asarray(observed["p"]),
+        np.stack(null_p, axis=0),
+        lags,
+        point_alpha=point_alpha,
+    )
+    field["condicao_fonte"] = condition.name
+    field["seed_permutacao"] = seed
+    return observed, field, shifts
 
 
 def _take_at_index(values: np.ndarray, indices: np.ndarray) -> np.ndarray:
@@ -665,11 +878,13 @@ def result_to_long_table(
     predictor_name: str,
     condition: SourceCondition,
     column_name: str,
-    alpha_fdr: float = 0.10,
+    alpha_fdr: float = 0.05,
 ) -> pd.DataFrame:
     """Convert a lag result to an auditable long table and apply FDR once."""
 
-    rejected = fdr_bh(np.asarray(result["p"]), alpha=alpha_fdr)
+    p_values = np.asarray(result["p"])
+    rejected = fdr_bh(p_values, alpha=alpha_fdr)
+    q_values = fdr_bh_adjusted(p_values)
     lags = np.asarray(result["lags"])
     columns = np.asarray(result["columns"], dtype=object)
     lag_grid, column_grid = np.meshgrid(lags, columns, indexing="ij")
@@ -683,7 +898,8 @@ def result_to_long_table(
             column_name: column_grid.ravel(),
             "r": np.asarray(result["r"]).ravel(),
             "p": np.asarray(result["p"]).ravel(),
-            "fdr_bh_0_10": rejected.ravel(),
+            "q_fdr_bh": q_values.ravel(),
+            "fdr_bh_reject": rejected.ravel(),
             "n_pares": np.asarray(result["n_pairs"]).ravel(),
             "n_eff_bretherton": np.asarray(result["n_eff"]).ravel(),
             "rho1_predictor": np.asarray(result["rho1_predictor"]).ravel(),
@@ -699,6 +915,11 @@ def result_to_long_table(
         "Pearson exato por variavel; N_eff Bretherton com AR1 apenas em semanas "
         "consecutivas do mesmo event_id; FDR BH"
     )
+    frame["fdr_family_id"] = (
+        f"{predictor_name}|{condition.name}|todos_lags_x_{column_name}"
+    )
+    frame["fdr_family_n_tests"] = int(np.isfinite(p_values).sum())
+    frame["fdr_alpha"] = alpha_fdr
     return frame
 
 
@@ -713,7 +934,8 @@ def best_from_long_table(
     work = table.copy()
     work = work[np.isfinite(pd.to_numeric(work["r"], errors="coerce"))]
     if require_fdr:
-        work = work[_as_bool(work["fdr_bh_0_10"])]
+        flag = "fdr_bh_reject" if "fdr_bh_reject" in work else "fdr_bh_0_10"
+        work = work[_as_bool(work[flag])]
     if work.empty:
         return work
     work["abs_r"] = work["r"].abs()

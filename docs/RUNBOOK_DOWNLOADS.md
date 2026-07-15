@@ -141,7 +141,10 @@ cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\data_pipeline.py download-er
 
 ## 5. Oceano diario e memoria mensal
 
-UFS/GLORYS permanecem originalmente diarios. ORAS5 foi restaurado apenas como fonte mensal independente, sem promocao para diario. Execute o plano completo em [RUNBOOK_FASE2_OCEANO.md](RUNBOOK_FASE2_OCEANO.md).
+UFS+GLORYS permanece originalmente diário; os nomes individuais aparecem apenas
+nos comandos de ingestão de cada componente. ORAS5 é fonte mensal independente,
+sem promoção para diário. Execute o plano completo em
+[RUNBOOK_FASE2_OCEANO.md](RUNBOOK_FASE2_OCEANO.md).
 ## 6. TAO/TRITON/Argo
 
 TAO/TRITON/Argo e camada de validacao in situ do Nino 3.4. Ela nao substitui OISST, os cubos oceânicos diarios ou CTD/WOD. Serve para validar a estrutura vertical e manter aberta a pergunta cientifica: a subsuperficie melhora a previsao de seca/chuva no Brasil, ou SST/SSTA basta?

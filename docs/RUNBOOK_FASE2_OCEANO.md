@@ -72,7 +72,7 @@ cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_daily_pipeline.py inge
 
 Objetivo: ler remotamente somente os NetCDF diarios oceanicos desses anos, recortar T(z), S(z), SSH e espessura ate 800 m, interpolar para os nos canonicos de 0,25 grau e produzir Zarr/features anuais. Stores validos sao ignorados na retomada.
 
-## 4. NOAA UFS de sobreposicao: auditoria UFS-GLORYS
+## 4. Componente NOAA UFS de sobreposição: auditoria UFS+GLORYS
 
 ```cmd
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\ocean_daily_pipeline.py ingest-ufs --start-year 1993 --end-year 1995 --build-features --execute
@@ -122,7 +122,10 @@ Objetivo: exigir 12 registros mensais por ano fechado, cinco em 2026, sete varia
 cd /d C:\DEV\NINO26 && .venv\Scripts\python scripts\audit_ocean_phase2.py --glorys-my-end 2026-05-26 --operational-end 2026-06-19 --oras-end 2026-05-01 --overlap-year 1993 --overlap-year 1994 --overlap-year 1995
 ```
 
-Objetivo: verificar continuidade diaria 1981-19/06/2026, integridade mensal ORAS5, variaveis obrigatorias, ausencia de previsoes e calcular vies/RMSE UFS-GLORYS. A Fase 2 somente fecha se o comando retornar codigo zero e `status=complete`.
+Objetivo: verificar continuidade diária 1981-19/06/2026, integridade mensal
+ORAS5, variáveis disponíveis, ausência de previsões e calcular viés/RMSE entre
+os componentes de UFS+GLORYS. O resultado é uma validação da Fase 2, não um gate
+para qualquer outra fase.
 
 Saidas:
 

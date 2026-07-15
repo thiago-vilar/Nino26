@@ -1569,7 +1569,7 @@ def cmd_download_all(args: argparse.Namespace) -> int:
 
     raw_ibge = project_path("data/raw/ibge")
     interim_ibge = project_path("data/interim/ibge")
-    for product in ["uf", "municipios"]:
+    for product in ["uf", "municipios", "regioes", "biomas"]:
         run_or_continue(
             f"IBGE {product}",
             lambda product=product: download_ibge(
@@ -1847,7 +1847,7 @@ def build_parser() -> argparse.ArgumentParser:
     ibge_p = sub.add_parser("download-ibge", help="Download official IBGE shapefiles.")
     ibge_p.add_argument(
         "--product",
-        choices=["uf", "municipios"],
+        choices=["uf", "municipios", "regioes", "biomas"],
         default="uf",
         help="IBGE product to download.",
     )

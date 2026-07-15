@@ -1,48 +1,46 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
+
+from nino_brasil.notebook_catalog import specs_for_phase
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PHASE4 = ROOT / "notebooks" / "fase4"
-NOTEBOOKS = sorted(PHASE4.glob("4*.ipynb"))
 
 
-def _code_source(path: Path) -> str:
-    notebook = json.loads(path.read_text(encoding="utf-8"))
-    return "\n".join(
-        "".join(cell.get("source", []))
-        for cell in notebook.get("cells", [])
-        if cell.get("cell_type") == "code"
-    )
-
-
-def test_every_phase4_figure_has_prefixed_name_and_interpretation() -> None:
-    assert NOTEBOOKS
-    pattern = re.compile(r"save_fig\([^,]+,\s*f?['\"]([^'\"]+)['\"]\)")
-    valid_prefix = re.compile(r"^Fig_4(?:0|A|B|C|D)\d+_[A-Za-z0-9_{}]+\.png$")
-
-    for path in NOTEBOOKS:
-        notebook = json.loads(path.read_text(encoding="utf-8"))
-        for cell in notebook.get("cells", []):
-            if cell.get("cell_type") != "code":
-                continue
-            source = "".join(cell.get("source", []))
-            calls = pattern.findall(source)
-            for name in calls:
-                assert valid_prefix.fullmatch(name), f"nome de figura invalido em {path.name}: {name}"
-                assert "Interpretacao:" in source, (
-                    f"figura {name} em {path.name} nao traz interpretacao resumida na legenda"
-                )
+def test_every_phase4_notebook_declares_its_public_fig_tab_precode() -> None:
+    specs = specs_for_phase(4)
+    assert {spec.code for spec in specs} == {
+        "F4NinoC",
+        "F4NinoD",
+        "F4NinaC",
+        "F4NinaD",
+    }
+    for spec in specs:
+        notebook = json.loads((ROOT / spec.relative_path).read_text(encoding="utf-8"))
+        metadata = notebook["metadata"]["nino26"]
+        assert metadata["figure_precode"] == f"Fig{spec.code}"
+        assert metadata["table_precode"] == f"Tab{spec.code}"
+        markdown = "\n".join(
+            "".join(cell.get("source", []))
+            for cell in notebook["cells"]
+            if cell["cell_type"] == "markdown"
+        )
+        assert f"Fig{spec.code}1" in markdown
+        assert f"Tab{spec.code}1" in markdown
 
 
 def test_phase4_has_no_rejected_matrix_shortcut_or_fixed_2010_split() -> None:
-    source_4c = _code_source(PHASE4 / "4C_sinal_pixel_lags.ipynb")
-    assert "lagged_corr_pixel_matrix" not in source_4c
-
-    active_source = "\n".join(_code_source(path) for path in NOTEBOOKS)
-    rejected = ("1993-2009", "1993–2009", "2010+", "2010-presente")
-    for token in rejected:
-        assert token not in active_source, f"corte temporal fixo ainda ativo: {token}"
+    source = "\n".join(
+        (ROOT / relative).read_text(encoding="utf-8")
+        for relative in (
+            "scripts/run_fase4c_regional.py",
+            "scripts/run_fase4d_targets.py",
+            "src/nino_brasil/stats/lag_analysis.py",
+        )
+    )
+    assert "lagged_corr_pixel_matrix" not in source
+    assert "summarize_peak_pixel_lags_by_region" in source
+    for token in ("1993-2009", "1993–2009", "2010+", "2010-presente"):
+        assert token not in source

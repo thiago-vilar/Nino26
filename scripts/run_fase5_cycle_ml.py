@@ -1,162 +1,403 @@
 #!/usr/bin/env python3
-"""Fase 5 - ciclo ENSO com Random Forest / XGBoost + XAI (SHAP, PDP).
+"""Run F5 RF/XGBoost on the ENSO nine-state rolling-origin experiment.
 
-Executa: janela deslizante (lags 4-52) -> classificacao das 4 fases com validacao
-cronologica (TimeSeriesSplit) -> ranking de variaveis por ganho -> RFECV ->
-dependencia parcial (PDP) dos limiares de Bjerknes; e alvos por evento
-(Y_pico, Y_tempo_para_pico, Y_duracao) com leave-one-event-out. SHAP e opcional.
-
-Uso:
-    python scripts/run_fase5_cycle_ml.py             # RF (padrao)
-    python scripts/run_fase5_cycle_ml.py --model xgb
+Official runs use all 31 physical F2 variables, whole-event expanding folds,
+fold-only preprocessing, purge/embargo, strong baselines and conservative
+train-only augmentation.  ``--mode smoke`` uses real local data with a reduced
+compute budget and writes to a separate tree; it never overwrites official runs.
 """
 from __future__ import annotations
 
 import argparse
 import sys
-import warnings
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-for p in (str(SRC), str(ROOT), str(ROOT / "notebooks" / "fase4")):
-    if p not in sys.path:
-        sys.path.insert(0, p)
+sys.path.insert(0, str(ROOT / "src"))
 
-import nino_brasil.models.phase5_cycle_ml as p5  # noqa: E402
-from nino_brasil.io_utils import write_csv_atomic  # noqa: E402
-from nino_brasil.maps.figure_registry import save_registered_figure  # noqa: E402
+from nino_brasil.artifacts import start_artifact_run  # noqa: E402
+from nino_brasil.models.phase5_cycle_ml import (  # noqa: E402
+    build_rolling_origin_table,
+    fit_event_dimension_rolling_origin,
+    fit_event_aware_phase_classifier,
+    physical_predictor_columns,
+)
 
-FEAT = ROOT / "data/processed/parquet/features"
-STATS = ROOT / "data/processed/parquet/statistics"
-FIGS = ROOT / "data/processed/figures/fase5"
-PREDICTORS = [
-    "nino34_ssta", "d20_m", "tilt_m", "ohc_0_100", "ohc_0_300", "ssh_m", "wwv",
-    "t100m", "t150m", "tau_x_anom", "u850_anom", "mslp_anom",
-]
-LAGS = list(range(4, 53, 2))
+FEATURES = ROOT / "data" / "processed" / "parquet" / "features"
+STATISTICS = ROOT / "data" / "processed" / "parquet" / "statistics"
+MODEL_BRIDGE = ROOT / "data" / "processed" / "parquet" / "modeling" / "f3_bridge"
 
 
-def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=["rf", "xgb"], default="rf")
-    parser.add_argument("--rfecv", action="store_true", help="roda RFECV (mais lento)")
-    args = parser.parse_args(argv)
-    warnings.filterwarnings("ignore")
-    FIGS.mkdir(parents=True, exist_ok=True)
-    STATS.mkdir(parents=True, exist_ok=True)
+def _integers(value: str) -> tuple[int, ...]:
+    values = tuple(int(item.strip()) for item in value.split(",") if item.strip())
+    if not values:
+        raise argparse.ArgumentTypeError("informe ao menos um inteiro separado por virgula")
+    return values
 
-    master = pd.read_csv(FEAT / "nino34_master_weekly.csv",
-                         parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
-    phase_table = pd.read_csv(STATS / "phase4A_fases_semanais.csv",
-                              parse_dates=["week_ending_sunday"]).set_index("week_ending_sunday")
 
-    predictors = [c for c in PREDICTORS if c in master.columns]
-    # Anomaliza as variaveis oceanicas cruas (ciclo anual + detrend na base
-    # 1991-2020) antes da janela deslizante - parecer 2026-07-10. Sem isso o
-    # classificador pode usar o calendario (phase-locking) como atalho.
-    prepared = p5.prepare_pacific_predictors(master, predictors)
-    X = p5.build_lagged_features(prepared, predictors, lags=LAGS)
-    result = p5.fit_phase_classifier(X, phase_table["fase"], model=args.model)
-    write_csv_atomic(result.importances, STATS / f"phase5_importancia_{args.model}.csv")
-    write_csv_atomic(result.cv_scores, STATS / f"phase5_cv_{args.model}.csv")
-    cv = result.cv_scores
-    print(f"[5] {args.model.upper()} classificador de fases | F1-macro medio="
-          f"{cv['f1_macro'].mean():.3f} | baseline semana-do-ano="
-          f"{cv['f1_baseline_semana_do_ano'].mean():.3f} | baseline persistencia="
-          f"{cv['f1_baseline_persistencia'].mean():.3f} | features={len(result.features)}")
+def _existing(candidates: list[Path], label: str) -> Path:
+    for path in candidates:
+        if path.exists():
+            return path
+    raise FileNotFoundError(f"{label} ausente; procurei: {', '.join(map(str, candidates))}")
 
-    # Alvos por evento (projecao do ciclo) + leave-one-event-out.
-    import fase4_utils as u  # noqa
-    events = u.enso_events(u.load_oni_monthly())
-    targets = p5.build_event_targets(events)
-    write_csv_atomic(targets, STATS / "phase5_alvos_por_evento.csv")
-    print(f"[5] alvos por evento: {len(targets)} eventos | LOO folds="
-          f"{len(p5.leave_one_event_out_indices(targets['event_id']))}")
 
-    # Regressao por evento (Y_pico, Y_tempo_para_pico, Y_duracao) com LOO -
-    # completa a arquitetura preditiva dupla prometida pela diretriz da Fase 5.
-    onset_feats = p5.precursor_features_at_onset(X, events)
-    regression = p5.fit_event_regressions(onset_feats, targets, model=args.model)
-    write_csv_atomic(regression.metrics, STATS / f"phase5_regressao_eventos_{args.model}.csv")
-    write_csv_atomic(regression.predictions, STATS / f"phase5_regressao_predicoes_{args.model}.csv")
-    write_csv_atomic(
-        regression.importances.sort_values(["alvo", "importancia_ganho"], ascending=[True, False])
-        .groupby("alvo").head(20).reset_index(drop=True),
-        STATS / f"phase5_regressao_importancias_{args.model}.csv",
+def _load_master(path: Path) -> pd.DataFrame:
+    frame = pd.read_csv(path)
+    time_column = next(
+        (name for name in ("week_ending_sunday", "time", "date") if name in frame), None
     )
-    if not regression.metrics.empty:
-        for _, row in regression.metrics.iterrows():
-            print(f"[5] regressao {row['alvo']}: r_loo={row['r_loo']} "
-                  f"mae={row['mae_loo']} skill_vs_clim={row['skill_vs_climatologia']}")
+    if time_column is None:
+        raise KeyError("master sem coluna temporal reconhecida")
+    frame[time_column] = pd.to_datetime(frame[time_column])
+    return frame.set_index(time_column).sort_index()
 
-    if args.rfecv:
-        labels = phase_table["fase"]
-        selected, selector = p5.rfecv_select(
-            X.join(labels.rename("__f")).dropna().drop(columns="__f"),
-            labels.reindex(X.index).loc[X.dropna().index],
-            task="classification",
+
+def _load_phase_table(path: Path) -> pd.DataFrame:
+    frame = pd.read_csv(path)
+    time_column = next(
+        (name for name in ("week_ending_sunday", "time", "date") if name in frame), None
+    )
+    if time_column is None:
+        raise KeyError("tabela de fases sem coluna temporal reconhecida")
+    aliases = {"event_type": "tipo", "phase": "fase"}
+    frame = frame.rename(columns={key: value for key, value in aliases.items() if key in frame})
+    required = {"tipo", "fase", "event_id"}
+    if missing := required.difference(frame.columns):
+        raise KeyError(f"tabela de fases sem {sorted(missing)}")
+    frame[time_column] = pd.to_datetime(frame[time_column])
+    return frame.set_index(time_column).sort_index()
+
+
+def _classification_gate_pass(
+    mean_skill: float,
+    independent_support_gate_pass: bool,
+    *,
+    support_required_for_gate: bool,
+) -> bool:
+    """Apply the official support floor without blocking smoke execution."""
+
+    return bool(
+        np.isfinite(mean_skill)
+        and mean_skill > 0.0
+        and (
+            not support_required_for_gate
+            or bool(independent_support_gate_pass)
         )
-        write_csv_atomic(pd.Series(selected, name="variavel").to_frame(),
-                         STATS / "phase5_rfecv_selecionadas.csv")
-        print(f"[5] RFECV selecionou {len(selected)} de {X.shape[1]} features")
-
-    # Figura 1: top variaveis por ganho (com destaque para precursoras de recarga).
-    top = result.importances.head(18).iloc[::-1]
-    cores = ["#d1495b" if "__recharge" in v else "#2f80c1" for v in top["variavel"]]
-    fig, ax = plt.subplots(figsize=(13, 9))
-    ax.barh(top["variavel"], top["importancia_ganho"], color=cores)
-    ax.set_title(f"5 - Importancia por ganho ({args.model.upper()}) na classificacao das 4 fases", fontsize=14)
-    ax.set_xlabel("importancia (ganho/impureza)")
-    interp = (
-        f"Caracterizacao diagnostica (rotulos de fase definidos post hoc) das 4 fases do ciclo "
-        f"segundo {args.model.upper()}: F1-macro medio {cv['f1_macro'].mean():.2f} vs baselines "
-        f"semana-do-ano {cv['f1_baseline_semana_do_ano'].mean():.2f} e persistencia "
-        f"{cv['f1_baseline_persistencia'].mean():.2f} (TimeSeriesSplit). Preditores oceanicos "
-        f"anomalizados (clim. 1991-2020 + detrend). "
-        f"Barras vermelhas = precursoras de recarga (OHC/SSH/D20/tau_x) nos lags 15-20 sem."
     )
-    save_registered_figure(fig, phase=5, block="A", index=1, slug=f"importancia_fases_{args.model}",
-        interpretation=interp,
-        metadata=f"Fonte: master semanal NINO26 | janela {LAGS[0]}-{LAGS[-1]} sem | validacao cronologica",
-        figures_dir=FIGS, title="5A - Variaveis determinantes das fases (ML)")
-    print("[figura] Fig_5A1_importancia_fases_%s.png" % args.model)
 
-    # Figura 2: PDP dos limiares nao-lineares das top variaveis fisicas.
-    try:
-        top_feats = list(result.importances["variavel"].head(4))
-        pdp = p5.partial_dependence_frame(result.model, X, top_feats)
-        write_csv_atomic(pdp, STATS / f"phase5_pdp_{args.model}.csv")
-        fig, ax = plt.subplots(figsize=(13, 8))
-        for feat, sub in pdp.groupby("variavel"):
-            ax.plot(sub["valor"], sub["resposta_pdp"], marker="o", ms=3, label=feat)
-        ax.set_title("5A - Dependencia parcial (PDP): limiares nao-lineares", fontsize=14)
-        ax.set_xlabel("valor padronizado da variavel"); ax.set_ylabel("resposta parcial media")
-        ax.legend(fontsize=8)
-        save_registered_figure(fig, phase=5, block="A", index=2, slug=f"pdp_limiares_{args.model}",
-            interpretation="Curvas PDP revelam limiares nao-lineares do acoplamento de Bjerknes: inflexoes indicam gatilhos de mudanca de fase.",
-            metadata=f"Fonte: {args.model.upper()} Fase 5 | PDP sklearn",
-            figures_dir=FIGS, title="5A - Limiares fisicos por dependencia parcial")
-        print("[figura] Fig_5A2_pdp_limiares_%s.png" % args.model)
-    except Exception as exc:  # PDP e best-effort
-        print(f"[aviso] PDP nao gerado: {exc}")
 
-    # SHAP (opcional): summary global se a biblioteca estiver instalada.
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", choices=("rf", "xgb"), default="rf")
+    parser.add_argument("--mode", choices=("official", "smoke"), default="official")
+    parser.add_argument("--horizons", type=_integers, default=(0, 4, 8, 12, 24))
+    parser.add_argument("--lags", type=_integers, default=tuple(range(4, 53, 4)))
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--n-estimators", type=int, default=300)
+    parser.add_argument("--noise-copies", type=int, default=1)
+    parser.add_argument("--noise-scale", type=float, default=0.02)
+    parser.add_argument("--mixup-alpha", type=float, default=0.4)
+    parser.add_argument("--no-augmentation", action="store_true")
+    parser.add_argument(
+        "--min-train-active-events-per-type",
+        type=int,
+        default=3,
+        help="Piso oficial separado para eventos El Nino e La Nina no treino de cada fold.",
+    )
+    parser.add_argument("--master", type=Path)
+    parser.add_argument("--phase-table", type=Path)
+    parser.add_argument("--events-table", type=Path)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    master_path = args.master or _existing(
+        [FEATURES / "nino34_master_weekly.csv"], "master F2"
+    )
+    phase_path = args.phase_table or _existing(
+        [MODEL_BRIDGE / "fases_semanais_en_ln.csv"],
+        "tabela semanal canonica F3 EN/LN x fase",
+    )
+    events_path = args.events_table or _existing(
+        [MODEL_BRIDGE / "events_en_ln.csv"], "eventos EN/LN F3"
+    )
+    master = _load_master(master_path)
+    phase_table = _load_phase_table(phase_path)
+    events = pd.read_csv(events_path)
+    predictors = physical_predictor_columns(master)
+    horizons = tuple(args.horizons)
+    lags = tuple(args.lags)
+    n_estimators = int(args.n_estimators)
+    n_splits = 5
+    min_train_groups = 8
+    if args.mode == "smoke":
+        # Real data and all 31 variables, but one horizon/fewer trees/lags.
+        horizons = (horizons[0],)
+        lags = tuple(lags[: min(3, len(lags))])
+        n_estimators = min(n_estimators, 20)
+        n_splits = 2
+        min_train_groups = 6
+    noise_copies = 0 if args.no_augmentation else int(args.noise_copies)
+    mixup_alpha = None if args.no_augmentation else args.mixup_alpha
+    parameters = {
+        "model": args.model,
+        "horizons": horizons,
+        "lags": lags,
+        "n_estimators": n_estimators,
+        "n_splits": n_splits,
+        "n_physical_predictors": len(predictors),
+        "noise_copies": noise_copies,
+        "noise_scale": args.noise_scale,
+        "mixup_alpha": mixup_alpha,
+        "min_train_active_events_per_type": int(
+            args.min_train_active_events_per_type
+        ),
+        "support_balanced_fold_start": args.mode == "official",
+        "validation_unit": "whole_event_and_neutral_quarter",
+        "prediction_n_jobs": 1,
+    }
+    run = start_artifact_run(
+        5,
+        mode=args.mode,
+        inputs=[master_path, phase_path, events_path, Path(__file__).resolve()],
+        seed=args.seed,
+        parameters=parameters,
+        command=" ".join([sys.executable, *sys.argv]),
+    )
     try:
-        import shap  # noqa
-        values, sample = p5.shap_summary_values(result.model, X)
-        print("[5] SHAP summary calculado (biblioteca disponivel).")
-    except ImportError:
-        print("[5] SHAP nao instalado (opcional): 'pip install shap' para summary/force/waterfall.")
-    print("[5] concluido.")
-    return 0
+        run.write_table(
+            "predictor_contract",
+            pd.DataFrame(
+                {
+                    "variable": predictors,
+                    "role": "physical_predictor",
+                    "n_variables_contract": len(predictors),
+                }
+            ),
+            description="As 31 variaveis fisicas do master F2 usadas como candidatas primarias.",
+            dimensions={"variable": "31 physical F2 predictors"},
+            primary_keys=("variable",),
+        )
+        rolling = build_rolling_origin_table(
+            master,
+            phase_table,
+            predictors=predictors,
+            horizons=[h for h in horizons if h > 0] or (1,),
+        )
+        run.write_table(
+            "rolling_origin_targets",
+            rolling,
+            description="Origens semanais e alvos futuros; datas de pico nunca entram nos preditores.",
+            dimensions={"row": "weekly origin", "horizon": "weeks"},
+            methods={"role": "predictive", "future_peak_alignment": False},
+            primary_keys=("origin_time",),
+        )
+
+        all_metrics: list[pd.DataFrame] = []
+        all_predictions: list[pd.DataFrame] = []
+        all_importance: list[pd.DataFrame] = []
+        all_state_importance: list[pd.DataFrame] = []
+        all_provenance: list[pd.DataFrame] = []
+        all_contracts: list[pd.DataFrame] = []
+        all_support: list[pd.DataFrame] = []
+        for horizon in horizons:
+            print(
+                f"[F5] model={args.model} | horizon={horizon} weeks | "
+                f"folds={n_splits} | trees={n_estimators}",
+                flush=True,
+            )
+            result = fit_event_aware_phase_classifier(
+                master,
+                phase_table,
+                predictors=predictors,
+                lags=lags,
+                horizon_weeks=horizon,
+                model=args.model,
+                n_splits=n_splits,
+                min_train_groups=min_train_groups,
+                n_estimators=n_estimators,
+                augmentation_noise_copies=noise_copies,
+                augmentation_noise_scale=args.noise_scale,
+                augmentation_mixup_alpha=mixup_alpha,
+                min_train_active_events_per_type=args.min_train_active_events_per_type,
+                enforce_support_at_fold_design=args.mode == "official",
+                random_state=args.seed,
+            )
+            for frame in (
+                result.fold_metrics,
+                result.predictions,
+                result.importances,
+                result.state_importances,
+                result.augmentation_provenance,
+                result.fold_contract,
+                result.independent_support,
+            ):
+                frame.insert(0, "experiment_horizon_weeks", horizon)
+                frame.insert(0, "model", args.model) if "model" not in frame else None
+            all_metrics.append(result.fold_metrics)
+            all_predictions.append(result.predictions)
+            all_importance.append(result.importances)
+            all_state_importance.append(result.state_importances)
+            all_provenance.append(result.augmentation_provenance)
+            all_contracts.append(result.fold_contract)
+            all_support.append(result.independent_support)
+
+        products = {
+            "fold_metrics": pd.concat(all_metrics, ignore_index=True),
+            "oos_predictions": pd.concat(all_predictions, ignore_index=True),
+            "global_importance": pd.concat(all_importance, ignore_index=True),
+            "state_importance_oos": pd.concat(all_state_importance, ignore_index=True),
+            "augmentation_provenance": pd.concat(all_provenance, ignore_index=True),
+            "fold_contract": pd.concat(all_contracts, ignore_index=True),
+            "independent_support_by_fold": pd.concat(all_support, ignore_index=True),
+        }
+        event_dimension = fit_event_dimension_rolling_origin(
+            master,
+            events,
+            predictors=predictors,
+            lags=lags,
+            model=args.model,
+            n_splits=n_splits,
+            min_train_events=min_train_groups,
+            n_estimators=n_estimators,
+            jitter_sigma=args.noise_scale,
+            jitter_copies=noise_copies,
+            random_state=args.seed,
+        )
+        if event_dimension.metrics.empty or event_dimension.predictions.empty:
+            raise ValueError(
+                "F5 nao produziu previsoes rolling-origin de pico/tempo/duracao."
+            )
+        products.update(
+            {
+                "event_dimension_metrics": event_dimension.metrics,
+                "event_dimension_oos_predictions": event_dimension.predictions,
+                "event_dimension_importance_oos": event_dimension.importances,
+                "event_dimension_augmentation_provenance": event_dimension.augmentation_provenance,
+            }
+        )
+        classification_gate = (
+            products["fold_metrics"]
+            .groupby("experiment_horizon_weeks", as_index=False)
+            .agg(
+                n_oos_folds=("fold", "nunique"),
+                mean_skill=("skill_f1_vs_best_baseline", "mean"),
+            )
+        )
+        support_gate = (
+            products["independent_support_by_fold"]
+            .groupby("experiment_horizon_weeks", as_index=False)
+            .agg(
+                min_train_el_nino_events=("n_train_el_nino_events", "min"),
+                min_train_la_nina_events=("n_train_la_nina_events", "min"),
+                independent_support_gate_pass=("independent_support_gate_pass", "all"),
+                min_train_active_events_per_type_required=(
+                    "min_train_active_events_per_type_required",
+                    "max",
+                ),
+            )
+        )
+        classification_gate = classification_gate.merge(
+            support_gate,
+            on="experiment_horizon_weeks",
+            how="left",
+            validate="one_to_one",
+        )
+        support_required_for_gate = args.mode == "official"
+        gate_rows: list[dict[str, object]] = [
+            {
+                "component": f"classification_h{int(row.experiment_horizon_weeks):02d}",
+                "metric": "mean_skill_f1_vs_best_persistence_or_seasonal",
+                "value": float(row.mean_skill),
+                "threshold_rule": (
+                    ">0; official also requires the predeclared active-event floor "
+                    "separately for El Nino and La Nina"
+                ),
+                "n_oos_units": int(row.n_oos_folds),
+                "oos_unit": "whole-event fold",
+                "min_train_el_nino_events": int(row.min_train_el_nino_events),
+                "min_train_la_nina_events": int(row.min_train_la_nina_events),
+                "min_train_active_events_per_type_required": int(
+                    row.min_train_active_events_per_type_required
+                ),
+                "independent_support_gate_pass": bool(
+                    row.independent_support_gate_pass
+                ),
+                "support_required_for_gate": support_required_for_gate,
+                "gate_pass": _classification_gate_pass(
+                    float(row.mean_skill),
+                    bool(row.independent_support_gate_pass),
+                    support_required_for_gate=support_required_for_gate,
+                ),
+            }
+            for row in classification_gate.itertuples(index=False)
+        ]
+        for row in event_dimension.metrics.itertuples(index=False):
+            skill = float(row.skill_mae_vs_type_climatology)
+            gate_rows.append(
+                {
+                    "component": f"event_dimension_{row.target}",
+                    "metric": "skill_mae_vs_type_climatology",
+                    "value": skill,
+                    "threshold_rule": ">0",
+                    "n_oos_units": int(row.n_oos_events),
+                    "oos_unit": "independent ENSO event",
+                    "gate_pass": bool(np.isfinite(skill) and skill > 0.0),
+                }
+            )
+        products["scientific_gate"] = pd.DataFrame(gate_rows)
+        descriptions = {
+            "fold_metrics": "Skill fora da amostra e gate versus persistencia/climatologia sazonal.",
+            "oos_predictions": "Probabilidades semanais fora da amostra para os nove estados ENSO.",
+            "global_importance": "Importancia global do ajuste de treino por fold.",
+            "state_importance_oos": "Ablacao por permutacao no teste, separada por EN/LN e fase.",
+            "augmentation_provenance": "Linhagem original_event_id/augmentation_id; sinteticos nao sao eventos independentes.",
+            "fold_contract": "Datas, grupos inteiros, embargo e limite de ajuste do preprocessing.",
+            "independent_support_by_fold": (
+                "Suporte independente EN/LN no treino/teste; blocos neutros ficam separados."
+            ),
+            "event_dimension_metrics": "Skill por evento para magnitude, tempo ate pico e duracao.",
+            "event_dimension_oos_predictions": "Predicoes de evento em folds expansivos sem evento futuro no treino.",
+            "event_dimension_importance_oos": "Permutacao OOS das 31 variaveis agrupando todos os lags.",
+            "event_dimension_augmentation_provenance": "Cada jitter aponta para o evento original e nunca conta como evento independente.",
+            "scientific_gate": (
+                "Gate numérico por horizonte e alvo de evento; resultados negativos são preservados."
+            ),
+        }
+        for name, frame in products.items():
+            run.write_table(
+                name,
+                frame,
+                description=descriptions[name],
+                methods={
+                    "model": args.model,
+                    "event_grouped": True,
+                    "preprocessing_train_only": True,
+                    "augmentation_train_only": True,
+                },
+            )
+        gate = classification_gate.set_index("experiment_horizon_weeks")["mean_skill"]
+        print(f"[F5] run_id={run.run_id} | mode={args.mode} | model={args.model}")
+        print(gate.rename("mean_skill_f1_vs_best_baseline").to_string())
+        print(f"[F5] outputs: {run.directory}")
+        run.finalize(
+            notes=(
+                "Gate F5 de classificacao exige skill_f1_vs_best_baseline > 0 e, "
+                "no modo oficial, o piso predeclarado separado de eventos El Nino/La Nina; "
+                "os tres alvos de evento exigem skill > 0. Horizonte 0 e caracterizacao "
+                "diagnostica; horizontes >0 sao rolling-origin."
+            )
+        )
+        return 0
+    except Exception as exc:
+        run.finalize(status="failed", notes=f"{type(exc).__name__}: {exc}")
+        raise
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main())

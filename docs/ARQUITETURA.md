@@ -1,83 +1,64 @@
-# Arquitetura Ativa NINO-BRASIL
+# Arquitetura NINO26
 
-Este documento descreve o fluxo ativo apos a reorganizacao de 2026-07-09. A
-fonte canonica das fases e `docs/DIRETRIZES_FASES.md`; quando algum documento
-historico divergir, prevalece a diretriz canonica.
-
-## Fluxo Executivo
+O projeto é uma coleção de estudos independentes sobre uma base compartilhada,
+e não um pipeline linear com gates entre fases.
 
 ```mermaid
-flowchart TD
-    A["Fontes locais baixadas"] --> B["Fase 1: raw cache auditavel"]
-    B --> C["Validacao, ledger e conversao Zarr"]
-    C --> D["Fase 2: padronizacao, anomalias, grade comum e matriz semanal"]
-    D --> E["nino34_master_weekly.csv: 17 oceanicas + 14 ERA5 + metadado de fonte"]
-    E --> F["Fase 3: diagnostico fisico Nino 3.4, sem ML/RN"]
-    E --> G["Fase 4: teleconexao ENSO -> chuva Brasil, sem ML/RN"]
-    G --> H["Gate G1 estatistico"]
-    H --> I["Fase 5: RF/XGBoost + XAI"]
-    I --> J["Gate G2"]
-    J --> K["Fase 6: redes neurais nativas + XAI"]
-    E --> L["FaseWEB: publicacao e operacao"]
-    M["Graficos oficiais NOAA/PSL"] -. "visual apenas" .-> F
+flowchart TB
+    D["Fontes locais"] --> F1["F1 · ingestão"]
+    F1 --> F2["F2 · preparação, cubos e sanidade"]
+    F2 -. "dados disponíveis, sem dependência científica" .-> F3["F3 · estatística ENSO"]
+    F2 -.-> F4["F4 · estatística ENSO–Brasil"]
+    F2 -.-> F5["F5 · RF/XGBoost ENSO"]
+    F2 -.-> F6["F6 · RF/XGBoost ENSO–Brasil"]
+    F2 -.-> F7["F7 · ConvLSTM ENSO"]
+    F2 -.-> F8["F8 · ConvLSTM ENSO–Brasil"]
+    F3 -. "comparação opcional" .-> WEB["FaseWEB"]
+    F4 -.-> WEB
+    F5 -.-> WEB
+    F6 -.-> WEB
+    F7 -.-> WEB
+    F8 -.-> WEB
 ```
 
-## Decisoes De Arquitetura
+## Fronteiras
 
-| Tema | Decisao |
+- F1 ingere e registra procedência.
+- F1 também atualiza e audita as malhas IBGE de UFs, regiões e biomas.
+- F2 trata, organiza e disponibiliza o estado mais recente recebido da F1, sem
+  baixar fontes nem selecionar variáveis para outras fases.
+- F2 publica cobertura, frescor por variável, sanidade temporal e validações no
+  notebook F2Z.
+- F3, F5 e F7 estudam o ciclo e a faixa de pico por métodos distintos.
+- F4, F6 e F8 estudam lags e distribuição espaço-temporal no Brasil por métodos
+  distintos.
+- FaseWEB publica resultados identificando sua fase de origem.
+- Nenhuma fase promove, bloqueia ou valida outra.
+
+## Dados principais
+
+- OISST: superfície e identificação oceânica Niño 3.4.
+- UFS+GLORYS: subsuperfície, com fonte e período preservados internamente.
+- ERA5: atmosfera.
+- CHIRPS: alvos brasileiros em pixels no tamanho original.
+- IBGE: regiões e biomas por shapefiles oficiais.
+- CTD/WOD, TAO/TRITON e Argo: validação independente de UFS+GLORYS.
+
+## Saídas
+
+| Tipo | Local |
 |---|---|
-| Fonte ENSO | `NOAA OISST v2.1` diario baixado/local. |
-| Rotulo ENSO externo | Fora das metricas. Eventos, referencia mensal, ONI local e classes NOAA/ONI saem da OISST baixada. |
-| Graficos oficiais Nino 3.4 | Mantidos em `docs/assets/figures/official_nino34/` para comparativo visual, excluidos de metricas, eventos e diagnosticos. |
-| Eixo integrado | Semanal W-SUN. Dados mensais sao apenas comparacao/calibracao. |
-| Fase 2 | Disponibiliza todas as variaveis baixadas com serie temporal auditavel, principalmente para uso semanal 1981-2026. |
-| Fase 3 | Caracteriza o Pacifico/Nino 3.4: eventos EN/LN, duracao, genese, crescimento, pico, decaimento, Hovmoller, Bjerknes, Kelvin, mapas, PCA/EOF e estatistica. Sem ML/RN. |
-| Fase 4 | Avalia teleconexao ENSO -> chuva Brasil com CHIRPS, pixel-a-pixel, P90 do periodo de aquecimento, anomalias de chuva, lags semanais, N_eff e FDR. Sem ML/RN. |
-| Fase 5 | Repite o estudo da Fase 4 com Random Forest e XGBoost + XAI, apenas fora da Fase 4 e somente se o G1 estatistico justificar. |
-| Fase 6 | Redes neurais nativas + XAI, apenas se vencer climatologia, persistencia, Fase 4 e Fase 5. |
-| FaseWEB | Publicacao, painel e operacao recorrente. |
-| Saida visual | Figuras analiticas do projeto precisam nascer de CSV/Zarr numerico; graficos oficiais espelhados sao referencia externa visual. |
-| Auditoria figura->tabela | Toda figura em `data/processed/figures/` precisa ter CSVs congelados e manifesto em `data/processed/numeric-tables/`, gerados por `scripts/export_numeric_tables_for_figures.py --force --strict`. |
-| Gate G1 estatistico | Avalia se a hipotese "El Nino -> secas no NEB e chuvas extremas no Sul" e sustentada por pixels/clusters com N_eff/FDR, sentido fisico, lag defensavel e estabilidade temporal. Nao treina ML. |
+| figuras PNG/JPG | `data/processed/figures/` |
+| tabelas CSV/Parquet | `data/processed/numeric-tables/` |
+| metadados JSON | `data/processed/metadata/` ou `data/audit/` |
+| cubos e matrizes de trabalho | `data/processed/` |
 
-## Comandos Ativos
+Figuras devem nascer de tabelas, mas JSONs não podem ser misturados às árvores de
+figuras e tabelas.
 
-```powershell
-.\.venv\Scripts\python scripts\build_master_weekly.py --era5-years 1981:2026
-.\.venv\Scripts\python scripts\fase3_build_inputs.py --force
-.\.venv\Scripts\python -m jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=7200 notebooks\fase2\2Z_sanidade_variaveis.ipynb
-.\.venv\Scripts\python scripts\run_fase3_all.py
-.\.venv\Scripts\python scripts\run_fase4_all.py
-.\.venv\Scripts\python scripts\export_numeric_tables_for_figures.py --force --strict
-.\.venv\Scripts\python scripts\update_painel_executivo.py
-```
+## Execução
 
-## Produtos Principais
-
-| Produto | Caminho |
-|---|---|
-| Matriz semanal Nino 3.4 | `data/processed/parquet/features/nino34_master_weekly.csv` |
-| Auditoria da matriz semanal | `data/processed/parquet/statistics/phase2_master_audit.csv` |
-| Validacao da matriz semanal | `data/processed/parquet/statistics/phase2_master_validation.csv` |
-| Validacao CTD/WOD | `data/processed/parquet/statistics/phase2_ctd_validation.csv` |
-| Serie diaria Nino 3.4 OISST | `data/processed/parquet/features/nino34_daily_oisst.csv` |
-| Referencia mensal OISST local | `data/processed/parquet/features/nino34_monthly_oisst.csv` |
-| Eventos OISST locais | `data/processed/parquet/features/nino34_oisst_event_reference.csv` |
-| Sinal fisico diario | `data/processed/parquet/features/nino34_physical_signal.csv` |
-| Diagnostico termoclina/OHC/WWV | `data/processed/zarr/features/nino34_thermocline_diagnostics.zarr` |
-| Auditoria da Fase 3 | `data/audit/phase3_diagnostics_audit.json` |
-| Saidas Fase 3 | `data/processed/parquet/statistics/` e `data/processed/figures/fase3/` |
-| Saidas Fase 4 | `data/processed/parquet/statistics/` e `data/processed/figures/fase4/` |
-| Auditoria figura->tabela | `data/processed/numeric-tables/figure_numeric_tables_manifest.csv` |
-
-## Regra De Interpretacao
-
-Uma figura analitica gerada pelo projeto so entra no trabalho se houver um
-arquivo numerico anterior capaz de responder a mesma pergunta sem depender de
-cor no mapa. Graficos oficiais espelhados sao permitidos como comparativo visual
-e precisam ser citados como externos, sem alimentar metricas.
-
-Na pratica, a regra e operacionalizada por `data/processed/numeric-tables/`:
-cada PNG tem uma pasta propria com CSVs de representacao e `figure_manifest.csv`
-contendo origem, tipo de fonte, dimensoes e hash SHA-256. Se uma figura existir
-sem mapeamento numerico, o exportador em modo `--strict` falha.
+Cada fase possui entrada, configuração, runner, validação e outputs próprios.
+Reutilização de produtos entre fases é opcional e deve ser declarada no run. O
+fingerprint do código é informativo: sua alteração gera aviso, não invalidação
+automática de runs históricos.

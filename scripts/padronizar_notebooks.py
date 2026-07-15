@@ -16,6 +16,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -101,7 +102,7 @@ NB: dict[str, dict] = {
         descritivo="Constrói o ranking preliminar de precursores do aquecimento máximo — o teste direto do paradigma de recarga (WWV/OHC/D20 liderando o SSTA).",
         pergunta="Quais variáveis físicas lideram a SSTA do Niño 3.4 e em que defasagem semanal?",
         desafio="Separar precursor verdadeiro (lidera com antecedência) de estado contemporâneo; o sinal de recarga deve anteceder o pico por semanas.",
-        metodologia="Correlação defasada preditor(t-lag)->SSTA(t) e ranking por lag, antes dos filtros de rigor do 3D/3E (paradigma de recarga de Jin, 1997; Meinen & McPhaden, 2000).",
+        metodologia="Correlação defasada preditor(t-lag)->SSTA(t), excluindo o alvo e seus aliases do catalogo auditavel, e ranking por lag antes dos filtros de rigor do 3D/3E (paradigma de recarga de Jin, 1997; Meinen & McPhaden, 2000).",
         refs=["jin1997", "meinen2000"],
         figs=figs(("Fig_3C01", "heatmap de correlação por lag"), ("Fig_3C02", "mapa longitude x lag")),
     ),
@@ -111,7 +112,7 @@ NB: dict[str, dict] = {
         descritivo="Converte a triagem do 3C em um conjunto defensável, aplicando graus de liberdade efetivos, FDR e IC95 — o filtro que evita significância inflada por autocorrelação.",
         pergunta="Quais relações defasadas do 3C sobrevivem a N_eff, FDR e IC95 que exclua zero?",
         desafio="Em séries semanais fortemente autocorrelacionadas, n bruto superestima a significância; só relações que passam N_eff+FDR entram no parecer.",
-        metodologia="N_eff de Bretherton por par, teste t com graus efetivos, controle FDR de Benjamini-Hochberg e IC95 (Bretherton et al., 1999; Benjamini & Hochberg, 1995; Wilks, 2016).",
+        metodologia="N_eff de Bretherton por par, teste t com graus efetivos, controle FDR de Benjamini-Hochberg sobre todos os precursores candidatos x lags, alvo/aliases excluidos, e IC95 (Bretherton et al., 1999; Benjamini & Hochberg, 1995; Wilks, 2016).",
         refs=["bretherton1999", "benjamini1995", "wilks2016"],
         figs=figs(("Fig_3D01", "forest plot de IC95 significativos"), ("Fig_3D02", "mapa longitude x lag pós-FDR")),
     ),
@@ -184,7 +185,7 @@ NB: dict[str, dict] = {
         descritivo="Camada visual que percorre os quatro períodos para EN e LN, com duração por classe e discriminantes por fase — o fecho descritivo do mecanismo.",
         pergunta="Como El Niño e La Niña percorrem gênese, crescimento, pico e decaimento, quanto dura cada fase por classe e quais variáveis melhor delimitam cada período?",
         desafio="A assimetria EN/LN precisa aparecer; a caracterização é diagnóstica (rótulos post hoc), não previsão.",
-        metodologia="Ciclo de vida por fase, duração por classe, heatmap de discriminantes e PCA por fase (acoplamento de Bjerknes, 1969; recarga de Jin, 1997).",
+        metodologia="Ciclo de vida EN/LN com faixa de pico canônica de 90% (sensibilidade 80/90/95%), Friedman pareado por evento + Kendall W, BH-FDR sobre todas as variaveis separadamente por tipo ENSO e PCA por fase; diagnóstico retrospectivo separado de rolling-origin (Bjerknes, 1969; Jin, 1997).",
         refs=["bjerknes1969", "jin1997"],
         figs=figs(("Fig_3L01", "ciclo de vida EN x LN"), ("Fig_3L02", "heatmap de discriminantes"),
                   ("Fig_3L03", "duração das fases EN x LN"), ("Fig_3L04", "PCA por fase")),
@@ -216,7 +217,7 @@ NB: dict[str, dict] = {
         descritivo="Mede quais variáveis do Pacífico determinam cada fase, por efeito não-paramétrico e por regressão linear multivariada — a leitura estrutural antes do sinal espacial.",
         pergunta="Quais variáveis do Pacífico mais determinam gênese, crescimento, pico e decaimento?",
         desafio="Coeficientes precisam de incerteza por evento (HAC/Newey-West); barras cruzando zero não são distinguíveis de nulo.",
-        metodologia="Kruskal/epsilon2 por fase e MLR padronizada com IC95 por evento; controle de multiplicidade (Wilks, 2016; Bretherton et al., 1999).",
+        metodologia="Friedman pareado por evento/Kendall W e MLR padronizada com incerteza por evento; controle de multiplicidade e significância de campo (Wilks, 2016; Bretherton et al., 1999).",
         refs=["wilks2016", "bretherton1999"],
         figs=figs(("Fig_4B01", "coeficientes MLR por fase (El Niño)"), ("Fig_4B02", "heatmap de determinantes"),
                   ("Fig_4B03", "ranking de discriminância"), ("Fig_4B04", "relações entre pares")),
@@ -226,12 +227,15 @@ NB: dict[str, dict] = {
         titulo="Sinal pixel-a-pixel, por região IBGE e por bioma",
         descritivo="Distribui o sinal Pacífico->chuva por pixel, região e bioma, por fase do ciclo — o coração espacial da teleconexão e o que sustenta ou refuta a hipótese NEB seco/Sul úmido.",
         pergunta="Onde, quando e com que sinal (seco/úmido) e em que lag o Pacífico altera a chuva do Brasil, por pixel/região/bioma?",
-        desafio="O alvo CHIRPS precisa ser uma anomalia interpretável (não o z corrompido) e a significância exige N_eff+FDR; só pixels do Brasil entram.",
-        metodologia="Correlação defasada Pacífico(t-lag)->anomalia de chuva(t) com Pearson exato, N_eff de Bretherton e FDR-BH, em três suportes espaciais (Grimm & Tedeschi, 2009; Bretherton et al., 1999; Benjamini & Hochberg, 1995; Funk et al., 2015).",
+        desafio="O alvo precisa manter os pixels CHIRPS nativos, semanas completas e escalas robustas; a significância exige N_eff, FDR e teste de campo por família.",
+        metodologia="Pacífico(t-lag)->CHIRPS(t) nos pixels originais, condicionado à fase em t-lag, para 31 variáveis e EN/LN x 4 fases; N_eff, BH-FDR e significância de campo, com região/bioma apenas como agregações reversíveis (Grimm & Tedeschi, 2009; Bretherton et al., 1999; Benjamini & Hochberg, 1995; Funk et al., 2015).",
         refs=["grimm2009", "bretherton1999", "benjamini1995", "funk2015", "cai2020"],
-        figs=figs(("Fig_4C01", "lags por região/bioma (El Niño)"), ("Fig_4C02", "lags por região/bioma (La Niña)"),
-                  ("Fig_4C03", "mapa pixel r no melhor lag"), ("Fig_4C04", "recorte NEB"),
-                  ("Fig_4C05", "recorte Sul"), ("Fig_4C06", "mapas Brasil por lag")),
+        figs=figs(
+            ("Fig_4C01_lags_regiao_bioma_el_nino", "lags por região/bioma (El Niño)"),
+            ("Fig_4C02_lags_regiao_bioma_la_nina", "lags por região/bioma (La Niña)"),
+            ("Fig_4C03_mapa_pixel_el_nino_pico", "mapa nativo FDR no pico de El Niño"),
+            ("Fig_4C04_mapa_pixel_la_nina_pico", "mapa nativo FDR no pico de La Niña"),
+        ),
     ),
     "fase4/4D_clusters_alvo.ipynb": dict(
         codigo="4D", fase=4, bloco="D", hip="HIP1",
@@ -241,27 +245,30 @@ NB: dict[str, dict] = {
         desafio="O gate precisa de FDR e da máscara EN/LN correta, sem corte temporal fixo e sem confundir média de anomalia com seca/extremo — usar índices de extremos.",
         metodologia="Clusterização de perfis, lag por sinal e gate com estabilidade temporal; extremos por SPI/SPEI/ETCCDI em vez da média (Grimm & Tedeschi, 2009; Cai et al., 2020; Vicente-Serrano et al., 2010).",
         refs=["grimm2009", "cai2020", "vicente2010"],
-        figs=figs(("Fig_4D01", "mapa de clusters"), ("Fig_4D02", "perfis dos clusters"),
-                  ("Fig_4D03", "síntese do gate da hipótese")),
+        figs=figs(
+            ("Fig_4D01_mapa_clusters_pixels_nativos", "mapa de clusters descritivos"),
+            ("Fig_4D02_perfis_clusters_fdr", "perfis FDR dos clusters"),
+            ("Fig_4D03_gate_multialvo_eventos", "síntese do gate multialvo por evento"),
+        ),
     ),
     "fase5/5_ciclo_ml.ipynb": dict(
         codigo="5A", fase=5, bloco="A", hip="HIP2 (ML do ciclo)",
         titulo="Ciclo ENSO com Machine Learning (RF/XGBoost) + XAI",
-        descritivo="Testa se RF/XGBoost com XAI caracterizam o ciclo melhor que a Fase 3 e que os baselines — só se justifica se houver ganho real fora da amostra.",
-        pergunta="O ML acrescenta capacidade fora da amostra, além da estatística, da climatologia e da persistência, na caracterização das fases?",
-        desafio="A persistência semana-a-semana é fortíssima; validação por evento e preprocessing dentro do fold são obrigatórios, senão o F1 é ilusório.",
-        metodologia="Janela deslizante (lags 4-52), classificação das 4 fases com folds por evento, RFECV aninhado, SHAP/PDP; baselines persistência e semana-do-ano (Cawley & Talbot, 2010; Roberts et al., 2017; Ham et al., 2019; Bracco et al., 2024).",
+        descritivo="Testa RF/XGBoost nos nove estados (neutro + EN/LN x quatro fases) e em alvos futuros rolling-origin, usando todas as 31 variáveis F2.",
+        pergunta="Quais variáveis mudam de importância entre EN/LN e gênese/crescimento/pico/decaimento, e o ML supera estatística, climatologia e persistência fora de eventos inteiros?",
+        desafio="Semanas adicionais não são eventos novos: janelas do mesmo evento ficam no mesmo fold, com embargo e preprocessing no treino; augmentation conserva original_event_id.",
+        metodologia="RF/XGBoost com 31 variáveis, lags 4-52 e nove estados; folds rolling-origin por evento, embargo, transformações dentro do fold, pesos evento/tipo/fase e augmentation conservador apenas no treino; importância por estado no teste (Cawley & Talbot, 2010; Roberts et al., 2017; Ham et al., 2019).",
         refs=["cawley2010", "roberts2017", "ham2019", "bracco2024"],
-        figs=figs(("Fig_5A01_rf", "importância das fases (RF)"), ("Fig_5A01_xgb", "importância das fases (XGB)"),
-                  ("Fig_5A02_rf", "PDP dos limiares (RF)"), ("Fig_5A02_xgb", "PDP dos limiares (XGB)")),
+        figs=figs(("Fig_5A01_rf", "importância OOS por variável/estado (RF)"), ("Fig_5A01_xgb", "importância OOS por variável/estado (XGB)"),
+                  ("Fig_5A02_rf", "skill por horizonte e dimensão do evento (RF)"), ("Fig_5A02_xgb", "skill por horizonte e dimensão do evento (XGB)")),
     ),
     "fase6/6_brasil_ml.ipynb": dict(
         codigo="6A", fase=6, bloco="A", hip="HIP3 (ML Brasil)",
         titulo="Distribuição no Brasil com Machine Learning (RF/XGBoost) + XAI",
-        descritivo="Testa se RF/XGBoost preveem a chuva regional melhor que a triagem da Fase 4 e que os baselines, por região/bioma/fase — o valor da não linearidade sobre a estatística.",
-        pergunta="O ML prevê a anomalia de chuva regional melhor que climatologia, persistência e a Fase 4?",
-        desafio="Herdar o alvo CHIRPS inválido e um parser que apaga EN/LN inviabiliza a leitura; alvo reconstruído e baseline na mesma amostra são pré-condição.",
-        metodologia="RF/XGBoost sobre a janela do Pacífico por unidade, validação sazonal/evento, SHAP fora da amostra; baselines persistência/climatologia (Roberts et al., 2017; Cawley & Talbot, 2010; Grimm & Tedeschi, 2009; Tedeschi et al., 2025; Dantas et al., 2020).",
+        descritivo="Testa RF/XGBoost separadamente em cada pixel CHIRPS original, usando 31 variáveis e EN/LN x quatro fases no tempo fonte t-lag.",
+        pergunta="O ML prevê cada pixel nativo melhor que persistência/climatologia e a Fase 4, e quais variáveis dominam por fase e lag?",
+        desafio="Nenhum regrid/agregado pode substituir o alvo: shards precisam cobrir pixels nativos sem sobreposição, e a climatologia da chuva é ajustada só no treino.",
+        metodologia="RF/XGBoost pixel-a-pixel com 31 variáveis, fase em t-lag, folds inteiros por evento e target preprocessing no treino; região/bioma são resumos posteriores e o gate exige skill espacial area-ponderado (Roberts et al., 2017; Cawley & Talbot, 2010; Grimm & Tedeschi, 2009).",
         refs=["roberts2017", "cawley2010", "grimm2009", "tedeschi2025", "dantas2020"],
         figs=figs(("Fig_6A01_rf", "skill do ML por unidade (RF)"), ("Fig_6A01_xgb", "skill do ML por unidade (XGB)")),
     ),
@@ -270,8 +277,8 @@ NB: dict[str, dict] = {
         titulo="Ciclo ENSO com redes neurais ConvLSTM",
         descritivo="Testa se campos espaciais do Pacífico (ConvLSTM) acrescentam skill sobre índices escalares e ML tabular — ENSO é propagação espaço-temporal, não só uma série do Niño 3.4.",
         pergunta="Campos espaciais do Pacífico acrescentam skill sobre índices escalares e ML tabular na caracterização/previsão do ciclo?",
-        desafio="Amostra observacional pequena (23 eventos) e vazamento na fronteira de sequências; exige embargo temporal e pré-treino em simulações.",
-        metodologia="ConvLSTM sobre sequências (tempo, lat, lon, canais) do Pacífico; normalização no treino, embargo, métricas por lead; pré-treino CMIP/NMME e fine-tuning observacional (Shi et al., 2015; Ham et al., 2019; Chattopadhyay et al., 2020; Taylor & Feng, 2022; Mir et al., 2024).",
+        desafio="Amostra observacional pequena: todas as janelas de um evento ficam juntas; augmentation/masking não aumenta o N de eventos e preserva provenance.",
+        metodologia="PyTorch ConvLSTM em campos GLORYS reais fundido a uma sequência nomeada das 31 variáveis; nove estados + intensidade/tempo/duração, folds por evento com embargo, masking/noise no treino e pré-treino auto-supervisionado/CMIP-NMME opcional (Shi et al., 2015; Ham et al., 2019).",
         refs=["shi2015", "ham2019", "chattopadhyay2020", "taylor2022", "mir2024"],
         figs=figs(("Fig_7A01", "skill por lead time (a treinar cientificamente)"),
                   ("Fig_7A02", "importância por oclusão de canais (a treinar)")),
@@ -281,8 +288,8 @@ NB: dict[str, dict] = {
         titulo="Distribuição no Brasil com redes neurais ConvLSTM (encoder-decoder)",
         descritivo="Testa se uma rede espaço-temporal mapeia a sequência do Pacífico no campo futuro de chuva do Brasil com skill superior às Fases 4 e 6 — teleconexão como mapeamento espaço->espaço condicionado ao tempo.",
         pergunta="A rede aprende a distribuição espaço-temporal da chuva do Brasil com skill superior às Fases 4 e 6, por pixel/região/bioma?",
-        desafio="Alinhamento temporal correto (sem parear chuva anterior com Pacífico posterior), decoder de baixa dimensão (não Dense gigante), máscara/pesos de área e loss probabilística.",
-        metodologia="Encoder-decoder convolucional com alinhamento por timestamps, decoder EOF/convolucional de baixo posto, máscara Brasil e loss probabilística; métricas por pixel/região/bioma (Shi et al., 2015; Ham et al., 2019; Bachèlery et al., 2025; Chattopadhyay et al., 2020).",
+        desafio="Alinhamento por timestamp/offset da sequência, target preprocessing no treino, decoder sem Dense gigante e preservação exata do grid/pixel_id CHIRPS.",
+        metodologia="PyTorch ConvLSTM + fusão das 31 variáveis e decoder convolucional probabilístico para a forma nativa CHIRPS; máscara/fração Brasil e pesos de área atuam apenas na loss, com métricas e campos OOS por pixel original (Shi et al., 2015; Ham et al., 2019; Chattopadhyay et al., 2020).",
         refs=["shi2015", "ham2019", "bachelery2025", "chattopadhyay2020"],
         figs=figs(("Fig_8A01", "campo previsto de anomalia de chuva (a treinar)"),
                   ("Fig_8A02", "skill por pixel/região (a treinar)")),
@@ -290,9 +297,14 @@ NB: dict[str, dict] = {
 }
 
 
-def md_cell(text: str) -> dict:
+def _stable_cell_id(*parts: object) -> str:
+    payload = "\x1f".join(str(part) for part in parts).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:12]
+
+
+def md_cell(text: str, *, cell_id: str) -> dict:
     src = text.splitlines(keepends=True)
-    return {"cell_type": "markdown", "metadata": {}, "source": src}
+    return {"cell_type": "markdown", "id": cell_id, "metadata": {}, "source": src}
 
 
 def build_header(m: dict, nb_rel: str = "") -> str:
@@ -317,14 +329,16 @@ def build_header(m: dict, nb_rel: str = "") -> str:
         "",
         "## Contrato de saídas — código predecessor único",
         "Cada figura nasce do **mesmo** `registrar_figura(...)` que congela sua "
-        "numeric-table sob o **mesmo código**, reescrevendo por **sobreposição** a cada execução:",
+        "numeric-table sob o **mesmo código**, reescrevendo por **sobreposição** a cada execução. "
+        "A fonte deve ser uma tabela persistida com sidecar e hash do mesmo `run_id`:",
         "",
         "```python",
         "from nino_brasil.viz import registrar_figura",
         f"registrar_figura(fig, \"{m['figs'][0]['codigo']}\", fase={m['fase']}, bloco=\"{m['bloco']}\",",
         f"                 titulo=..., descricao=..., hipotese=\"{m['hip'].split()[0]}\",",
         f"                 notebook=\"notebooks/{nb_rel}\",",
-        f"                 fontes={{\"<tabela>\": df}})   # -> figures/fase{m['fase']}/<codigo>.png + numeric-tables/fase{m['fase']}/<codigo>/",
+        "                 run_id=run.run_id,",
+        f"                 fontes={{\"<tabela>\": tabela_path}})   # Path + .manifest.json -> figures/fase{m['fase']}/<codigo>.png + numeric-tables/fase{m['fase']}/<codigo>/",
         "```",
         "",
         f"| Código | Figura (`figures/fase{m['fase']}/<código>.png`) | Numeric-table (`numeric-tables/fase{m['fase']}/<código>/`) | Descrição |",
@@ -332,7 +346,12 @@ def build_header(m: dict, nb_rel: str = "") -> str:
     ]
     for f in m["figs"]:
         linhas.append(f"| `{f['codigo']}` | `{f['codigo']}.png` | `{f['codigo']}/` | {f['desc']} |")
-    linhas += ["", "> Padrão em `docs/PADRAO_NOTEBOOKS.md`; validação por `python scripts/validar_figuras.py --strict`."]
+    linhas += [
+        "",
+        "> Padrão em `docs/PADRAO_NOTEBOOKS.md`; compatibilidade por "
+        "`python scripts/validar_figuras.py --strict --allow-render-extraction`; "
+        "promoção por `python scripts/validar_figuras.py --strict`.",
+    ]
     return "\n".join(linhas)
 
 
@@ -356,9 +375,36 @@ def padronizar(nb_rel: str, m: dict, out_dir: Path | None) -> str:
     cells = [c for c in cells if not is_sentinel(c, SENT_H) and not is_sentinel(c, SENT_R)]
     while cells and cells[0].get("cell_type") == "markdown" and "".join(cells[0].get("source", [])).lstrip().startswith("# "):
         cells.pop(0)
-    cells.insert(0, md_cell(build_header(m, nb_rel)))
-    cells.append(md_cell(build_refs(m)))
+    for position, cell in enumerate(cells):
+        if not cell.get("id"):
+            cell["id"] = _stable_cell_id(
+                nb_rel,
+                position,
+                cell.get("cell_type", ""),
+                "".join(cell.get("source", [])),
+            )
+    cells.insert(
+        0,
+        md_cell(
+            build_header(m, nb_rel),
+            cell_id=_stable_cell_id(nb_rel, "nino26-header-v1"),
+        ),
+    )
+    cells.append(
+        md_cell(
+            build_refs(m),
+            cell_id=_stable_cell_id(nb_rel, "nino26-references-v1"),
+        )
+    )
     d["cells"] = cells
+    metadata = d.setdefault("metadata", {})
+    metadata["kernelspec"] = {
+        "display_name": "Python 3.12 (.venv NINO26)",
+        "language": "python",
+        "name": "nino-brasil",
+    }
+    metadata.setdefault("language_info", {})["name"] = "python"
+    metadata["language_info"]["version"] = "3.12"
     dest = (out_dir / nb_rel) if out_dir else src_path
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -376,7 +422,7 @@ def main() -> int:
         print(padronizar(nb_rel, m, out))
     print(f"\n{len(NB)} notebooks padronizados"
           + (f" em {out}" if out else " (in-place)")
-          + ".  Valide com: python scripts/validar_figuras.py --strict")
+          + ".  Valide compatibilidade e depois o gate semantico conforme docs/PADRAO_NOTEBOOKS.md")
     return 0
 
 

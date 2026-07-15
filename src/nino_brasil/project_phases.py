@@ -33,64 +33,57 @@ PHASES: tuple[ProjectPhase, ...] = (
         2,
         "standardization_anomalies_lags_regridding",
         "Padronizacao, anomalias, lags e regrid",
-        "QC, unidades/sinais, climatologia sem vazamento, anomalias, lags e grades de preditores; alvos CHIRPS preservam pixels nativos.",
-        "Cubos Zarr reconciliados em data/processed/zarr/regridded/.",
+        "Padronizacao, anomalias, matriz semanal, cubos, disponibilizacao e graficos de sanidade no tempo.",
+        "Dados disponiveis de forma neutra, sem selecionar variaveis para outras fases.",
     ),
     ProjectPhase(
         3,
         "nino34_physical_signal_diagnostics",
         "Diagnostico fisico do sinal Nino 3.4",
-        "Escala semanal; eventos El Nino/La Nina derivados da propria SST OISST baixada; diagnosticos de SSTA, D20, OHC, WWV, termoclina, Bjerknes, Kelvin, mapas e PCA/EOF.",
-        "Caracterizacao auditavel de genese, crescimento, pico e decaimento do Nino 3.4, sem rotulo externo e sem ML/RN.",
+        "Analises puramente estatisticas de El Nino e La Nina, sem importancia previa de variaveis.",
+        "Caracterizacao independente de genese, crescimento, faixa de pico e decaimento.",
     ),
     ProjectPhase(
         4,
         "enso_brazil_rainfall_teleconnection",
         "Teleconexao ENSO -> chuvas extremas/secas no Brasil",
-        "CHIRPS nativo semanal, anomalia/percentil/SPI/extremos, lags por EN/LN x fase e testes pixel-a-pixel com N_eff/FDR/campo.",
-        "Mapas e tabelas estatisticas da teleconexao Pacifico -> Brasil, sem ML/RN.",
+        "Afericao puramente estatistica da relacao ENSO-Brasil.",
+        "Lags e distribuicao espacial-temporal do sinal por pixel, regiao e bioma.",
     ),
     ProjectPhase(
         5,
         "ml_cycle_rfxgb_xai",
         "Ciclo ENSO com Machine Learning (RF/XGBoost) e XAI",
-        "Mesmo mecanismo da Fase 3 (genese, crescimento, pico, decaimento) com Random "
-        "Forest e XGBoost: identifica ciclos EN/LN, mapeia as 4 fases, seleciona variaveis "
-        "por RFECV e projeta pico/tempo-para-pico/duracao com XAI (SHAP, PDP).",
-        "Execucao independente sobre dados das Fases 1 e 2; comparacoes historicas sao opcionais.",
+        "Random Forest e XGBoost para prever antecipadamente a evolucao das fases e a faixa de pico.",
+        "Estudo independente; data augmentation somente se necessario e restrito ao treino.",
     ),
     ProjectPhase(
         6,
         "ml_brazil_teleconnection_xai",
         "Distribuicao no Brasil com Machine Learning (RF/XGBoost) e XAI",
-        "Mesmo estudo espaco-temporal da Fase 4 com RF/XGBoost em cada pixel CHIRPS "
-        "original, 31 variaveis, fase no tempo fonte e XAI OOS; regioes/biomas sao resumos.",
-        "Execucao independente sobre dados das Fases 1 e 2; comparacoes historicas sao opcionais.",
+        "Random Forest e XGBoost para a relacao ENSO-Brasil por pixel, regiao e bioma.",
+        "Lags e distribuicao espacial-temporal; augmentation ainda sem decisao.",
     ),
     ProjectPhase(
         7,
         "convlstm_cycle",
         "Ciclo ENSO com redes neurais ConvLSTM",
-        "Mesmo mecanismo das Fases 3 e 5 com PyTorch ConvLSTM: aprende a evolucao espaco-temporal "
-        "do Pacifico equatorial, identifica ciclos EN/LN, mapeia as 4 fases e ranqueia "
-        "variaveis por etapa com XAI.",
-        "Pode ser executada diretamente a partir das Fases 1 e 2, sem gates intermediarios.",
+        "ConvLSTM para prever antecipadamente a evolucao das fases e a faixa de pico.",
+        "Estudo independente; data augmentation somente se necessario e restrito ao treino.",
     ),
     ProjectPhase(
         8,
         "convlstm_brazil_teleconnection",
         "Distribuicao no Brasil com redes neurais ConvLSTM",
-        "Mesmo estudo das Fases 4 e 6 com PyTorch ConvLSTM probabilistica no grid CHIRPS nativo: projeta a influencia "
-        "do El Nino/La Nina sobre a chuva do Brasil no espaco e no tempo, por fase, regiao "
-        "e bioma.",
-        "Pode ser executada diretamente a partir das Fases 1 e 2, sem gates intermediarios.",
+        "ConvLSTM para a distribuicao espacial-temporal do sinal no Brasil.",
+        "Estudo independente por pixel, regiao e bioma; augmentation ainda sem decisao.",
     ),
     ProjectPhase(
         None,
         "faseweb_publication_operation",
         "Publicacao e operacao",
-        "Painel/publicacao web e rotina de recalibracao recorrente consumindo saidas numericas das fases disponiveis.",
-        "FaseWEB concentra publicacao, painel e operacao recorrente.",
+        "Publicacao, painel e operacao recorrente da previsao antecipada da faixa de pico.",
+        "Cada produto declara sua fase de origem; nao ha fusao automatica entre fases.",
         "FaseWEB",
     ),
 )

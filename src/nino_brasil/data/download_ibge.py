@@ -20,6 +20,9 @@ class IbgeProduct:
     product_id: str
     filename: str
     description: str
+    source_url: str
+    reference_year: int
+    extraction_dir: str
 
 
 IBGE_PRODUCTS: dict[str, IbgeProduct] = {
@@ -27,11 +30,37 @@ IBGE_PRODUCTS: dict[str, IbgeProduct] = {
         product_id="uf",
         filename="BR_UF_2024.zip",
         description="Unidades da Federacao do Brasil, malha municipal 2024.",
+        source_url=f"{IBGE_MUNICIPAL_2024_BASE_URL}/BR_UF_2024.zip",
+        reference_year=2024,
+        extraction_dir="BR_UF_2024",
     ),
     "municipios": IbgeProduct(
         product_id="municipios",
         filename="BR_Municipios_2024.zip",
         description="Municipios do Brasil, malha municipal 2024.",
+        source_url=f"{IBGE_MUNICIPAL_2024_BASE_URL}/BR_Municipios_2024.zip",
+        reference_year=2024,
+        extraction_dir="BR_Municipios_2024",
+    ),
+    "regioes": IbgeProduct(
+        product_id="regioes",
+        filename="BR_Regioes_2024.zip",
+        description="Grandes Regioes do Brasil, malha territorial 2024.",
+        source_url=f"{IBGE_MUNICIPAL_2024_BASE_URL}/BR_Regioes_2024.zip",
+        reference_year=2024,
+        extraction_dir="BR_Regioes_2024",
+    ),
+    "biomas": IbgeProduct(
+        product_id="biomas",
+        filename="2025_Biomas-e-Sistema-Costeiro-Marinho-do-Brasil-1-250000_shp.zip",
+        description="Biomas do Brasil, escala 1:250.000, revisao 2025.",
+        source_url=(
+            "https://geoftp.ibge.gov.br/informacoes_ambientais/estudos_ambientais/"
+            "biomas/vetores/2025_Biomas-e-Sistema-Costeiro-Marinho-do-Brasil-"
+            "1-250000_shp.zip"
+        ),
+        reference_year=2025,
+        extraction_dir="Biomas_2025",
     ),
 }
 
@@ -46,7 +75,7 @@ def _write_metadata(
 ) -> None:
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     metadata = {
-        "dataset_id": f"ibge_{product.product_id}_2024",
+        "dataset_id": f"ibge_{product.product_id}_{product.reference_year}",
         "name": product.description,
         "institution": "Instituto Brasileiro de Geografia e Estatistica",
         "source_url": url,
@@ -71,7 +100,7 @@ def download_ibge(
         raise ValueError(f"Produto IBGE invalido: {product_id}. Use: {valid}.")
 
     product = IBGE_PRODUCTS[product_id]
-    url = f"{IBGE_MUNICIPAL_2024_BASE_URL}/{product.filename}"
+    url = product.source_url
     raw_path = raw_dir / product.filename
 
     if dry_run:
@@ -84,7 +113,7 @@ def download_ibge(
     if extract:
         if interim_dir is None:
             raise ValueError("interim_dir e obrigatorio quando extract=True.")
-        extracted_path = interim_dir / raw_path.stem
+        extracted_path = interim_dir / product.extraction_dir
         extracted_path.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(raw_path) as zf:
             zf.extractall(extracted_path)

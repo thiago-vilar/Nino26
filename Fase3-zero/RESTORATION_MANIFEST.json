@@ -1,0 +1,1667 @@
+{
+  "schema_version": "nino26-fase3-zero-restoration-v1",
+  "label": "Fase3-zero",
+  "created_utc": "2026-07-14T12:35:39.624293+00:00",
+  "source": {
+    "quarantine": "data/quarantine/output_reset_20260713T220000BRT",
+    "pre_review_commit": "61ae278",
+    "restoration_policy": "byte_preserving_copy_no_scientific_reinterpretation"
+  },
+  "counts": {
+    "notebooks": 11,
+    "figures": 32,
+    "numeric_table_files": 110,
+    "statistics_files": 147,
+    "all_files_excluding_manifest": 309,
+    "total_bytes_excluding_manifest": 378628375
+  },
+  "tree_sha256": "d4780364e03321a81a227eb49154c1c97a5cd28b86db680eb885e9436a55b24b",
+  "notebooks": [
+    {
+      "name": "3A_indices_fisicos_semanais.ipynb",
+      "cells": 8,
+      "markdown_cells": 3,
+      "code_cells": 5,
+      "stored_outputs": 11,
+      "stored_errors": 0,
+      "sha256": "ed14dfbed4c9d0ac176259a24497d3d2f629da57cacb71475df9b1286efb0cfe"
+    },
+    {
+      "name": "3B_alvo_eventos_ciclo_vida.ipynb",
+      "cells": 7,
+      "markdown_cells": 4,
+      "code_cells": 3,
+      "stored_outputs": 16,
+      "stored_errors": 0,
+      "sha256": "352f1aed0b5b017078b1074eab9c778ee04e3cba88f2b43d1221f9d5ca9d6775"
+    },
+    {
+      "name": "3C_precursores_lags.ipynb",
+      "cells": 7,
+      "markdown_cells": 3,
+      "code_cells": 4,
+      "stored_outputs": 6,
+      "stored_errors": 0,
+      "sha256": "c8eb2bc2e831ae631e00a3c9322ae4414cb48af46496c48abb248077112a85c2"
+    },
+    {
+      "name": "3D_rigor_estatistico.ipynb",
+      "cells": 7,
+      "markdown_cells": 3,
+      "code_cells": 4,
+      "stored_outputs": 7,
+      "stored_errors": 0,
+      "sha256": "a932618a107927c55298f9351301893a8db613737c37a1963622cb1bc2a1935d"
+    },
+    {
+      "name": "3E_sensibilidade_temporal.ipynb",
+      "cells": 7,
+      "markdown_cells": 4,
+      "code_cells": 3,
+      "stored_outputs": 10,
+      "stored_errors": 0,
+      "sha256": "9cdf306688a489fef71553ed920a41469251e495ecd8e30de3bd1e1d4ce2d6dc"
+    },
+    {
+      "name": "3F_kelvin_sla.ipynb",
+      "cells": 6,
+      "markdown_cells": 3,
+      "code_cells": 3,
+      "stored_outputs": 7,
+      "stored_errors": 0,
+      "sha256": "530613f84ee01fb3faad4db0348c8cc22e19a195879ab7cde7c56293730935b5"
+    },
+    {
+      "name": "3G_compostos_ssta.ipynb",
+      "cells": 6,
+      "markdown_cells": 3,
+      "code_cells": 3,
+      "stored_outputs": 10,
+      "stored_errors": 0,
+      "sha256": "e35942b687a9257d20f6e7e7b06d7647ccda6fe85d31524d2fbc72a0636f4fe7"
+    },
+    {
+      "name": "3H_genese_precursores_classe.ipynb",
+      "cells": 8,
+      "markdown_cells": 3,
+      "code_cells": 5,
+      "stored_outputs": 12,
+      "stored_errors": 0,
+      "sha256": "467144d214abca7d1f4cdcfae3fcea37f24d83d233a2b285bdfc6e541d9a2f39"
+    },
+    {
+      "name": "3I_interpretacao_integrada.ipynb",
+      "cells": 7,
+      "markdown_cells": 4,
+      "code_cells": 3,
+      "stored_outputs": 13,
+      "stored_errors": 0,
+      "sha256": "271fa17713a6e2b06a6d89f214c352336abac229997855aceb8d0280fa0f7f23"
+    },
+    {
+      "name": "3K_pca_crescimento.ipynb",
+      "cells": 7,
+      "markdown_cells": 4,
+      "code_cells": 3,
+      "stored_outputs": 11,
+      "stored_errors": 0,
+      "sha256": "184580d415036926b8b5cce311726d4f11e9d702cdd7947ed62231db196a54f7"
+    },
+    {
+      "name": "3L_en_ln_caracterizacao.ipynb",
+      "cells": 8,
+      "markdown_cells": 3,
+      "code_cells": 5,
+      "stored_outputs": 5,
+      "stored_errors": 0,
+      "sha256": "597387cd4db5a291c2f70fcf0f77e83a19f4ea519b833372bbaf3dd2292b6ff0"
+    }
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "size_bytes": 92,
+      "sha256": "f55f62f9744049ba24c8895e2066de18fa15143d58aa50afce431c5db1130b83"
+    },
+    {
+      "path": "audit/figuras_manifesto_original.csv",
+      "size_bytes": 14189,
+      "sha256": "ca5033c115f6116fe8ff354e31969e76a2d478185e51f68cb278f129d34b1496"
+    },
+    {
+      "path": "audit/output_reset_receipt.json",
+      "size_bytes": 61668,
+      "sha256": "a6f0d1c55bac0379511c978e54e56d5e480528094d8b36b0515c6d7c44a64aea"
+    },
+    {
+      "path": "notebooks/3A_indices_fisicos_semanais.ipynb",
+      "size_bytes": 4785029,
+      "sha256": "ed14dfbed4c9d0ac176259a24497d3d2f629da57cacb71475df9b1286efb0cfe"
+    },
+    {
+      "path": "notebooks/3B_alvo_eventos_ciclo_vida.ipynb",
+      "size_bytes": 280873,
+      "sha256": "352f1aed0b5b017078b1074eab9c778ee04e3cba88f2b43d1221f9d5ca9d6775"
+    },
+    {
+      "path": "notebooks/3C_precursores_lags.ipynb",
+      "size_bytes": 246888,
+      "sha256": "c8eb2bc2e831ae631e00a3c9322ae4414cb48af46496c48abb248077112a85c2"
+    },
+    {
+      "path": "notebooks/3D_rigor_estatistico.ipynb",
+      "size_bytes": 265800,
+      "sha256": "a932618a107927c55298f9351301893a8db613737c37a1963622cb1bc2a1935d"
+    },
+    {
+      "path": "notebooks/3E_sensibilidade_temporal.ipynb",
+      "size_bytes": 266121,
+      "sha256": "9cdf306688a489fef71553ed920a41469251e495ecd8e30de3bd1e1d4ce2d6dc"
+    },
+    {
+      "path": "notebooks/3F_kelvin_sla.ipynb",
+      "size_bytes": 1265996,
+      "sha256": "530613f84ee01fb3faad4db0348c8cc22e19a195879ab7cde7c56293730935b5"
+    },
+    {
+      "path": "notebooks/3G_compostos_ssta.ipynb",
+      "size_bytes": 959071,
+      "sha256": "e35942b687a9257d20f6e7e7b06d7647ccda6fe85d31524d2fbc72a0636f4fe7"
+    },
+    {
+      "path": "notebooks/3H_genese_precursores_classe.ipynb",
+      "size_bytes": 1342801,
+      "sha256": "467144d214abca7d1f4cdcfae3fcea37f24d83d233a2b285bdfc6e541d9a2f39"
+    },
+    {
+      "path": "notebooks/3I_interpretacao_integrada.ipynb",
+      "size_bytes": 299967,
+      "sha256": "271fa17713a6e2b06a6d89f214c352336abac229997855aceb8d0280fa0f7f23"
+    },
+    {
+      "path": "notebooks/3K_pca_crescimento.ipynb",
+      "size_bytes": 225319,
+      "sha256": "184580d415036926b8b5cce311726d4f11e9d702cdd7947ed62231db196a54f7"
+    },
+    {
+      "path": "notebooks/3L_en_ln_caracterizacao.ipynb",
+      "size_bytes": 506033,
+      "sha256": "597387cd4db5a291c2f70fcf0f77e83a19f4ea519b833372bbaf3dd2292b6ff0"
+    },
+    {
+      "path": "notebooks/fase3_utils.py",
+      "size_bytes": 36098,
+      "sha256": "5aaff2a964856a581d6595e1bb824a11d5701208949fa4dd98db20fb249f5027"
+    },
+    {
+      "path": "notebooks/INDICE_FIGURAS_FASE3.md",
+      "size_bytes": 4825,
+      "sha256": "5a57514cc5111bc09a66868e7a73277348a9921d13176583f7c90d44eb904f2e"
+    },
+    {
+      "path": "notebooks/README.md",
+      "size_bytes": 5776,
+      "sha256": "1d7e0c048a8d031bf4bbe7a424270f866d5d8bd5089284e4c5ef65c908d27262"
+    },
+    {
+      "path": "notebooks/RELATORIO_FINAL_FASE3.md",
+      "size_bytes": 21425,
+      "sha256": "0cdc919fce6285ffdcc99937357555b9890331d9b2834b9c13a7c4781c514cd3"
+    },
+    {
+      "path": "notebooks/roteiro.md",
+      "size_bytes": 3952,
+      "sha256": "377105000afa048d864252a0f3766fd558784db543a6c026c0621be2fb546ffc"
+    },
+    {
+      "path": "outputs/figures/Fig_3A01.png",
+      "size_bytes": 2093064,
+      "sha256": "6853ce2328b0ca32a5a7c474fe6a874197fde2fa79ed3f7d08d1b8f4e4d605d1"
+    },
+    {
+      "path": "outputs/figures/Fig_3A02.png",
+      "size_bytes": 1793565,
+      "sha256": "6fda5b2a70df7b32731a138014eda2b89a1c0733d436f1462ee71c11928fac72"
+    },
+    {
+      "path": "outputs/figures/Fig_3A03.png",
+      "size_bytes": 1723453,
+      "sha256": "2b6fca2fe9b17d30852f4ded0ce5db46b85b5dba1561536db300456d45c20117"
+    },
+    {
+      "path": "outputs/figures/Fig_3B01.png",
+      "size_bytes": 64323,
+      "sha256": "10f15a03307ae3b3762136f8eece3caffa72edb0f03ead2fe15bf635497e4655"
+    },
+    {
+      "path": "outputs/figures/Fig_3B02.png",
+      "size_bytes": 48596,
+      "sha256": "9686d2d1228e0a3d5ddf1f392188651922732b820bd39019e1cdaafc6f2d82b0"
+    },
+    {
+      "path": "outputs/figures/Fig_3B03.png",
+      "size_bytes": 46790,
+      "sha256": "1b94c570e6bd55094da2734d5b52df41e78679df33c7c4dd6d868b9076328c02"
+    },
+    {
+      "path": "outputs/figures/Fig_3B04.png",
+      "size_bytes": 31016,
+      "sha256": "87abfed1859b6bb75d0343793750dde56b4cfa12f473e86578c0a6442f753186"
+    },
+    {
+      "path": "outputs/figures/Fig_3C01.png",
+      "size_bytes": 142143,
+      "sha256": "319c81dd507f2089c89cc3bc3c50122785d979ad3946bcd413215b0b8b65ca8b"
+    },
+    {
+      "path": "outputs/figures/Fig_3C02.png",
+      "size_bytes": 134174,
+      "sha256": "afb8b8dcb0a0fe490c8095b6a25460a15f618bcb553d8b53d3bfcabd6d23217f"
+    },
+    {
+      "path": "outputs/figures/Fig_3D01.png",
+      "size_bytes": 196760,
+      "sha256": "0d82fb553df6e6ccdd259d988a46f137ff487a8ae91c3ba7edeebdf606bd9688"
+    },
+    {
+      "path": "outputs/figures/Fig_3D02.png",
+      "size_bytes": 112159,
+      "sha256": "1cd4594e3ec9f2d4f687172ca935f4075eff5025c51b9b80575c70be78f3c461"
+    },
+    {
+      "path": "outputs/figures/Fig_3E01.png",
+      "size_bytes": 96920,
+      "sha256": "af8f26d17892923ce40988dd27d3060fb33f8da9feb44a5b7fe05232147a971c"
+    },
+    {
+      "path": "outputs/figures/Fig_3E02.png",
+      "size_bytes": 52681,
+      "sha256": "78ab9f13e1b6feae87f83d8b2cde3c903dad85c5784ea5ace14ae399a8fbe959"
+    },
+    {
+      "path": "outputs/figures/Fig_3F01.png",
+      "size_bytes": 1222902,
+      "sha256": "2fe41b822f66b2131d13fa65b2813d47113107bd9e16bda794007beae7adac24"
+    },
+    {
+      "path": "outputs/figures/Fig_3F02.png",
+      "size_bytes": 330573,
+      "sha256": "38d79ee3c848b30b1df8418445abb1deb2bb79fc9e3606bc8fb31fb8d3c58657"
+    },
+    {
+      "path": "outputs/figures/Fig_3G01.png",
+      "size_bytes": 171669,
+      "sha256": "ae0cda2e4c90a0971504114ceb815a2bc8c269ed17870f950b937b6bb0796fd9"
+    },
+    {
+      "path": "outputs/figures/Fig_3G02.png",
+      "size_bytes": 117539,
+      "sha256": "dffaf7f182a06d6bbf8c0b4903f5625aad77fcfc9903c7af37b7d4fe5e0b5eac"
+    },
+    {
+      "path": "outputs/figures/Fig_3G03.png",
+      "size_bytes": 772851,
+      "sha256": "3e2067b87891f5b90dffba67153614e7d3a45dbf3c5a41108f4304e85c9f8f6c"
+    },
+    {
+      "path": "outputs/figures/Fig_3H01.png",
+      "size_bytes": 522508,
+      "sha256": "07d2f7b3ae165f75e35bfadb99f0de986e4eaee15b98a0a30c49ffe0c2c1b579"
+    },
+    {
+      "path": "outputs/figures/Fig_3H02.png",
+      "size_bytes": 390834,
+      "sha256": "3d3b287161e511e374c8b3361f8caf8c0d18fbcc9e9de752b78161af6a748dcf"
+    },
+    {
+      "path": "outputs/figures/Fig_3H03.png",
+      "size_bytes": 694375,
+      "sha256": "0eeb478f634b13e89771453b836c298067cae8e39a6dd3dc23a45c6ecd07ecbe"
+    },
+    {
+      "path": "outputs/figures/Fig_3I01.png",
+      "size_bytes": 67994,
+      "sha256": "3fc134c175de789fe15c98ad65d8131c06ed408728aff03a4eeac055188e925a"
+    },
+    {
+      "path": "outputs/figures/Fig_3I02.png",
+      "size_bytes": 75204,
+      "sha256": "fe9947b4eea46b677bdf45eb6240dbe8037956e2ccfcdecb2a6c144de634831f"
+    },
+    {
+      "path": "outputs/figures/Fig_3I03.png",
+      "size_bytes": 41088,
+      "sha256": "1ca04af166166d451705e2b26c71f3c7396550df364900a51b2161c878293c92"
+    },
+    {
+      "path": "outputs/figures/Fig_3I04.png",
+      "size_bytes": 1325537,
+      "sha256": "0a8676fec62f02575611f474562c68a184d51e57f05beaa2e338303be5a66230"
+    },
+    {
+      "path": "outputs/figures/Fig_3K01.png",
+      "size_bytes": 34507,
+      "sha256": "5b78927877a11b677ff5e5583f229e624346d1b21bb1781b36c61a825f297a8b"
+    },
+    {
+      "path": "outputs/figures/Fig_3K02.png",
+      "size_bytes": 89893,
+      "sha256": "96e8fbb24e0f5d64d95d8170aaefc5a03f9d88a2e0db7b1cff403e126ea463b7"
+    },
+    {
+      "path": "outputs/figures/Fig_3K03.png",
+      "size_bytes": 64993,
+      "sha256": "98461da3fb0d1ec1d01220495663d92cf1d0b3441aa9e3967222c1226956859b"
+    },
+    {
+      "path": "outputs/figures/Fig_3L01.png",
+      "size_bytes": 252004,
+      "sha256": "3a8462d82480c49b7401ac30604e375072e46adef4f23817b55c511ac64dcf1b"
+    },
+    {
+      "path": "outputs/figures/Fig_3L02.png",
+      "size_bytes": 183915,
+      "sha256": "05029cf854e6be1afab13cab5e931932a3da2235e56ae43369579ef51371ec10"
+    },
+    {
+      "path": "outputs/figures/Fig_3L03.png",
+      "size_bytes": 77403,
+      "sha256": "60ea9b1f82fad701d661460ecc4c3ac625b64de336756ada199c1a1610b6a927"
+    },
+    {
+      "path": "outputs/figures/Fig_3L04.png",
+      "size_bytes": 91991,
+      "sha256": "6d514400e6b9739ab0f9387be1c415ccb15be9abd44fab2a2e4a0b8efe050c6f"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A01/cobertura.csv",
+      "size_bytes": 2142,
+      "sha256": "162bbc86b0eaef2f6d30c4c5301e97cd19af7d94e72f7c9b4e34b29ba771dbc4"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A01/fontes.csv",
+      "size_bytes": 629,
+      "sha256": "eb75e39e3bc7878b1ee0993854f686317bec17d992b2c71cf9198d49d8b70eb5"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A01/manifest.csv",
+      "size_bytes": 1363,
+      "sha256": "23530252054f284dae62115130f41d4ecb9365f1d3459ca3fabedb973bc18804"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A01/README.md",
+      "size_bytes": 553,
+      "sha256": "f48793f1bfd14cefed30d06c89c5aa38ed19204d3c3566bd52372b43836d319c"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A02/epicentros.csv",
+      "size_bytes": 1005,
+      "sha256": "7679d57c0558aed9f9eb4f4761f3fdd034471e1e89e75fa457209a6ad9c28858"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A02/hovmoller.csv",
+      "size_bytes": 58822998,
+      "sha256": "36b7a191b25478e6811da1584eac0a37d4a1d262caebcf11b31e51e76967e4f4"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A02/manifest.csv",
+      "size_bytes": 1387,
+      "sha256": "456f50d94532be85b0e1edcec3da1084b8a521d325d73854708c83c690d81475"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A02/README.md",
+      "size_bytes": 562,
+      "sha256": "0341a8064e564d5585321d740a318fa94aebfa19a052bb50de91bd13c7530c88"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A03/manifest.csv",
+      "size_bytes": 1288,
+      "sha256": "efd8c15f5454ab0168a5edfddaae65f5bf4c20f7f285ff78e08e6ada5a7aee67"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A03/README.md",
+      "size_bytes": 556,
+      "sha256": "706fb7b1cefd00f6ab56e8244efb04081a454381beef74df70f0157649f64aa7"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A03/sla.csv",
+      "size_bytes": 50964082,
+      "sha256": "c30ef54a08bfed8e68cf97e6064016afaef72922148cc1ec7e995aa6c8bd5dd9"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3A03/vento.csv",
+      "size_bytes": 9511,
+      "sha256": "787540851a2f2373c364028932f846d353940dc271e17f096ffcf4590d97a7ce"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B01/estatisticas_fase.csv",
+      "size_bytes": 44121,
+      "sha256": "e1a1b4b9780005194b4404485d2ac3db9f5ea9936eebc19f501429034397de45"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B01/manifest.csv",
+      "size_bytes": 1075,
+      "sha256": "8d6c851c252eaab449f57f33515d350477b32027bec0a8736384a13c3a38cce7"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B01/README.md",
+      "size_bytes": 536,
+      "sha256": "0ff48ab57416d1fdb8cb3c4d956718db8fcfed56f046215a4d2de0f27da16f48"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B02/ciclo_eventos.csv",
+      "size_bytes": 8548,
+      "sha256": "2825c8100c0a894d927bdee2a754404a729b55d2405b9d6e60dc1b398a7925e1"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B02/manifest.csv",
+      "size_bytes": 814,
+      "sha256": "5b4a68909f007dcb221912160923fd4e3af2d9066f637a64a31473470135e9b1"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B02/README.md",
+      "size_bytes": 546,
+      "sha256": "f866cd59989aa6402bcbc2568e4cf9b3f8f4148639772e548357be54c597e36f"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B03/eventos.csv",
+      "size_bytes": 6223,
+      "sha256": "86f8371cd0abb80e7fbf733ef19285b76d42bebb48d0131e8f626b5f8ee58fca"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B03/manifest.csv",
+      "size_bytes": 1060,
+      "sha256": "1d033124c78493b79e9652ba717d9e4b58cac0c3de6656c7c015de82b303bfc3"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B03/README.md",
+      "size_bytes": 486,
+      "sha256": "a40ee338c952bb83af33ae484fd5c06de899caa0c77b33a07844a0368335e32d"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B04/manifest.csv",
+      "size_bytes": 897,
+      "sha256": "e54007a18a88f6d61320544f0c68883e8ced647c154761f6f65e7ce3a45531ac"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B04/README.md",
+      "size_bytes": 506,
+      "sha256": "73d6fa6dd91387f79da4d9ca9ad336453498133163659f146eda0e13fc6d8016"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3B04/sensibilidade.csv",
+      "size_bytes": 7843,
+      "sha256": "33cc87e9da60b81e1e6b2f704400ca25a37d717493c01bd437d0f592acfd008e"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C01/correlacoes.csv",
+      "size_bytes": 46017,
+      "sha256": "ff5dc4dd1565cefb622676953ce4174e1f0051f15757b3dae6d9c59ad63f4814"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C01/manifest.csv",
+      "size_bytes": 2867,
+      "sha256": "1e3368cbe2134cb6e71250f1170423e4705f4e08c71994b6fbe6d1f04e84f20a"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C01/ranking.csv",
+      "size_bytes": 7865,
+      "sha256": "adb3603e4d23915d231358dfb98de4e960280eaad2c8161062cd1bdf82161a58"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C01/README.md",
+      "size_bytes": 647,
+      "sha256": "f66b5aa34d8d6c15ce5f0c6ec0ae7d074fa82929206648959d8f18e64955d002"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C01/screening.csv",
+      "size_bytes": 553,
+      "sha256": "78d3d885c8bf46b4c2e5b891638b6a8734835cc3782cf287af0fb818ee682c8f"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C02/manifest.csv",
+      "size_bytes": 705,
+      "sha256": "5dd072ec490201026d3d4437c40b7ba9d4c488347838dcec91a191d0498c1528"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C02/mapa_longitude_lag.csv",
+      "size_bytes": 798644,
+      "sha256": "e6a7aa612e9a23fc7a773a626730b23932e1464ae9d5a8e688993570ff802c85"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3C02/README.md",
+      "size_bytes": 458,
+      "sha256": "c26b06c89cf4020b48a02a2b9488a9f5c890b90120a02ca300b3c39864a73ab1"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3D01/manifest.csv",
+      "size_bytes": 1073,
+      "sha256": "2605e5f43dd0706594213ee576bd8992ba1530f77f583922170ea6d19106c6d5"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3D01/ranking_significativo.csv",
+      "size_bytes": 6791,
+      "sha256": "f84817d5e8fd181134d50bbcf93ef09130c459e42b3fa0ea5accfcae3b7f6b06"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3D01/README.md",
+      "size_bytes": 459,
+      "sha256": "1d680854e973896c71907ac24988880906315387772f4107a727fdf70e30b0e3"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3D02/manifest.csv",
+      "size_bytes": 760,
+      "sha256": "c388ee005097e7d184e4cb1c49a934f58c356db1993657c440b105cbcffce45a"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3D02/mapa_fdr.csv",
+      "size_bytes": 1446368,
+      "sha256": "71b6b3be5f5ae09ba6aba32761b848453c77205d30b222ec77f78a07e757eba4"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3D02/README.md",
+      "size_bytes": 453,
+      "sha256": "b2373a109f46724a3371a3fffc4929d9f440363b8a4969aec3124933da976a75"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3E01/bootstrap_resumo.csv",
+      "size_bytes": 246741,
+      "sha256": "03084c94c002b73d7bce85d153cc528324fcf85cf385e457878bea837d58930d"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3E01/manifest.csv",
+      "size_bytes": 1445,
+      "sha256": "08900aa3e8807e9730df18e5d83c744567caeccb7b71a5b46ff0edef9a4c45c9"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3E01/README.md",
+      "size_bytes": 529,
+      "sha256": "8c121f62d93b59720c7e54de29e54142ca57a7cfd40f978a8b560af96c13a93c"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3E02/bootstrap_replicas.csv",
+      "size_bytes": 8559201,
+      "sha256": "dcb1b16acc6be7b3230b3b55d8da6bb3f4bdaedd738167ad658a236488544434"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3E02/manifest.csv",
+      "size_bytes": 1161,
+      "sha256": "cc568cb92a977a2f98b84d0f9b18a292bc312bac77b0fb89f7b9c982e0a737c3"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3E02/README.md",
+      "size_bytes": 529,
+      "sha256": "39413a837aefd7e751daf69d1229ec4af2b31088abe0c28baefbc45800db3d2b"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F01/manifest.csv",
+      "size_bytes": 1356,
+      "sha256": "7d7095db4913ab04410bc661b0cdd875efa1e818795c97c9313e7b7ef7b929f8"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F01/README.md",
+      "size_bytes": 549,
+      "sha256": "40f716c925c820b3d40c9a4fcc3ee9ab9e2ba45d7ea809387e0ae3d5256653e3"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F01/setas_kelvin.csv",
+      "size_bytes": 1021,
+      "sha256": "b8d2a7712f8893ad01b298c897bf233de57a1b597579e92975f91ed764acfe4f"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F01/sla.csv",
+      "size_bytes": 51020036,
+      "sha256": "257cc7d99497104ffe6e5818d11256e7abc5d8c9cbc4fe2bc1c53669945f4c11"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F02/manifest.csv",
+      "size_bytes": 732,
+      "sha256": "8f0975675b2aa3208102805a130885f94f788e303d5063d2f5720002bd32342b"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F02/README.md",
+      "size_bytes": 452,
+      "sha256": "a1395f74f323f835a24c6986a241a196a305d6410c54033e2a835f99a80c6da9"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3F02/series_sla_taux.csv",
+      "size_bytes": 119649,
+      "sha256": "e80b31c75a1d54b8abea319e60c0787df3b95891655186946a8184d20c831a3c"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G01/composto_agregado.csv",
+      "size_bytes": 2499,
+      "sha256": "35b4686301a6454f88643673140e1ca964a971108806c07dd5a908f2f7054836"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G01/composto_classes.csv",
+      "size_bytes": 17695,
+      "sha256": "d976afcf1ac8de84fd3bde04e8b95a549f01612f76eeb148184004943c78becf"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G01/manifest.csv",
+      "size_bytes": 1294,
+      "sha256": "2a616a3754c5ecdc780e0513712fab5a33db2444df9f0a8f9603a94de65dc12e"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G01/README.md",
+      "size_bytes": 567,
+      "sha256": "e1b3b4fb252caac4fcdbd6f50c6f9592a79e9a60a61449414de758ceeb9b25ed"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G02/escalonamento.csv",
+      "size_bytes": 79,
+      "sha256": "d4920fb418ac8f088a81959e71bfc53c010d5325e7b463178ce38a3f426325ab"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G02/eventos.csv",
+      "size_bytes": 828,
+      "sha256": "7c79d7e57356285f2d1452a653cc423d94b379c192321df082c816eb9bff343b"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G02/manifest.csv",
+      "size_bytes": 1365,
+      "sha256": "e12b9477cd31b96565a1b48624288f0d58bd2ac08ed2c09ad101395618609d47"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G02/README.md",
+      "size_bytes": 551,
+      "sha256": "c1f37f7f92d28b1fbd2127c640849d7681fc1c188d7b2a679f59ff866b9c5266"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G03/estado_atual.csv",
+      "size_bytes": 55,
+      "sha256": "e4d48532aa55e1be0cc4072b9fe562bc55f1d7ea22e9e29bbc1e644dd180fccd"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G03/manifest.csv",
+      "size_bytes": 1382,
+      "sha256": "e574f5c7d4fd5a8c3ad9c23c09a66094e97b63f1170734a2082b1d19a21898eb"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G03/mapa_eventos.csv",
+      "size_bytes": 594,
+      "sha256": "d5556142a53b28c6b5b32907e22662de93f17500c629d5b0bd3df9577fc8f964"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3G03/README.md",
+      "size_bytes": 549,
+      "sha256": "f43234bf5d892c0347217ec9ec32f1608479ac395b5833059bb80edc97e826f1"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H01/classes.csv",
+      "size_bytes": 469,
+      "sha256": "a2932de26f1b593fd1d77bb61502002b843e1a2d11ae7f752199764d2d694266"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H01/compostos.csv",
+      "size_bytes": 75498,
+      "sha256": "6e7a816e0f6440e531cf3dea9800f8d1f6f906a29f1afb7b3408669054147819"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H01/manifest.csv",
+      "size_bytes": 1391,
+      "sha256": "b8022103a56fe62603838ab8170f41f736a32cc21e7d990cd2e82f3fda63c7e6"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H01/README.md",
+      "size_bytes": 556,
+      "sha256": "6bb32657eb92c006b59ef9df39c2d96230343d662d25720cbf3acf0614f4e666"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H02/ciclo_medio.csv",
+      "size_bytes": 17007,
+      "sha256": "e09975aee6e30da85391480db7ec7a30ced96e5028349b7a132a77539f1513e1"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H02/fases.csv",
+      "size_bytes": 314,
+      "sha256": "a0890e84fa4c3a6f73adb96e81997001fdc5bf89ae62b5240c12fab3b5e93971"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H02/manifest.csv",
+      "size_bytes": 1467,
+      "sha256": "28ad917e2226886d2ebeb78468584d15e5eab3d57cf25c4a0c92fb9ea0f87c09"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H02/README.md",
+      "size_bytes": 552,
+      "sha256": "f7cd166d3f169f929935d3751a0d228cc9723d5017dfdd825d0b37a19a6ac1d5"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H03/ciclo_subsuperficie_atmosfera.csv",
+      "size_bytes": 35452,
+      "sha256": "c46a204ec789c2609913ebbf2a452a9e1f5063e365c80080845194a3596f601c"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H03/fases.csv",
+      "size_bytes": 314,
+      "sha256": "a0890e84fa4c3a6f73adb96e81997001fdc5bf89ae62b5240c12fab3b5e93971"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H03/manifest.csv",
+      "size_bytes": 1793,
+      "sha256": "2ce574b49c6aef16597c23528f0fcff7890ea5298e0b214def84735b8188017d"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3H03/README.md",
+      "size_bytes": 594,
+      "sha256": "b049629a3e36e5475bf08ef2a4c3b377f0ec382d6e8bcab72671809b3b10bd1d"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I01/discriminantes.csv",
+      "size_bytes": 18409,
+      "sha256": "d213a710f7b8d89aed3f53d6991abaf200b9023f9f6209ffa6a3e4133c03091d"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I01/manifest.csv",
+      "size_bytes": 1146,
+      "sha256": "b96c05815da3afb45b5f5d9d28807dbfddd6a7e58463e1501817e16a337c72b4"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I01/README.md",
+      "size_bytes": 563,
+      "sha256": "3258aefc9d839057d93ab95fa0f99b0276188d62e33dfa81779d17617e5d156e"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I02/manifest.csv",
+      "size_bytes": 1472,
+      "sha256": "918bb7fcc9006f3c2d1338c327639432a8b3b7e08834d683b336841a9330f9eb"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I02/melhores_lags.csv",
+      "size_bytes": 30680,
+      "sha256": "07a23cb055d9b58a4961382c706a0198e71983ad9fbf2874e15f9b426b22b28c"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I02/README.md",
+      "size_bytes": 539,
+      "sha256": "bcd64f0b072077b9949f753618fc4b1bf845ebe1194d2a5e8a7ed371a4c8eb58"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I03/folds_rolling_origin.csv",
+      "size_bytes": 6935,
+      "sha256": "c9f100274664c1bc29efbdff47695bdce833751343a5615713f6d6c130f92782"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I03/manifest.csv",
+      "size_bytes": 1060,
+      "sha256": "e7f2ae847f1d0298f20205cbc3d54a53affbe232fbf6cdf6540349d31296097b"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I03/README.md",
+      "size_bytes": 569,
+      "sha256": "bc84d4a529543abc9a8538db5b3027326a19804e4c647892ec9ce13cf8c58e6b"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I04/catalogo.csv",
+      "size_bytes": 8098,
+      "sha256": "b129359e90eaa9e6356d2001cd5517879d8b2f04996f778d7d4656207ec26e9e"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I04/manifest.csv",
+      "size_bytes": 852,
+      "sha256": "98c51161517a1b7ea56b3a1baeb1c827488a053780df229e91d8a5349ae12ef6"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3I04/README.md",
+      "size_bytes": 485,
+      "sha256": "ceb94a48f5675295fbd4165f7e4c50614a151469689492541d15342374a1b743"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K01/manifest.csv",
+      "size_bytes": 842,
+      "sha256": "29b6f17408766c24a2fe4d871384f1b1c4335c93c574b1376f4430a51abaa7bd"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K01/pca_variancia.csv",
+      "size_bytes": 3066,
+      "sha256": "da9ce880b038f5a02849153cc686652b4df6ca3426251a80d15fedf15b05b282"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K01/README.md",
+      "size_bytes": 521,
+      "sha256": "25eebf50e1b03e4dd450542d4cb6c9aab175cff09ceec1c546f898b09bede8d9"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K02/manifest.csv",
+      "size_bytes": 842,
+      "sha256": "29b6f17408766c24a2fe4d871384f1b1c4335c93c574b1376f4430a51abaa7bd"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K02/pca_variancia.csv",
+      "size_bytes": 3066,
+      "sha256": "da9ce880b038f5a02849153cc686652b4df6ca3426251a80d15fedf15b05b282"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K02/README.md",
+      "size_bytes": 489,
+      "sha256": "9d821b1e5a7632d9e64a9d57c36b0c97d97e7c8832074a261607da0e9bf76775"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K03/manifest.csv",
+      "size_bytes": 854,
+      "sha256": "f88e943631dd67ea0b0162cdd17ef4a7f791c9098e2a1426e44e58924df288b2"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K03/pca_loadings.csv",
+      "size_bytes": 33280,
+      "sha256": "cea5059ba9edb8a501986440b2b497b2e2eb5ef6d01d7f6045102bcb55469ea7"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3K03/README.md",
+      "size_bytes": 503,
+      "sha256": "65b627078887b74946b6271b0c88e04e350d2a8be4af761cbe3d94f350e1b14b"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L01/ciclo_eventos.csv",
+      "size_bytes": 8548,
+      "sha256": "2825c8100c0a894d927bdee2a754404a729b55d2405b9d6e60dc1b398a7925e1"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L01/estatisticas_fase.csv",
+      "size_bytes": 44121,
+      "sha256": "e1a1b4b9780005194b4404485d2ac3db9f5ea9936eebc19f501429034397de45"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L01/manifest.csv",
+      "size_bytes": 1725,
+      "sha256": "9f20e1ae4da0970460c1f9a946c0fcbe8c9aa4aa1cd04793bc8cd3057c19d47e"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L01/README.md",
+      "size_bytes": 572,
+      "sha256": "7617f4f079c1cf72f9a19e93da33452bc1137e951138b22c4dfeceb8c08e45ba"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L02/discriminantes.csv",
+      "size_bytes": 18409,
+      "sha256": "d213a710f7b8d89aed3f53d6991abaf200b9023f9f6209ffa6a3e4133c03091d"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L02/manifest.csv",
+      "size_bytes": 1146,
+      "sha256": "b96c05815da3afb45b5f5d9d28807dbfddd6a7e58463e1501817e16a337c72b4"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L02/README.md",
+      "size_bytes": 470,
+      "sha256": "51e5b192738aecd879171f03c8171a40fb8af699802af65d23db1cef08f65232"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L03/duracao.csv",
+      "size_bytes": 1346,
+      "sha256": "6c1e5583a3f383ddca7fb7dd5d320acbe00eef67e75de317295cdee37d4811bf"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L03/manifest.csv",
+      "size_bytes": 800,
+      "sha256": "6fb9a433a64e747c92423e388a688908a5b4ad26e8c8ad337c18c2355e6736be"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L03/README.md",
+      "size_bytes": 459,
+      "sha256": "39d385c666cd893c282167e4a7938d5e77f75cbb034aedca2807137501f92237"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L04/manifest.csv",
+      "size_bytes": 1532,
+      "sha256": "8bba2192ac754caa3526b77ec2d5ec1bca715a78e63b2f85d388275fd52af9fe"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L04/pca_loadings.csv",
+      "size_bytes": 33280,
+      "sha256": "cea5059ba9edb8a501986440b2b497b2e2eb5ef6d01d7f6045102bcb55469ea7"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L04/pca_variancia.csv",
+      "size_bytes": 3066,
+      "sha256": "da9ce880b038f5a02849153cc686652b4df6ca3426251a80d15fedf15b05b282"
+    },
+    {
+      "path": "outputs/numeric-tables/Fig_3L04/README.md",
+      "size_bytes": 562,
+      "sha256": "c530edcae0207de854dad0cf42a7c644c65413c2ce762e379c5dbf0701a4a14f"
+    },
+    {
+      "path": "outputs/statistics/phase3_best_lags_fdr.csv",
+      "size_bytes": 30957,
+      "sha256": "419519e10e9ed6038ffa21f349b4da80be9ff2d5e125b8ec7bfcf2feeccf4e09"
+    },
+    {
+      "path": "outputs/statistics/phase3_best_lags_fdr.csv.manifest.json",
+      "size_bytes": 12784,
+      "sha256": "bdb7a2e77d70d50d70f8732c5645440f8a3672e2356eb366e2c7975b9e776cfb"
+    },
+    {
+      "path": "outputs/statistics/phase3_discriminantes_por_periodo.csv",
+      "size_bytes": 18539,
+      "sha256": "256e47e797272359270a09678b96d6c521fed8b38cfb6bd0d466fd0e139c7eb0"
+    },
+    {
+      "path": "outputs/statistics/phase3_discriminantes_por_periodo.csv.manifest.json",
+      "size_bytes": 11854,
+      "sha256": "98d0a80cd94812e81f284b2071a032eb3540df3c713e85abca6fd69cdc5a7a25"
+    },
+    {
+      "path": "outputs/statistics/phase3_duracao_por_tipo_classe.csv",
+      "size_bytes": 1313,
+      "sha256": "468c65e832ea3f983516c0e665797438433b7953fced45552b33cedfe3cd7dc8"
+    },
+    {
+      "path": "outputs/statistics/phase3_duracao_por_tipo_classe.csv.manifest.json",
+      "size_bytes": 10828,
+      "sha256": "6a407f7069640731045c6ea3eac43c8e3cbfda5bc100d3d975a620d475858aa4"
+    },
+    {
+      "path": "outputs/statistics/phase3_event_lifecycle_en_ln.csv",
+      "size_bytes": 8457,
+      "sha256": "6f9e558f22aa39c00b076874e6b67df231b5079d44a4a3f96d6a4c755c687f06"
+    },
+    {
+      "path": "outputs/statistics/phase3_event_lifecycle_en_ln.csv.manifest.json",
+      "size_bytes": 11028,
+      "sha256": "c9eeec2668fdc8e79a159629a7052f18098989c86c682777cf33f44b262b288d"
+    },
+    {
+      "path": "outputs/statistics/phase3_events_en_ln.csv",
+      "size_bytes": 6199,
+      "sha256": "17621aaef563999e14fc5f200e90d8192518cad8dd44fae41d084aa3bc45febe"
+    },
+    {
+      "path": "outputs/statistics/phase3_events_en_ln.csv.manifest.json",
+      "size_bytes": 11708,
+      "sha256": "9c939563ddeea0d1ecb38bae230265223fbb181c8c3fdb2e766e81cbb26f8893"
+    },
+    {
+      "path": "outputs/statistics/phase3_fase_stats_variaveis.csv",
+      "size_bytes": 44363,
+      "sha256": "6f6357951fa5613490da7937c926958110d43cd1c40927e6c676928442a0f95f"
+    },
+    {
+      "path": "outputs/statistics/phase3_fase_stats_variaveis.csv.manifest.json",
+      "size_bytes": 11512,
+      "sha256": "40d99655fbfaf2336ba8aaa1e94d6f9b62dbcb50a4b9c5e1656aff29475753ad"
+    },
+    {
+      "path": "outputs/statistics/phase3_fases_semanais_en_ln.csv",
+      "size_bytes": 273081,
+      "sha256": "ddfa077607daa023f552d4076edfc367f65171851a52f0923f70fe47adbeaa9d"
+    },
+    {
+      "path": "outputs/statistics/phase3_fases_semanais_en_ln.csv.manifest.json",
+      "size_bytes": 11424,
+      "sha256": "d97a61620c5b6c265ab691acef62fdf68115a70867d97c92de79e7e0491398b3"
+    },
+    {
+      "path": "outputs/statistics/phase3_figuras_catalogo.csv",
+      "size_bytes": 8066,
+      "sha256": "3e61717cd2cd9e3c4acb3b6957158057ba809229a8b7414039997b4e6023b7cd"
+    },
+    {
+      "path": "outputs/statistics/phase3_figuras_catalogo.csv.manifest.json",
+      "size_bytes": 15240,
+      "sha256": "64478ad78f4a1023eba1b7e119a78393eae3e4502cc9a324e22aead617acfd0a"
+    },
+    {
+      "path": "outputs/statistics/phase3_lag_event_bootstrap_replicates.csv",
+      "size_bytes": 8537433,
+      "sha256": "f1cee5e789f5b427c58761470422609285694073106955830946d47f266734f7"
+    },
+    {
+      "path": "outputs/statistics/phase3_lag_event_bootstrap_replicates.csv.manifest.json",
+      "size_bytes": 12122,
+      "sha256": "89959c3e1e2579f549aefe024a9701951fb436bef8d6c085589051970ea8c063"
+    },
+    {
+      "path": "outputs/statistics/phase3_lag_event_bootstrap_summary.csv",
+      "size_bytes": 245723,
+      "sha256": "d4881f3b1dc4e28a6e6f895e756ba2b848c01f138ba05b505fdcc9362e8606b1"
+    },
+    {
+      "path": "outputs/statistics/phase3_lag_event_bootstrap_summary.csv.manifest.json",
+      "size_bytes": 12925,
+      "sha256": "36a6a11a469f5589ac4150cf5d16eb1c4c8870bebd82f9c5732806cdf64f0714"
+    },
+    {
+      "path": "outputs/statistics/phase3_lag_scan_en_ln_fases.csv",
+      "size_bytes": 7130105,
+      "sha256": "4842817ee79dbf8f6cef6f2db6f18dafd7cad4978903ad8189363bd663da8fd8"
+    },
+    {
+      "path": "outputs/statistics/phase3_lag_scan_en_ln_fases.csv.manifest.json",
+      "size_bytes": 12753,
+      "sha256": "fbb664b9a02c340cf3c5188a998f4e2810b46ca84c139707009760130ae19006"
+    },
+    {
+      "path": "outputs/statistics/phase3_pca_loadings_por_fase.csv",
+      "size_bytes": 34016,
+      "sha256": "2ec6e2ca81d261d52a0cf9cceb6156ae1ad8c655137d9e49743232b67a207c0a"
+    },
+    {
+      "path": "outputs/statistics/phase3_pca_loadings_por_fase.csv.manifest.json",
+      "size_bytes": 10871,
+      "sha256": "7c1278bcc1d3f92080e7542db374a8c45573a7fa4e2f0f59f83bc03a1b265a9e"
+    },
+    {
+      "path": "outputs/statistics/phase3_pca_por_fase.csv",
+      "size_bytes": 3059,
+      "sha256": "005b572f5669f24dfabe2b9dda1c547ebcd7aaac5123c482b632444e102f987d"
+    },
+    {
+      "path": "outputs/statistics/phase3_pca_por_fase.csv.manifest.json",
+      "size_bytes": 10896,
+      "sha256": "a28de04cafea88cf0f4468635e5a41f7dba5276d78d70ce1ffb5381965d2d28a"
+    },
+    {
+      "path": "outputs/statistics/phase3_peak_band_sensitivity.csv",
+      "size_bytes": 7773,
+      "sha256": "1fed6186567187524b65d9934115aa1ebc93ec19cb571c72b2bbcf9b770f99a5"
+    },
+    {
+      "path": "outputs/statistics/phase3_peak_band_sensitivity.csv.manifest.json",
+      "size_bytes": 11138,
+      "sha256": "c9cf587d39586d344f5c07139ba38848cf1fe0af89242e23eb320a16108c1a6a"
+    },
+    {
+      "path": "outputs/statistics/phase3_preprocessing_contract.csv",
+      "size_bytes": 10661,
+      "sha256": "dd6d6bffbce60c96fcc70f5a769b20b16b4e89aac60dbcbf2002762f7beb2c1d"
+    },
+    {
+      "path": "outputs/statistics/phase3_preprocessing_contract.csv.manifest.json",
+      "size_bytes": 11506,
+      "sha256": "b2016beb7e5bab0d1477a98b2c78340ba1cc355b027fb22c900c180639aeafcf"
+    },
+    {
+      "path": "outputs/statistics/phase3_rolling_origin_folds.csv",
+      "size_bytes": 6915,
+      "sha256": "3e7afd41afa53cb2e80feb0e9acf9308430549d8ae6e4a0960d92c5f373027bd"
+    },
+    {
+      "path": "outputs/statistics/phase3_rolling_origin_folds.csv.manifest.json",
+      "size_bytes": 11566,
+      "sha256": "da43b17cb7d905509a3a6ca1cb2f06453e4484876ceccb272096711a65d3428b"
+    },
+    {
+      "path": "outputs/statistics/phase3_rolling_origin_targets.csv",
+      "size_bytes": 1837056,
+      "sha256": "78e016b958a441a5524bab80c2b2d40f03eacbbae992408ecf576e0a04b98d81"
+    },
+    {
+      "path": "outputs/statistics/phase3_rolling_origin_targets.csv.manifest.json",
+      "size_bytes": 11631,
+      "sha256": "67006c2661ee2a5d65b11ac3f56002cba666977d1604d6506a4e5a690711c893"
+    },
+    {
+      "path": "outputs/statistics/phase3_temporal_integrity_audit.csv",
+      "size_bytes": 2349,
+      "sha256": "550d5d781e02a8708338db737c817f89cd7f5e9264371d4df70aea56fc319f74"
+    },
+    {
+      "path": "outputs/statistics/phase3_temporal_integrity_audit.md",
+      "size_bytes": 1375,
+      "sha256": "2506322da178ea2995283e08d198e2da0d9da933ad1e38f54821e559a586c37d"
+    },
+    {
+      "path": "outputs/statistics/phase3A_cobertura_indices.csv",
+      "size_bytes": 543,
+      "sha256": "c11793ada99013a8c717f9e6994fa0e3e9c1633a15fc37dfe45dd7a226afabf5"
+    },
+    {
+      "path": "outputs/statistics/phase3A_cobertura_variaveis.csv",
+      "size_bytes": 2110,
+      "sha256": "05ad572efcf3b44a81d9ef0a213327330a377b387ea6ffc0a2f55155ba6a88b5"
+    },
+    {
+      "path": "outputs/statistics/phase3A_cobertura_variaveis.csv.manifest.json",
+      "size_bytes": 8056,
+      "sha256": "d5976fb96b34748955a30c7ac06599382badea76df7aa4d1355076644d4c9a31"
+    },
+    {
+      "path": "outputs/statistics/phase3A_fontes_unidades.csv",
+      "size_bytes": 933,
+      "sha256": "3accfd73a653f341f3b7ff0d57c11eb2d4563cf690ab6d4fd5c062e876f3bd08"
+    },
+    {
+      "path": "outputs/statistics/phase3A_fontes_variaveis.csv",
+      "size_bytes": 624,
+      "sha256": "c4421c11b7eec4d27228da4826e377533c58957ad7f0eaf4f1268755f5c584f3"
+    },
+    {
+      "path": "outputs/statistics/phase3A_fontes_variaveis.csv.manifest.json",
+      "size_bytes": 7869,
+      "sha256": "d24656dc8218ff664a31c6605c0c55d52f445388e0ebffb8414a9ada2ed5cf32"
+    },
+    {
+      "path": "outputs/statistics/phase3A_hovmoller_ssta.csv",
+      "size_bytes": 57894385,
+      "sha256": "4b037681c1599f5c83f2b81e25899b0be158e51b230f6901b7cdfa7062b07899"
+    },
+    {
+      "path": "outputs/statistics/phase3A_hovmoller_ssta.csv.manifest.json",
+      "size_bytes": 7821,
+      "sha256": "80250c3f2792780b4382c5d9f4fc5dbbc9e8093a6aabf1e05c705ed7265ed838"
+    },
+    {
+      "path": "outputs/statistics/phase3A_picos_epicentros.csv",
+      "size_bytes": 991,
+      "sha256": "a0096d56d23b895d64c8b295ac421ec1c1be7043e08bbedccf436a7b513a8dfd"
+    },
+    {
+      "path": "outputs/statistics/phase3A_picos_epicentros.csv.manifest.json",
+      "size_bytes": 8162,
+      "sha256": "62e2f78409219415f6fea88122a143e3078d87afba82140dbe30ef453bd5cb75"
+    },
+    {
+      "path": "outputs/statistics/phase3A_sla_janelas_long.csv",
+      "size_bytes": 49675671,
+      "sha256": "f8689a90fdb81bb372e622a557e8bd5f5ca8cef4966460c88f1ca5c4a57de3e3"
+    },
+    {
+      "path": "outputs/statistics/phase3A_sla_janelas_long.csv.manifest.json",
+      "size_bytes": 7858,
+      "sha256": "4a4be5072e139d2cd0b9eeedadf008178cb6ca81fda4a04f8a8384e4ac1ff0a4"
+    },
+    {
+      "path": "outputs/statistics/phase3A_taux_quinzenal_janelas.csv",
+      "size_bytes": 9363,
+      "sha256": "39fcef6b8a9e2a16e8fea85fee45272f87fdd1492088f6b58e5d43740e4782cc"
+    },
+    {
+      "path": "outputs/statistics/phase3A_taux_quinzenal_janelas.csv.manifest.json",
+      "size_bytes": 7844,
+      "sha256": "c1d4f019c24422a738059185fa7524a236b48c2b977e1ce13634a924b5450ad4"
+    },
+    {
+      "path": "outputs/statistics/phase3B_autocorrelacao.csv",
+      "size_bytes": 4489,
+      "sha256": "1f602912e719ae237299ebc0b7d532c20d70b3f13d0c0ad7a16c53657bf052af"
+    },
+    {
+      "path": "outputs/statistics/phase3B_eventos_taxas.csv",
+      "size_bytes": 1261,
+      "sha256": "27f96407e4e4e6bc758d23038164cf10833c2d1519b8a9dc9acf024f2fd0d974"
+    },
+    {
+      "path": "outputs/statistics/phase3B_faixa_pico_eventos.csv",
+      "size_bytes": 1292,
+      "sha256": "973d879353d2397d5e514685fa35c5e2f3b0964fcc7ad6c4a054bd87ed976a94"
+    },
+    {
+      "path": "outputs/statistics/phase3B_grupos_classes_noaa.csv",
+      "size_bytes": 464,
+      "sha256": "2e2821b3fa7f2c04e7a254f142a03f57dd33e32487f1e281ba91817d6f105b55"
+    },
+    {
+      "path": "outputs/statistics/phase3B_grupos_medias_elnino.csv",
+      "size_bytes": 285,
+      "sha256": "832fc84cb38f2fa928ae4a596e2d9f610ba3d07bfcc2791a11b85e7de87442d8"
+    },
+    {
+      "path": "outputs/statistics/phase3B_mapa_composto_resumo.csv",
+      "size_bytes": 98,
+      "sha256": "14d7e7b659390f7381a867b1b85e097e79891c727ba73e29246fa950d525b29d"
+    },
+    {
+      "path": "outputs/statistics/phase3B_memoria_persistencia.csv",
+      "size_bytes": 512,
+      "sha256": "07ac07775791cb71c6bbe65029ccb0b685dd77637d443f7d5fb26bd18275f7b3"
+    },
+    {
+      "path": "outputs/statistics/phase3B_trajetorias_compostas.csv",
+      "size_bytes": 8623,
+      "sha256": "989237def093d6059baca4d71a05697535e895b07f848d1af6d42308a4651a30"
+    },
+    {
+      "path": "outputs/statistics/phase3C_lag_correlacoes.csv",
+      "size_bytes": 47777,
+      "sha256": "59af812088c8bbe8f40354ac022e2fb4b8baba901c3ddbf8cd7afa4a42d9ea78"
+    },
+    {
+      "path": "outputs/statistics/phase3C_lag_correlacoes.csv.manifest.json",
+      "size_bytes": 9765,
+      "sha256": "938ed976ca405dda20aa32c2770f6cc78f567d65507fc1e632f24cde9db7f994"
+    },
+    {
+      "path": "outputs/statistics/phase3C_mapa_lon_lag.csv",
+      "size_bytes": 794829,
+      "sha256": "9224861f40c899cde744c276cc9536c5da58536f55ca9ec28a3c6c6471826175"
+    },
+    {
+      "path": "outputs/statistics/phase3C_mapa_lon_lag.csv.manifest.json",
+      "size_bytes": 7768,
+      "sha256": "b378e3a4fbef316000f16969c2eeea3cf17b0fd262a37ce81059b6ef47991ba0"
+    },
+    {
+      "path": "outputs/statistics/phase3C_precursor_ranking.csv",
+      "size_bytes": 459,
+      "sha256": "e2faa26d1cfbc8f7f391b6307fe25f4a8064ac28aed39a5d0c06d485aede637e"
+    },
+    {
+      "path": "outputs/statistics/phase3C_precursor_screening.csv",
+      "size_bytes": 551,
+      "sha256": "c90e46b96a686145064395ee6528f82a2fc8e44027062c2c95c4ac39307838b2"
+    },
+    {
+      "path": "outputs/statistics/phase3C_precursor_screening.csv.manifest.json",
+      "size_bytes": 8093,
+      "sha256": "3dbaa5d64057455bda9dd2c423ee7e62500ca40e33b079708f6d4f828f79eff5"
+    },
+    {
+      "path": "outputs/statistics/phase3C_ranking_lags.csv",
+      "size_bytes": 7839,
+      "sha256": "94881e5f08dfe71ff87808eea85d7ec18e0a865d523d6b66f390bf606b0f49fd"
+    },
+    {
+      "path": "outputs/statistics/phase3C_ranking_lags.csv.manifest.json",
+      "size_bytes": 8401,
+      "sha256": "a202c29830eb855484d75a9ebb7164045ba3a820b1f3049f0ec643ee24d9d536"
+    },
+    {
+      "path": "outputs/statistics/phase3D_forest_ic95_legenda.csv",
+      "size_bytes": 3779,
+      "sha256": "d1e1450104d0cec143806589e5ff9b87d7dc3d9e40d22686f2703355acdde526"
+    },
+    {
+      "path": "outputs/statistics/phase3D_forest_ic95_legenda.csv.manifest.json",
+      "size_bytes": 8084,
+      "sha256": "201417287a3a62cb0ef6ba0922d6f31ebd9acfbde1082e9dcde486689a923f97"
+    },
+    {
+      "path": "outputs/statistics/phase3D_mapa_fdr_resumo.csv",
+      "size_bytes": 107,
+      "sha256": "08add4ff23e5e8c4c61a4cc20aad2b77514932ecbe8741ab3d859186cd3564a9"
+    },
+    {
+      "path": "outputs/statistics/phase3D_mapa_lon_lag_fdr.csv",
+      "size_bytes": 1459153,
+      "sha256": "534789c03b476b73921de3f735142226e8c79e8cfeee067f286ad95902091eae"
+    },
+    {
+      "path": "outputs/statistics/phase3D_mapa_lon_lag_fdr.csv.manifest.json",
+      "size_bytes": 7937,
+      "sha256": "72718638b7bcb8153dd69db549531849183b1ed65c76e1285def4012f88b1120"
+    },
+    {
+      "path": "outputs/statistics/phase3D_ranking_significativo.csv",
+      "size_bytes": 6761,
+      "sha256": "18328857c1c1d729b878f93048ae2612c9f0764a7363ea09f9d97177983636fe"
+    },
+    {
+      "path": "outputs/statistics/phase3D_ranking_significativo.csv.manifest.json",
+      "size_bytes": 8750,
+      "sha256": "b3e42e58f9612ca566af644324c5defa5d7d452888905bae3e42a1b0cc7ef572"
+    },
+    {
+      "path": "outputs/statistics/phase3D_testes_completos.csv",
+      "size_bytes": 552241,
+      "sha256": "d2700c57a4e9340601ed6eeba77999ecabc666fc5f1b9cf802ec5c40c21b881e"
+    },
+    {
+      "path": "outputs/statistics/phase3D_testes_completos.csv.manifest.json",
+      "size_bytes": 10053,
+      "sha256": "837bfe9fdb3d07b1b88a0cfb94bb51f1ed8553cfb8261a6f5c9ced84e1f42c46"
+    },
+    {
+      "path": "outputs/statistics/phase3E_bootstrap_blocos.csv",
+      "size_bytes": 16718,
+      "sha256": "af8aeefb79cbedc80e4f38a49e5d9a8bdfeca6e195a47fdcf067fc434fc9f532"
+    },
+    {
+      "path": "outputs/statistics/phase3E_bootstrap_correlacoes.csv",
+      "size_bytes": 3172872,
+      "sha256": "916b46bf5dbcbe464b5e1c061771db433419b96769ef21304309d30c2f36fbf5"
+    },
+    {
+      "path": "outputs/statistics/phase3E_estabilidade.csv",
+      "size_bytes": 6145,
+      "sha256": "181e0870060fb008f80f0d51fdef683adac5ba9253eb1cd9d76e83cc525f37c0"
+    },
+    {
+      "path": "outputs/statistics/phase3E_leave_one_event_out.csv",
+      "size_bytes": 27183,
+      "sha256": "313ad1f05e148cf50a1f2f66afcb8709215298aa29c9214da575eafd756356c1"
+    },
+    {
+      "path": "outputs/statistics/phase3E_sensibilidade_resumo.csv",
+      "size_bytes": 6145,
+      "sha256": "181e0870060fb008f80f0d51fdef683adac5ba9253eb1cd9d76e83cc525f37c0"
+    },
+    {
+      "path": "outputs/statistics/phase3F_kelvin_eventos_resumo.csv",
+      "size_bytes": 686,
+      "sha256": "920e1fc4ee4c90140869264820860b8158d5aa28527348857242e59a7fb6c517"
+    },
+    {
+      "path": "outputs/statistics/phase3F_kelvin_eventos_resumo.csv.manifest.json",
+      "size_bytes": 8421,
+      "sha256": "bcaa13844946a1c2a332f5ce68339235174d0ad8a6bcccc20fb2d3e73aa338e8"
+    },
+    {
+      "path": "outputs/statistics/phase3F_kelvin_resumo.csv",
+      "size_bytes": 84,
+      "sha256": "e81e4c6a60cf9acd04588420701fcba5a89e49606e236bdcafb67da47e09000c"
+    },
+    {
+      "path": "outputs/statistics/phase3F_kelvin_setas.csv",
+      "size_bytes": 1012,
+      "sha256": "e3f9647d085525bbe517fe59578abd153d2e27e3d87148a8201a3eaa0a3cab8f"
+    },
+    {
+      "path": "outputs/statistics/phase3F_kelvin_setas.csv.manifest.json",
+      "size_bytes": 8049,
+      "sha256": "a30ed62bf16337a095e9aa72d714a848f0ca2234d056983e3878ff2110b7e105"
+    },
+    {
+      "path": "outputs/statistics/phase3F_sla_janelas_long.csv",
+      "size_bytes": 49730343,
+      "sha256": "81721b3ffc797fb5e16726a67f8b29b411b9b48048e719f7c7b12bda5f0e91a1"
+    },
+    {
+      "path": "outputs/statistics/phase3F_sla_janelas_long.csv.manifest.json",
+      "size_bytes": 7858,
+      "sha256": "34952957c6234a3709775f329c211c9176c66e833fdd7387f21fb7c693e2ab32"
+    },
+    {
+      "path": "outputs/statistics/phase3F_taux_sla_series.csv",
+      "size_bytes": 123960,
+      "sha256": "1d8e3b536f30df94221e21623bfd7837cd4335a37421c24fde34a66607d535c4"
+    },
+    {
+      "path": "outputs/statistics/phase3F_taux_sla_series.csv.manifest.json",
+      "size_bytes": 8107,
+      "sha256": "aabdbd0729a541c158552ec90b99c3c13e5342b4ff2960c09202c2b30dce3a8e"
+    },
+    {
+      "path": "outputs/statistics/phase3G_composto_ssta.csv",
+      "size_bytes": 2429,
+      "sha256": "b58b3739a42c824f4b148f32dc1e4f80f609d7298452d4ab4686ec7ec50f96ce"
+    },
+    {
+      "path": "outputs/statistics/phase3G_composto_ssta.csv.manifest.json",
+      "size_bytes": 7694,
+      "sha256": "2f1afaa0c2a4239624311f0b16603d56827cfcb931d6f17bc88ba020be9fe82b"
+    },
+    {
+      "path": "outputs/statistics/phase3G_composto_ssta_classes_noaa.csv",
+      "size_bytes": 17434,
+      "sha256": "9454738c80f3ee9a872fdda353fe362c02979b103f1b3adaf065989adb1c4cfb"
+    },
+    {
+      "path": "outputs/statistics/phase3G_composto_ssta_classes_noaa.csv.manifest.json",
+      "size_bytes": 7924,
+      "sha256": "51d33d28dac6a2246e18c93fc6c6e123cd53ab58671ec2b2690cb264b3bd8d8e"
+    },
+    {
+      "path": "outputs/statistics/phase3G_escalonamento_ssta.csv",
+      "size_bytes": 76,
+      "sha256": "e094cffaab122d00ddd35fe1df6efce654295d483eae8c4535ae75fa80b30ece"
+    },
+    {
+      "path": "outputs/statistics/phase3G_escalonamento_ssta.csv.manifest.json",
+      "size_bytes": 7714,
+      "sha256": "458777c679e79d87086b21d3a362c6aa234d0c5940f45fb69e3e95a0aea5256b"
+    },
+    {
+      "path": "outputs/statistics/phase3G_estado_atual.csv",
+      "size_bytes": 53,
+      "sha256": "debd0d16d74269e5340bd6db940b6bbfd3b07767e42dd696d45918503b493390"
+    },
+    {
+      "path": "outputs/statistics/phase3G_estado_atual.csv.manifest.json",
+      "size_bytes": 7729,
+      "sha256": "6961ad02b91b3b624bd4c6df99339309d78e084e73bca380f7fa43af89b3b607"
+    },
+    {
+      "path": "outputs/statistics/phase3G_eventos_ssta.csv",
+      "size_bytes": 815,
+      "sha256": "fb1bf64f897597965ade7ef039c5259943272cd3f45609225a86a32a68634789"
+    },
+    {
+      "path": "outputs/statistics/phase3G_eventos_ssta.csv.manifest.json",
+      "size_bytes": 8163,
+      "sha256": "d1f008958708cb37d176bb0c1dd8c816957b8de2cbc931f20bd6791caf0e9f8f"
+    },
+    {
+      "path": "outputs/statistics/phase3G_mapa_ssta_lon_eventos_forte_super.csv",
+      "size_bytes": 586,
+      "sha256": "a693ff30a7f1604ba7ef0e74c6b6063148d8dd878a3bca65db434f9d68847bdd"
+    },
+    {
+      "path": "outputs/statistics/phase3G_mapa_ssta_lon_eventos_forte_super.csv.manifest.json",
+      "size_bytes": 8170,
+      "sha256": "f930c3b3f86c882affced0c74dc87582e192fff6239acbdae644790b658cc700"
+    },
+    {
+      "path": "outputs/statistics/phase3H_ciclo_vida_media.csv",
+      "size_bytes": 17241,
+      "sha256": "dc5e0cebb6556cae5693aac5ab2de20a291915216631fc5ca1e32605a7724493"
+    },
+    {
+      "path": "outputs/statistics/phase3H_ciclo_vida_media.csv.manifest.json",
+      "size_bytes": 8336,
+      "sha256": "3574c2f3e666492495ac767dcf97ef397a570dc8183183b562514333248966c0"
+    },
+    {
+      "path": "outputs/statistics/phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv",
+      "size_bytes": 36090,
+      "sha256": "d8897f7eb6fd0d464d79a7ed006b8d2ce30ca707adbf3eecfe48539b902b8996"
+    },
+    {
+      "path": "outputs/statistics/phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv.manifest.json",
+      "size_bytes": 9098,
+      "sha256": "3b82ed42ae868e64fc46981277b7cc0506ae81593b8c677fb24d7cd3fc13d517"
+    },
+    {
+      "path": "outputs/statistics/phase3H_compostos_onset.csv",
+      "size_bytes": 76526,
+      "sha256": "12d8118bfb0ac3e088318e8a4019ba18dcf232e434db7a49a8735442940bf21d"
+    },
+    {
+      "path": "outputs/statistics/phase3H_compostos_onset.csv.manifest.json",
+      "size_bytes": 8193,
+      "sha256": "e9f7e8d0e726a542e0f3bae7248a28fd9467664dcec010fd61c85cedf8c8f28a"
+    },
+    {
+      "path": "outputs/statistics/phase3H_estado_precursor_por_classe.csv",
+      "size_bytes": 3077,
+      "sha256": "4e86e60a8bcd5a8fb5d7142fb56f30b0c87487a3fe51b06fd07723083c074e25"
+    },
+    {
+      "path": "outputs/statistics/phase3H_estado_precursor_por_classe.csv.manifest.json",
+      "size_bytes": 8146,
+      "sha256": "b6744dcaf1999eac7783adca9aa72a93bf50e196a54838fb7e0af3f49eb3b30c"
+    },
+    {
+      "path": "outputs/statistics/phase3H_fases_ciclo_vida.csv",
+      "size_bytes": 309,
+      "sha256": "482a104356ece935f298c568b25762bc38a5c621c5b77116b45fbfdcd67e6987"
+    },
+    {
+      "path": "outputs/statistics/phase3H_fases_ciclo_vida.csv.manifest.json",
+      "size_bytes": 7801,
+      "sha256": "45fd2621ff61ed8e63a11b70c4ab29fa02194b769524c9dda819ccc25bf5039b"
+    },
+    {
+      "path": "outputs/statistics/phase3H_grupos_classes_noaa.csv",
+      "size_bytes": 464,
+      "sha256": "2e2821b3fa7f2c04e7a254f142a03f57dd33e32487f1e281ba91817d6f105b55"
+    },
+    {
+      "path": "outputs/statistics/phase3H_grupos_classes_noaa.csv.manifest.json",
+      "size_bytes": 7744,
+      "sha256": "93f591c82a510a4abe3064c0e5946247233dbfa26602cf64a5c5a08bfe8e8fa8"
+    },
+    {
+      "path": "outputs/statistics/phase3H_grupos_medias_elnino.csv",
+      "size_bytes": 285,
+      "sha256": "832fc84cb38f2fa928ae4a596e2d9f610ba3d07bfcc2791a11b85e7de87442d8"
+    },
+    {
+      "path": "outputs/statistics/phase3H_proveniencia_eventos.csv",
+      "size_bytes": 1333,
+      "sha256": "85aa1024f96c4220cbc52113e6de11b31f6cbd9113583a7edec32c2a1104e6d2"
+    },
+    {
+      "path": "outputs/statistics/phase3H_proveniencia_eventos.csv.manifest.json",
+      "size_bytes": 8162,
+      "sha256": "78fd794e126830616de10acfc03eb39234d10dd9d0775d39819cbc2dc2d93162"
+    },
+    {
+      "path": "outputs/statistics/phase3H_separacao_genese.csv",
+      "size_bytes": 202,
+      "sha256": "05c2067ee362c71d1d34fdad5af24bd7f39f31021a1d365beb116cc461cc4788"
+    },
+    {
+      "path": "outputs/statistics/phase3H_separacao_genese.csv.manifest.json",
+      "size_bytes": 7812,
+      "sha256": "f18554b4ce6beb481be336a26ac63f9593eb4b21fdf86ce037d308f0f559cad6"
+    },
+    {
+      "path": "outputs/statistics/phase3I_classificacao_noaa_oni.csv",
+      "size_bytes": 1051,
+      "sha256": "b0ec20b4673425beb763306a9112f6867d67ecc0b5e5a18d4e4864e9cd56ba9a"
+    },
+    {
+      "path": "outputs/statistics/phase3I_conclusoes_decisao.csv",
+      "size_bytes": 4802,
+      "sha256": "12513deaec81b157851db57891334b22ae2ee2a4418ddf29c4d96a1e9ee04b9d"
+    },
+    {
+      "path": "outputs/statistics/phase3I_conjunto_antecipacao_pico.csv",
+      "size_bytes": 6200,
+      "sha256": "dff4eacee3c660753eccd4dd203b65319c13473babe8c19754cebf809c55dd24"
+    },
+    {
+      "path": "outputs/statistics/phase3I_estado_2026.csv",
+      "size_bytes": 305,
+      "sha256": "3957745a0b966ba7f612caab84ea515c35a88c96857ee892f57c363eefee928b"
+    },
+    {
+      "path": "outputs/statistics/phase3I_interpretacao_integrada.md",
+      "size_bytes": 4063,
+      "sha256": "7f6bd2d8fb8b5fda934dc65d18374d45cb2db6bc5964aae7992dfb502270ac40"
+    },
+    {
+      "path": "outputs/statistics/phase3I_medias_classes_noaa.csv",
+      "size_bytes": 792,
+      "sha256": "744961898e4c80338c4e9246195fc6a4a2f4f579756c39a68b0786cb1a4140c3"
+    },
+    {
+      "path": "outputs/statistics/phase3I_modelos_candidatos.csv",
+      "size_bytes": 3536,
+      "sha256": "3aff4da54c64bceefacb55c2448e9e7dedd87cdfebe53498f7d52840a0efd670"
+    },
+    {
+      "path": "outputs/statistics/phase3I_nested_loo_eventos.csv",
+      "size_bytes": 1415,
+      "sha256": "1c0358b915bc364e69b86620210908af97981a08a8214e2adb51b74bfe3f6f10"
+    },
+    {
+      "path": "outputs/statistics/phase3I_nested_loo_metricas.csv",
+      "size_bytes": 252,
+      "sha256": "531c5079efc6e988d0251cae51ef13e78f6669cafa331c7778c8b9cbec89c1c0"
+    },
+    {
+      "path": "outputs/statistics/phase3I_nested_loo_selecao.csv",
+      "size_bytes": 1919,
+      "sha256": "da5a1fbcd885350493dd42aefe514f2ae17afde4ef1e3e8b653c5d685da3359e"
+    },
+    {
+      "path": "outputs/statistics/phase3I_projecao_pico_2026.csv",
+      "size_bytes": 690,
+      "sha256": "8e75f412d57f8dd4ee3b1ccd98e764bb19c6c88fc56b50ccaccc8a249a346668"
+    },
+    {
+      "path": "outputs/statistics/phase3I_referencias_metodologicas.csv",
+      "size_bytes": 1042,
+      "sha256": "bdc437c6d54f3b3fd67ba71840fbb95d95e186d5485f88662a50a9903447a80e"
+    },
+    {
+      "path": "outputs/statistics/phase3I_skill_horizontes.csv",
+      "size_bytes": 3839,
+      "sha256": "a38ed3ab513dce07406edcfafa540639c0e1675ef5695015c938deb635641c9a"
+    },
+    {
+      "path": "outputs/statistics/phase3I_skill_por_variavel.csv",
+      "size_bytes": 6591,
+      "sha256": "46da4f192615dfe1432dbf559dbe91018f8daed9176860fbe76b9e259eb2d3d8"
+    },
+    {
+      "path": "outputs/statistics/phase3J_conjunto_indispensavel.csv",
+      "size_bytes": 257,
+      "sha256": "428e3f24b5470b6ae0dc4fbacb8c2c805f2c3e15c54bf3665250d32a7a7c11f0"
+    },
+    {
+      "path": "outputs/statistics/phase3J_pca_loadings.csv",
+      "size_bytes": 327,
+      "sha256": "b09eb2541884e66236c9b2415612d328c4ea8549e63232408ec78480ee146684"
+    },
+    {
+      "path": "outputs/statistics/phase3J_pca_variancia.csv",
+      "size_bytes": 180,
+      "sha256": "0bcc13f8fc6f9fce138e37cf5e9a4268cbb9af31172f97df60ce1a037c7b0afc"
+    },
+    {
+      "path": "outputs/statistics/phase3J_ranking_crescimento.csv",
+      "size_bytes": 323,
+      "sha256": "b0d90333433e83bc90967804f8e5acce0f62f66484a7ef883d9f6cde80801e4c"
+    },
+    {
+      "path": "outputs/statistics/phase3K_conjunto_indispensavel.csv",
+      "size_bytes": 214,
+      "sha256": "bd3f48c224a4541c97c9e9a0a01551a7ff6af98446171fda13827da4e76f650d"
+    },
+    {
+      "path": "outputs/statistics/phase3K_pca_loadings.csv",
+      "size_bytes": 295,
+      "sha256": "42105afe5f5ff06dc0033aed5332073b1c94bb68bd12c00da71f7e087c8f321d"
+    },
+    {
+      "path": "outputs/statistics/phase3K_pca_variancia.csv",
+      "size_bytes": 165,
+      "sha256": "47434cea3c319ec1623f37154151be583b303330f080c74d574e6b2151d54911"
+    },
+    {
+      "path": "outputs/statistics/phase3K_pcs_explicados.csv",
+      "size_bytes": 315,
+      "sha256": "1ca7e8779016e0600dfb2a42c76d898874bea0666f90ca750ea3e3d7f7bfec8d"
+    },
+    {
+      "path": "outputs/statistics/phase3K_previsao_pico_loo.csv",
+      "size_bytes": 1441,
+      "sha256": "7ef3c110756333314d7a0f31f30b288b557a3e9b6e59873817d979ee2d1a1540"
+    },
+    {
+      "path": "outputs/statistics/phase3K_previsao_pico_nested_loo_eventos.csv",
+      "size_bytes": 1530,
+      "sha256": "7d8bb252df244d2283dc0e0e98f6bb4253d49d3c64e6dc70e84600b7c2fa1d30"
+    },
+    {
+      "path": "outputs/statistics/phase3K_previsao_pico_nested_loo_metricas.csv",
+      "size_bytes": 252,
+      "sha256": "1b93b0cffb5ab6c4b5500dcf9acdeaf456295a6a204531f7047ce97e68ec3367"
+    },
+    {
+      "path": "outputs/statistics/phase3K_previsao_pico_nested_loo_selecao.csv",
+      "size_bytes": 2230,
+      "sha256": "2150dc6cacfbad0996ce178df98040c8cc4e3d655cf65f45baea9d5b94e6d6a5"
+    },
+    {
+      "path": "outputs/statistics/phase3L_loo_previsao_pico.csv",
+      "size_bytes": 266,
+      "sha256": "4237ee498486942969611465899a114d6ba2078d36f9600832f1b5f8fd7d1d8a"
+    },
+    {
+      "path": "outputs/statistics/phase3L_projecao_2026.csv",
+      "size_bytes": 187,
+      "sha256": "5fb0df9f47055b8b2fabb2a3623918194e4313694b0b8975feeccd655c04cc2f"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1569,
+      "sha256": "399664210011211a050c5619984a5ceff7f443f7ad1b148428274044d20da736"
+    }
+  ]
+}

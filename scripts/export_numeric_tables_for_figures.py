@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -537,13 +536,11 @@ def write_readme(out_dir: Path, figure_rel: str, records: list[dict[str, object]
 
 def prepare_output_root(force: bool) -> None:
     if NUM_ROOT.exists():
-        if not force:
-            raise FileExistsError(f"{NUM_ROOT} ja existe; use --force para regenerar.")
-        resolved = NUM_ROOT.resolve()
-        processed = PROCESSED.resolve()
-        if not resolved.is_relative_to(processed):
-            raise RuntimeError(f"Recusa remover pasta fora de {processed}: {resolved}")
-        shutil.rmtree(NUM_ROOT)
+        raise RuntimeError(
+            "Exportador legado desativado: ele usava mapeamento fixo e podia apagar "
+            "numeric-tables válidas. Use nino_brasil.viz.registrar_figura na origem "
+            "e scripts/validar_figuras.py --strict. A opção --force não remove nada."
+        )
     NUM_ROOT.mkdir(parents=True, exist_ok=True)
 
 
@@ -624,7 +621,7 @@ def export_all(*, strict: bool, force: bool) -> pd.DataFrame:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--force", action="store_true", help="remove e recria data/processed/numeric-tables")
+    parser.add_argument("--force", action="store_true", help="legado sem efeito destrutivo; o comando será recusado")
     parser.add_argument("--strict", action="store_true", help="falha se existir PNG sem mapeamento numerico")
     args = parser.parse_args(argv)
     manifest = export_all(strict=args.strict, force=args.force)

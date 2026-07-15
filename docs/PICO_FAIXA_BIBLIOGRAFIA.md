@@ -14,8 +14,8 @@ indice (~0.1 C). Escolher UMA semana como "o pico" e, nesse regime, uma decisao 
 muda com o dataset (OISST x ERSST), com a climatologia (1991-2020 x 1971-2000), com a
 suavizacao adotada e ate com a reprocessagem da mesma fonte.
 
-Evidencia interna do projeto (tabela `phase3B_faixa_pico_eventos.csv`): com o criterio
-"meses com ONI local >= pico - 0.1 C", os eventos fortes/muito fortes tem faixa de pico
+Evidencia interna do projeto (tabela `phase3_peak_band_sensitivity.csv`): com o criterio
+canonico de magnitude >=90% do extremo, os eventos fortes/muito fortes tem faixa de pico
 estreita (1-2 meses: 1982/83, 1997/98, 2015/16, 2023/24), enquanto eventos fracos tem
 faixa larga e mal definida (2004: 5 meses; 2018/19: 6 meses). Ou seja: quanto mais fraco o
 evento, menos significa "o mes do pico" - e mais necessaria e a faixa.
@@ -73,19 +73,19 @@ evento, menos significa "o mes do pico" - e mais necessaria e a faixa.
 
 - **Pico central**: mes de maximo do ONI local (media movel de 3 meses, OISST local,
   climatologia 1991-2020).
-- **Faixa de pico**: conjunto contiguo de meses com `ONI local >= pico - 0.1 C`.
-  A tolerancia de 0.1 C corresponde a escala de incerteza tipica do indice
-  (dataset/climatologia/suavizacao).
-- **No eixo semanal dos compostos**: faixa = semanas com SSTA composta `>= max - 0.1 C`
-  (usada em 3H2/3H3 como faixa dourada em torno da semana 0).
+- **Faixa de pico**: componente contiguo que contem o extremo e no qual a
+  magnitude assinada do ONI local e `>= 0.90 x magnitude do extremo`.
+- **Sensibilidade obrigatoria**: repetir limites e duracao em 80%, 90% e 95%.
+- **No eixo semanal dos compostos**: aplicar o mesmo limiar relativo de 90% ao
+  extremo composto, limitado ao trecho contiguo que contem a semana 0.
 
 Saidas que materializam a decisao:
 
 | Saida | Conteudo |
 |---|---|
-| `phase3B_faixa_pico_eventos.csv` | pico central, inicio/fim e largura da faixa por evento |
+| `phase3_peak_band_sensitivity.csv` | pico central, inicio/fim e largura em 80/90/95% por evento |
 | `3B4_faixa_pico_oni.png` | ONI local 1981-2026 com faixas de pico sombreadas e mes/ano central |
-| `3H2_ciclo_vida.png` / `3H3_...png` | faixa de pico composta (max-0.1 C) sobre o ciclo de vida |
+| `3H2_ciclo_vida.png` / `3H3_...png` | faixa de pico composta canonica (90% do extremo) |
 | `3A2_hovmoller_ssta.png` + `phase3A_picos_epicentros.csv` | epicentro espacial (longitude) do pico com mes/ano |
 
 ## 5. Referencias

@@ -202,6 +202,11 @@ def add_ibge_actions(
     products = {
         "uf": (raw_dir / "BR_UF_2024.zip", interim_dir / "BR_UF_2024"),
         "municipios": (raw_dir / "BR_Municipios_2024.zip", interim_dir / "BR_Municipios_2024"),
+        "regioes": (raw_dir / "BR_Regioes_2024.zip", interim_dir / "BR_Regioes_2024"),
+        "biomas": (
+            raw_dir / "2025_Biomas-e-Sistema-Costeiro-Marinho-do-Brasil-1-250000_shp.zip",
+            interim_dir / "Biomas_2025",
+        ),
     }
     for product, (raw_path, extracted_path) in products.items():
         raw_ok = raw_path.exists()
@@ -507,6 +512,18 @@ def execute_pending(pending: list[PendingAction], *, limit: int, continue_on_err
         year_label = f" {action.year}" if action.year is not None else ""
         print(f"[{idx}/{len(actions)}] {action.source}/{action.stage}{year_label}: {action.label}")
         try:
+            # Revalida imediatamente antes da escrita. Isso evita refazer um
+            # produto que tenha sido concluído por outra etapa/processo desde
+            # a montagem da lista de pendências.
+            if action.stage == "raw" and action.path.suffix.lower() == ".nc":
+                current_ok = check_netcdf(action.path, fast=False)[0]
+            elif action.stage in {"zarr", "regrid"}:
+                current_ok = check_zarr(action.path, fast=False)[0]
+            else:
+                current_ok = False
+            if current_ok:
+                print(f"[skip] já existe e foi validado: {action.path}")
+                continue
             action.run()
         except BaseException as exc:
             failures += 1

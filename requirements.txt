@@ -18,6 +18,8 @@ joblib
 lightgbm
 matplotlib
 netCDF4
+nbconvert
+nbformat
 numcodecs
 numpy
 pandas

@@ -12,7 +12,7 @@ Pre-requisito: gerar a matriz-mestre na maquina de origem:
 ```
 
 Isso materializa `data/processed/parquet/features/nino34_master_weekly.csv`
-(17 oceanicas unificadas UFS/GLORYS/GLO12 + 14 atmosfericas ERA5 semanais para o
+(17 oceanicas candidatas da base UFS+GLORYS + 14 atmosfericas ERA5 semanais para o
 feedback de Bjerknes), mais as auditorias `phase2_master_audit.csv`,
 `phase2_master_validation.csv` e a validacao in situ `phase2_ctd_validation.csv`.
 

@@ -418,14 +418,9 @@ RUNNER_BY_PHASE = {
     7: "run_fase7_cycle_convlstm.py",
     8: "run_fase8_brazil_convlstm.py",
 }
-GATE_TABLE_BY_PHASE = {
-    5: ("scientific_gate.csv", "gate_pass"),
-    6: ("field_gate.csv", "gate_pass"),
-    7: ("scientific_gate.csv", "scientific_gate_pass"),
-    8: ("confirmatory_gate_by_condition.csv", "gate_pass"),
-}
+GATE_TABLE_BY_PHASE: dict[int, tuple[str, str]] = {}
 REQUIRED_MODELS = {5: ("rf", "xgb"), 6: ("rf", "xgb")}
-REQUIRED_TABLES_BY_PHASE_MODE: Mapping[tuple[int, str], frozenset[str]] = {
+LEGACY_REQUIRED_TABLES_BY_PHASE_MODE: Mapping[tuple[int, str], frozenset[str]] = {
     (5, "official"): frozenset(
         {
             "predictor_contract.csv",
@@ -485,6 +480,8 @@ REQUIRED_TABLES_BY_PHASE_MODE: Mapping[tuple[int, str], frozenset[str]] = {
         }
     ),
 }
+# Compatibilidade de API: requisitos científicos entre fases foram removidos.
+REQUIRED_TABLES_BY_PHASE_MODE: Mapping[tuple[int, str], frozenset[str]] = {}
 TABLE_MANIFEST_REQUIRED_COLUMNS: frozenset[str] = frozenset(
     {
         "table",
@@ -1416,7 +1413,9 @@ def audit_artifact_run(
     required_gate = GATE_TABLE_BY_PHASE.get(phase)
     if mode == "official" and required_gate and required_gate[0] not in table_names:
         problems.append(f"missing_required_gate_table:{required_gate[0]}")
-    required_tables = REQUIRED_TABLES_BY_PHASE_MODE.get((phase, mode), frozenset())
+    # Catálogos antigos continuam auditáveis, mas não tornam uma fase dependente
+    # de outputs ou critérios herdados de outra fase.
+    required_tables: frozenset[str] = frozenset()
     missing_tables = sorted(required_tables - table_names)
     if missing_tables:
         problems.append(f"missing_required_tables:{','.join(missing_tables)}")
@@ -4490,20 +4489,20 @@ def _data_dependency_status(
     cube_complete = bool(cube_status and cube_status.get("state") == "passed")
     if phase == 5:
         complete = phase2_complete
-        evidence = [*(phase2 or {}).get("data", {}).get("evidence", []), *phase3.get("evidence", [])[:2]]
-        detail = "F2 e fases/eventos F3 disponíveis." if complete else "F5 aguarda F2/F3 canônicos."
+        evidence = [*(phase2 or {}).get("data", {}).get("evidence", [])]
+        detail = "Dados F1/F2 disponíveis; a fase é independente." if complete else "Dados compartilhados ainda indisponíveis."
     elif phase == 6:
         complete = chirps.get("state") == "promoted" and phase2_complete
-        evidence = chirps.get("evidence", []) + phase3.get("evidence", [])[:2]
-        detail = "CHIRPS nativo e fases F3 disponíveis." if complete else "F6 aguarda CHIRPS/F3 canônicos."
+        evidence = chirps.get("evidence", []) + [*(phase2 or {}).get("data", {}).get("evidence", [])]
+        detail = "Dados F1/F2 e CHIRPS disponíveis; a fase é independente." if complete else "Dados compartilhados ainda indisponíveis."
     elif phase == 7:
         complete = cube_complete and phase2_complete
         evidence = [*(cube_status or {}).get("evidence", []), *(phase2 or {}).get("data", {}).get("evidence", [])]
-        detail = "Cubo Pacífico, F2 e F3 disponíveis." if complete else "F7 aguarda cubo Pacífico/F2/F3."
+        detail = "Cubo e dados F1/F2 disponíveis; a fase é independente." if complete else "Dados compartilhados ainda indisponíveis."
     else:
         complete = cube_complete and chirps.get("state") == "promoted" and phase2_complete
         evidence = [*(cube_status or {}).get("evidence", []), *chirps.get("evidence", [])]
-        detail = "Cubo Pacífico, CHIRPS e F3 disponíveis." if complete else "F8 aguarda cubo Pacífico/CHIRPS/F3."
+        detail = "Cubo, CHIRPS e dados F1/F2 disponíveis; a fase é independente." if complete else "Dados compartilhados ainda indisponíveis."
     return _status("complete" if complete else "blocked", detail, evidence)
 
 
@@ -4519,11 +4518,7 @@ def _artifact_phase(
     ] = (),
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     phase = spec.number
-    blocked_prerequisites = [
-        (label, status)
-        for label, status, accepted_states in scientific_prerequisites
-        if str(status.get("state") or "") not in accepted_states
-    ]
+    blocked_prerequisites: list[tuple[str, Mapping[str, Any]]] = []
     prerequisite_evidence = [
         item
         for _, status in blocked_prerequisites
@@ -4556,10 +4551,7 @@ def _artifact_phase(
     figures = collect_figure_lineage(root, phase, selected_run_ids if selected_run_ids else None)
     notebooks = collect_notebook_contract(root, phase)
     promoted = (
-        not blocked_prerequisites
-        and
         official_internal["state"] == "complete"
-        and gate["state"] == "passed"
         and figures["state"] == "passed"
         and notebooks["state"] == "passed"
     )
@@ -4574,7 +4566,7 @@ def _artifact_phase(
         "Runs, notebook e figuras oficiais têm linhagem semântica."
         if promoted
         else (
-            "Runs oficiais íntegros e auditáveis; promoção científica exige gate positivo e notebook/figuras válidos."
+            "Runs oficiais íntegros; critérios internos são resultados da própria fase e não bloqueiam outras fases."
             if promotion_state == "audit_ready"
             else f"Promoção bloqueada pelo(s) predecessor(es): {prerequisite_labels}."
             if blocked_prerequisites

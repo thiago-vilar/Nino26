@@ -1,110 +1,62 @@
-# Metodologia Ativa
+# Metodologia NINO26
 
-## Escopo
+Esta metodologia complementa as diretrizes canônicas. As fases são estudos
+independentes, não degraus de um pipeline único.
 
-O NINO-BRASIL fica restrito, neste recorte, as Fases 1 a 3:
+## Regras comuns
 
-1. Ingestao auditavel das fontes locais.
-2. Padronizacao, anomalias, Zarr e grade comum quando necessaria.
-3. Diagnostico fisico do Nino 3.4.
+- OISST local em Niño 3.4 sustenta a identificação oceânica dos eventos.
+- A definição NOAA combina limiar térmico, persistência e coerência atmosférica.
+- P90 não é definição de El Niño e requer fundamentação específica quando usado.
+- Todo estágio chamado pico deve ser tratado como **faixa de pico**.
+- UFS+GLORYS é a apresentação oficial da base subsuperficial combinada, mantendo
+  indicadores internos de fonte e cobertura.
+- Nenhuma variável possui importância prévia; todas são hipóteses a testar.
+- Uma janela móvel é um parâmetro do problema local. Tamanho, passo,
+  centralização, histórico e horizonte devem ser documentados em cada análise.
 
-Nao ha etapa ativa de teleconexao Brasil, modelagem estatistica, ML, redes
-neurais ou rotulo ENSO externo.
+## Métodos por fase
 
-Graficos oficiais NOAA/PSL do Nino 3.4 podem ser mantidos no repositorio como
-comparativo visual externo. Eles nao definem eventos, nao entram no P90, nao
-alimentam diagnosticos e nao substituem a SSTA OISST calculada localmente.
+| Fase | Pergunta | Família de método | Produtos próprios |
+|---|---|---|---|
+| F1 | Quais dados locais estão disponíveis? | ingestão | fontes e inventários |
+| F2 | Os dados estão padronizados e coerentes? | preparação e sanidade | matriz, cubos e linhas do tempo |
+| F3 | Como se comporta o ciclo ENSO? | estatística | gênese, crescimento, faixa de pico e decaimento |
+| F4 | Como o sinal ENSO se relaciona com o Brasil? | estatística | lags e distribuição espaço-temporal |
+| F5 | É possível antecipar o ciclo e a faixa de pico? | RF/XGBoost | previsões do ciclo |
+| F6 | É possível modelar a relação ENSO–Brasil? | RF/XGBoost | lags e distribuição espaço-temporal |
+| F7 | É possível antecipar o ciclo e a faixa de pico? | ConvLSTM | previsões do ciclo |
+| F8 | É possível modelar a relação ENSO–Brasil? | ConvLSTM | distribuição espaço-temporal |
+| WEB | Como publicar e operar previsões? | aplicação | painel e previsão recorrente |
 
-## Fonte ENSO
+Nenhuma linha da tabela é pré-condição de outra.
 
-A fonte de verdade para superficie e a SST diaria OISST ja baixada no projeto.
-O indice diario Nino 3.4 e calculado por media ponderada por latitude na caixa
-5S-5N, 170W-120W. A anomalia usa climatologia fixa local 1991-2020, aplicada
-sobre a propria serie OISST.
+## Fase 2 e validação in situ
 
-Produtos:
+A sanidade usa séries temporais das variáveis disponíveis. CTD/WOD, TAO/TRITON
+e Argo formam um bloco separado de validação de UFS+GLORYS, com cobertura,
+pareamento, número de observações, diferenças por profundidade, erro, viés e
+gráficos comparativos. Lacunas permanecem explícitas.
 
-```text
-data/processed/parquet/features/nino34_daily_oisst.csv
-data/processed/zarr/features/nino34_daily_oisst.zarr
-```
+## CHIRPS
 
-## Eventos E Picos
+O alvo brasileiro usa pixels no tamanho original CHIRPS. Os produtos devem
+representar extremo de chuva, chuva forte, chuva normal, estiagem e seca, após
+definição documentada das categorias. A apresentação ocorre pixel a pixel, por
+região do país e por biomas dentro das regiões, usando shapefiles IBGE.
 
-Eventos mensais e picos dependem apenas da OISST local. O procedimento ativo e:
+## Data augmentation
 
-1. Agregar `nino34_daily_oisst.csv` para media mensal.
-2. Calcular media movel trimestral da SSTA mensal.
-3. Identificar eventos quentes por SSTA trimestral local >= 0,5 C por pelo menos 5 meses.
-4. Calcular P90 sobre a SSTA mensal OISST valida e destacar o pico de cada sequencia acima desse limiar.
+Pode ser considerado apenas nas Fases 5 e 7, se necessário, sempre restrito ao
+treino. Nas Fases 6 e 8 a decisão está pendente. Não é método das demais fases.
 
-Produtos:
+## Janelas e lags
 
-```text
-data/processed/parquet/features/nino34_monthly_oisst.csv
-data/processed/zarr/features/nino34_monthly_oisst.zarr
-data/processed/parquet/features/nino34_oisst_event_reference.csv
-data/processed/zarr/features/nino34_oisst_event_reference.zarr
-data/processed/parquet/features/nino34_oisst_p90_peaks.csv
-data/processed/zarr/features/nino34_oisst_p90_peaks.zarr
-docs/assets/figures/nino34_oisst_p90_peaks.png
-```
+Janelas móveis devem ser adequadas à frequência e ao objetivo de cada análise.
+Lags e distribuição espacial/temporal são produtos próprios das Fases 4, 6 e 8;
+não devem ser impostos às fases que estudam somente o ciclo do Pacífico.
 
-## Comparativo Visual Oficial
+## Artefatos
 
-O comando abaixo espelha graficos oficiais NOAA/PSL do Nino 3.4 em `docs/assets`
-para comparacao visual no parecer:
-
-```powershell
-.\.venv\Scripts\python scripts\data_pipeline.py sync-official-nino34-visuals
-```
-
-Produtos:
-
-```text
-docs/assets/figures/official_nino34/noaa_psl_nino34_timeseries.png
-docs/assets/figures/official_nino34/noaa_psl_nino34_event_panel.png
-docs/assets/figures/official_nino34/official_nino34_visuals_manifest.json
-```
-
-Regra: esses PNGs sao `visual_reference_only`; a metrica continua sendo
-`nino34_monthly_oisst.csv`.
-
-## Diagnostico Fisico Da Fase 3
-
-A Fase 3 cruza a trajetoria diaria OISST Nino 3.4 com variaveis oceanicas
-diarias ja processadas:
-
-- SSTA, medias moveis e tendencias.
-- D20 e tendencia da termoclina.
-- OHC por camadas.
-- WWV.
-- SSH quando disponivel.
-- Tilt da termoclina e slope.
-
-O objetivo e produzir um parecer fisico auditavel sobre formacao, memoria,
-persistencia e pico do sinal Nino 3.4. O resultado nao e um preditor para ML; e
-uma caracterizacao fisica.
-
-Produtos:
-
-```text
-data/processed/parquet/features/nino34_physical_signal.csv
-data/processed/zarr/features/nino34_physical_signal.zarr
-data/processed/zarr/features/nino34_thermocline_diagnostics.zarr
-data/processed/zarr/features/nino34_peak_signal_comparison.zarr
-data/processed/zarr/features/nino34_signal_slope_duration.zarr
-data/processed/parquet/features/nino34_event_table_monthly.csv
-data/processed/parquet/features/nino34_peak_comparison.csv
-data/processed/parquet/physics_precalc_timeseries.csv
-data/audit/phase3_diagnostics_audit.json
-```
-
-## Regras De Qualidade
-
-- Nao misturar datasets de indice: OISST diario gera o diario, o mensal, os eventos e o P90.
-- Graficos oficiais do Nino 3.4 sao comparativo visual externo, nao fonte de metrica.
-- Nao promover fonte mensal para dado diario.
-- Declarar janela real de subsuperficie por fonte.
-- Toda figura analitica do projeto precisa de CSV/Zarr anterior.
-- A auditoria da Fase 3 precisa passar com `errors=0`.
+Toda figura analítica deve ter tabela numérica correspondente. Imagens, tabelas
+e JSONs ficam em árvores separadas conforme `docs/DIRETRIZES_FASES.md`.

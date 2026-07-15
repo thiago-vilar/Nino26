@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from math import ceil
 from pathlib import Path
+import json
+import re
+import sys
 
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
@@ -15,6 +18,10 @@ ROOT = Path(__file__).resolve().parents[1]
 NBDIR = ROOT / "notebooks" / "fase3"
 STATS = ROOT / "data" / "processed" / "parquet" / "statistics"
 FIGS = ROOT / "data" / "processed" / "figures" / "fase3"
+sys.path.insert(0, str(ROOT / "src"))
+
+from nino_brasil.stats.semantic_tables import SemanticTableContract, write_semantic_csv  # noqa: E402
+from nino_brasil.viz import canonizar, registrar_figura  # noqa: E402
 
 
 FIGURE_CATALOG = [
@@ -24,6 +31,7 @@ FIGURE_CATALOG = [
     ("3B", "3B1_trajetorias_compostas.png", "Trajetorias por classe", "Compara a evolucao media da SSTA por classe NOAA/ONI.", "phase3B_trajetorias_compostas.csv"),
     ("3B", "3B2_autocorrelacao.png", "Autocorrelacao", "Mede memoria/persistencia da SSTA que qualquer previsao deve superar.", "phase3B_autocorrelacao.csv"),
     ("3B", "3B3_mapa_composto_pico.png", "Mapa composto do pico", "Mostra a assinatura espacial media no pico dos eventos.", "phase3B_mapa_composto_resumo.csv"),
+    ("3B", "3B4_faixa_pico_oni.png", "Sensibilidade da faixa de pico", "Compara a duração da faixa sob 80%, 90% e 95% do extremo.", "phase3_peak_band_sensitivity.csv"),
     ("3C", "3C1_heatmap_lags.png", "Heatmap de lags", "Triagem bruta de quais variaveis antecedem a SSTA e em que lag.", "phase3C_ranking_lags.csv"),
     ("3C", "3C2_mapa_lon_lag.png", "Longitude x lag", "Mostra onde no Pacifico equatorial o sinal antecedente aparece por longitude.", "phase3C_lag_correlacoes.csv"),
     ("3D", "3D1_forest_ic95.png", "Forest IC95", "Aplica N_eff, FDR e IC95 para reduzir falsos positivos.", "phase3D_ranking_significativo.csv"),
@@ -37,6 +45,7 @@ FIGURE_CATALOG = [
     ("3G", "3G3_mapa_ssta_lon.png", "SSTA longitude", "Compara fortes/super historicos com a formacao atual 2025/26 por longitude.", "phase3G_mapa_ssta_lon_eventos_forte_super.csv"),
     ("3H", "3H1_compostos_onset.png", "Onset por classe", "Mostra quais variaveis se separam na genese dos eventos.", "phase3H_estado_precursor_por_classe.csv"),
     ("3H", "3H2_ciclo_vida.png", "Ciclo de vida", "Resume genese, crescimento, pico e decaimento com variaveis em z-score.", "phase3H_ciclo_vida_media.csv"),
+    ("3H", "3H3_ciclo_vida_subsuperficie_atmosfera.png", "Ciclo físico ampliado", "Resume subsuperfície e atmosfera nas quatro fases.", "phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv"),
     ("3I", "3I1_sintese_parecer.png", "Sintese do parecer", "Organiza evidencias do 3D por bloco fisico, lag e metricas continuas de sensibilidade do 3E.", "phase3I_conclusoes_decisao.csv"),
     ("3I", "3I2_antecipacao_pico.png", "Antecipacao", "Mostra variaveis candidatas para antecipar o aquecimento maximo.", "phase3I_conjunto_antecipacao_pico.csv"),
     ("3I", "3I3_previsao_condicional_nested.png", "Nested LOO", "Avalia selecao+ajuste por nested LOO e gera projecao condicional.", "phase3I_nested_loo_metricas.csv"),
@@ -45,7 +54,7 @@ FIGURE_CATALOG = [
     ("3K", "3K3_biplot.png", "Biplot PCA", "Mostra agrupamentos fisicos e colinearidade entre variaveis.", "phase3K_pca_loadings.csv"),
     ("3L", "phase3L_ciclo_vida_en_ln.png", "Ciclo de vida EN/LN", "Compara genese, crescimento, pico e decaimento de El Nino e La Nina.", "phase3_event_lifecycle_en_ln.csv"),
     ("3L", "phase3L_duracao_fases_en_ln.png", "Duracao por fase EN/LN", "Resume a duracao media por tipo, classe e fase do ciclo de vida.", "phase3_duracao_por_tipo_classe.csv"),
-    ("3L", "phase3L_discriminantes_heatmap.png", "Discriminantes por periodo", "Mostra quais variaveis delimitam melhor as quatro fases por sinal ENSO.", "phase3_discriminantes_por_periodo.csv"),
+    ("3L", "phase3L_discriminantes_heatmap.png", "Friedman pareado e Kendall W", "Mostra Kendall W para todas as variaveis e marca como confirmadas somente as com qBH<=0,05, em familia separada por tipo ENSO.", "phase3_discriminantes_por_periodo.csv"),
     ("3L", "phase3L_pca_por_fase.png", "PCA por fase", "Resume a estrutura multivariada por genese, crescimento, pico e decaimento.", "phase3_pca_por_fase.csv"),
 ]
 
@@ -136,11 +145,14 @@ def md_table(df: pd.DataFrame, cols: list[str] | None = None, max_rows: int = 20
 def build_catalog() -> pd.DataFrame:
     rows = []
     for nb, fig, title, reading, table in FIGURE_CATALOG:
-        fpath = FIGS / fig
+        canonical = canonizar(fig, 3)
+        match = re.match(r"^(Fig_3[0-9A-Z]\d{2})", canonical or "")
+        canonical_name = f"{match.group(1)}.png" if match else fig
+        fpath = FIGS / canonical_name
         tpath = STATS / table
         rows.append({
             "notebook": nb,
-            "figura": fig,
+            "figura": canonical_name,
             "titulo": title,
             "interpreta": reading,
             "tabela_referencia": table,
@@ -151,7 +163,26 @@ def build_catalog() -> pd.DataFrame:
         })
     cat = pd.DataFrame(rows)
     STATS.mkdir(parents=True, exist_ok=True)
-    cat.to_csv(STATS / "phase3_figuras_catalogo.csv", index=False)
+    anchor = STATS / "phase3_events_en_ln.csv.manifest.json"
+    run_id = str(json.loads(anchor.read_text(encoding="utf-8")).get("run_id", "")).strip()
+    if not run_id:
+        raise RuntimeError(f"catálogo F3 sem run_id canônico em {anchor}")
+    write_semantic_csv(
+        cat,
+        STATS / "phase3_figuras_catalogo.csv",
+        contract=SemanticTableContract(
+            table_id="phase3_figuras_catalogo",
+            phase="F3",
+            method="inventory",
+            description="Inventário canônico de figuras F3 e suas tabelas de referência.",
+            evaluation_mode="auditoria_outputs",
+            primary_keys=("figura",),
+        ),
+        inputs=tuple(STATS / name for name in sorted(set(cat["tabela_referencia"])) if (STATS / name).is_file()),
+        parameters={"canonical_figure_codes": True},
+        run_id=run_id,
+        project_root=ROOT,
+    )
     return cat
 
 
@@ -171,8 +202,19 @@ def build_gallery(cat: pd.DataFrame) -> Path | None:
         ax.set_title(f"{row['notebook']} - {row['figura']}", fontsize=9)
         ax.axis("off")
     fig.suptitle("Fase 3 - galeria padronizada de figuras", fontsize=18, y=0.995)
-    out = FIGS / "3R1_galeria_figuras_fase3.png"
-    fig.savefig(out, dpi=120, bbox_inches="tight")
+    out = registrar_figura(
+        fig,
+        "Fig_3I04",
+        fase=3,
+        bloco="I",
+        titulo="Fase 3 — galeria padronizada de figuras",
+        descricao="Painel visual não analítico do inventário de figuras F3 materializadas.",
+        hipotese="HIP0",
+        notebook="notebooks/fase3/3I_interpretacao_integrada.ipynb",
+        fontes={"catalogo": STATS / "phase3_figuras_catalogo.csv"},
+        run_id=str(json.loads((STATS / "phase3_figuras_catalogo.csv.manifest.json").read_text(encoding="utf-8"))["run_id"]),
+        dpi=120,
+    )
     plt.close(fig)
     return out
 

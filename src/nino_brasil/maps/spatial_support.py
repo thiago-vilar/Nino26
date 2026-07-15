@@ -204,6 +204,33 @@ def build_analysis_units(
     return units
 
 
+def _regular_lattice_step(values: np.ndarray, *, axis_name: str) -> float:
+    """Return native grid spacing while allowing omitted rows/columns.
+
+    A Brazil-overlap subset is not necessarily contiguous: ocean-only columns
+    between the mainland and an island can be absent.  Those gaps are valid
+    integer multiples of the native step and must not be interpreted as a
+    regridded/irregular target.
+    """
+
+    unique = np.sort(np.unique(np.asarray(values, dtype=float)))
+    if unique.size < 2:
+        raise ValueError(
+            f"At least two unique {axis_name.lower()} coordinates are required."
+        )
+    differences = np.diff(unique)
+    step = float(np.min(differences))
+    if not np.isfinite(step) or step <= 0:
+        raise ValueError("Pixel coordinates do not define a positive regular grid.")
+    multiples = np.rint(differences / step)
+    reconstructed = multiples * step
+    if np.any(multiples < 1) or not np.allclose(
+        differences, reconstructed, rtol=0, atol=1e-7
+    ):
+        raise ValueError(f"{axis_name} spacing is not on a regular lattice.")
+    return step
+
+
 def build_pixel_membership(
     pixels: pd.DataFrame,
     units: gpd.GeoDataFrame,
@@ -276,16 +303,8 @@ def build_pixel_membership(
 
     lon_values = np.sort(pd.unique(pd.to_numeric(pixels["lon"], errors="raise")))
     lat_values = np.sort(pd.unique(pd.to_numeric(pixels["lat"], errors="raise")))
-    if len(lon_values) < 2 or len(lat_values) < 2:
-        raise ValueError("At least two unique latitudes and longitudes are required.")
-    delta_lon = float(np.median(np.diff(lon_values)))
-    delta_lat = float(np.median(np.diff(lat_values)))
-    if delta_lon <= 0 or delta_lat <= 0:
-        raise ValueError("Pixel coordinates do not define a positive regular grid.")
-    if not np.allclose(np.diff(lon_values), delta_lon, rtol=0, atol=1e-7):
-        raise ValueError("Longitude spacing is not regular.")
-    if not np.allclose(np.diff(lat_values), delta_lat, rtol=0, atol=1e-7):
-        raise ValueError("Latitude spacing is not regular.")
+    delta_lon = _regular_lattice_step(lon_values, axis_name="Longitude")
+    delta_lat = _regular_lattice_step(lat_values, axis_name="Latitude")
 
     cell_frame = gpd.GeoDataFrame(
         pixels[["pixel_id", "lat", "lon"]].copy(),

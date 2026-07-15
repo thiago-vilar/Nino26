@@ -1,0 +1,1317 @@
+{
+  "schema_version": 1,
+  "mode": "apply",
+  "created_at": "2026-07-14T01:01:31.837843+00:00",
+  "quarantine": "data/quarantine/output_reset_20260713T220000BRT",
+  "moved_or_planned": [
+    {
+      "source": "data/processed/figures",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/figures",
+      "files": 43,
+      "bytes": 17377803
+    },
+    {
+      "source": "data/processed/numeric-tables",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/numeric-tables",
+      "files": 150,
+      "bytes": 7117558573
+    },
+    {
+      "source": "data/processed/runs",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/runs",
+      "files": 244,
+      "bytes": 144279789
+    },
+    {
+      "source": "data/processed/parquet/modeling",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/modeling",
+      "files": 8,
+      "bytes": 267992885
+    },
+    {
+      "source": "data/processed/zarr/statistics",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/zarr/statistics",
+      "files": 6637,
+      "bytes": 1461023407
+    },
+    {
+      "source": "data/processed/zarr/modeling",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/zarr/modeling",
+      "files": 1406,
+      "bytes": 96576949
+    },
+    {
+      "source": "data/audit/augmentation_ablation",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/audit/augmentation_ablation",
+      "files": 6,
+      "bytes": 97036
+    },
+    {
+      "source": "data/interim/notebook-runtime",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/interim/notebook-runtime",
+      "files": 2,
+      "bytes": 520563
+    },
+    {
+      "source": "notebooks/fase3",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase3",
+      "files": 18,
+      "bytes": 10592278
+    },
+    {
+      "source": "notebooks/fase4",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase4",
+      "files": 9,
+      "bytes": 5760602
+    },
+    {
+      "source": "executed",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/executed",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "source": "data/processed/figuras_manifesto.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/figuras_manifesto.csv",
+      "files": 1,
+      "bytes": 14189
+    },
+    {
+      "source": "data/processed/parquet/features/nino34_master_weekly.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/features/nino34_master_weekly.csv",
+      "files": 1,
+      "bytes": 1424012
+    },
+    {
+      "source": "data/processed/parquet/features/nino34_master_weekly_source_adjusted_v1.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/features/nino34_master_weekly_source_adjusted_v1.csv",
+      "files": 1,
+      "bytes": 1482593
+    },
+    {
+      "source": "data/processed/parquet/features/phase3_indices_semanais.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/features/phase3_indices_semanais.csv",
+      "files": 1,
+      "bytes": 1384595
+    },
+    {
+      "source": "data/processed/parquet/features/phase3_indices_semanais.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/features/phase3_indices_semanais.csv.manifest.json",
+      "files": 1,
+      "bytes": 10510
+    },
+    {
+      "source": "data/processed/parquet/features/phase4_chirps_pixels.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/features/phase4_chirps_pixels.csv",
+      "files": 1,
+      "bytes": 428090
+    },
+    {
+      "source": "data/processed/parquet/features/phase4_chirps_weekly_zanom.parquet",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/features/phase4_chirps_weekly_zanom.parquet",
+      "files": 1,
+      "bytes": 230687533
+    },
+    {
+      "source": "notebooks/fase2/2Z_sanidade_variaveis.ipynb",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase2/2Z_sanidade_variaveis.ipynb",
+      "files": 1,
+      "bytes": 5272679
+    },
+    {
+      "source": "notebooks/fase5/5_ciclo_ml.ipynb",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase5/5_ciclo_ml.ipynb",
+      "files": 1,
+      "bytes": 289902
+    },
+    {
+      "source": "notebooks/fase6/6_brasil_ml.ipynb",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase6/6_brasil_ml.ipynb",
+      "files": 1,
+      "bytes": 9986
+    },
+    {
+      "source": "notebooks/fase7/7_ciclo_convlstm.ipynb",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase7/7_ciclo_convlstm.ipynb",
+      "files": 1,
+      "bytes": 10355
+    },
+    {
+      "source": "notebooks/fase8/8_brasil_convlstm.ipynb",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/notebooks/fase8/8_brasil_convlstm.ipynb",
+      "files": 1,
+      "bytes": 9887
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_ctd_validation.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_ctd_validation.csv",
+      "files": 1,
+      "bytes": 1476
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_master_audit.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_master_audit.csv",
+      "files": 1,
+      "bytes": 2035
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_master_run_manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_master_run_manifest.json",
+      "files": 1,
+      "bytes": 5451
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_master_source_adjusted_v1_audit.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_master_source_adjusted_v1_audit.csv",
+      "files": 1,
+      "bytes": 2066
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_master_validation.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_master_validation.csv",
+      "files": 1,
+      "bytes": 1778
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_ocean_source_seam_audit.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_ocean_source_seam_audit.csv",
+      "files": 1,
+      "bytes": 10056
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase2_variable_contract.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase2_variable_contract.csv",
+      "files": 1,
+      "bytes": 2919
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_best_lags_fdr.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_best_lags_fdr.csv",
+      "files": 1,
+      "bytes": 30957
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_best_lags_fdr.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_best_lags_fdr.csv.manifest.json",
+      "files": 1,
+      "bytes": 12784
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_discriminantes_por_periodo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_discriminantes_por_periodo.csv",
+      "files": 1,
+      "bytes": 18539
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_discriminantes_por_periodo.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_discriminantes_por_periodo.csv.manifest.json",
+      "files": 1,
+      "bytes": 11854
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_duracao_por_tipo_classe.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_duracao_por_tipo_classe.csv",
+      "files": 1,
+      "bytes": 1313
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_duracao_por_tipo_classe.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_duracao_por_tipo_classe.csv.manifest.json",
+      "files": 1,
+      "bytes": 10828
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_event_lifecycle_en_ln.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_event_lifecycle_en_ln.csv",
+      "files": 1,
+      "bytes": 8457
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_event_lifecycle_en_ln.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_event_lifecycle_en_ln.csv.manifest.json",
+      "files": 1,
+      "bytes": 11028
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_events_en_ln.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_events_en_ln.csv",
+      "files": 1,
+      "bytes": 6199
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_events_en_ln.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_events_en_ln.csv.manifest.json",
+      "files": 1,
+      "bytes": 11708
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_fase_stats_variaveis.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_fase_stats_variaveis.csv",
+      "files": 1,
+      "bytes": 44363
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_fase_stats_variaveis.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_fase_stats_variaveis.csv.manifest.json",
+      "files": 1,
+      "bytes": 11512
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_fases_semanais_en_ln.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_fases_semanais_en_ln.csv",
+      "files": 1,
+      "bytes": 273081
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_fases_semanais_en_ln.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_fases_semanais_en_ln.csv.manifest.json",
+      "files": 1,
+      "bytes": 11424
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_figuras_catalogo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_figuras_catalogo.csv",
+      "files": 1,
+      "bytes": 8066
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_figuras_catalogo.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_figuras_catalogo.csv.manifest.json",
+      "files": 1,
+      "bytes": 15240
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_lag_event_bootstrap_replicates.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_lag_event_bootstrap_replicates.csv",
+      "files": 1,
+      "bytes": 8537433
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_lag_event_bootstrap_replicates.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_lag_event_bootstrap_replicates.csv.manifest.json",
+      "files": 1,
+      "bytes": 12122
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_lag_event_bootstrap_summary.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_lag_event_bootstrap_summary.csv",
+      "files": 1,
+      "bytes": 245723
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_lag_event_bootstrap_summary.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_lag_event_bootstrap_summary.csv.manifest.json",
+      "files": 1,
+      "bytes": 12925
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_lag_scan_en_ln_fases.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_lag_scan_en_ln_fases.csv",
+      "files": 1,
+      "bytes": 7130105
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_lag_scan_en_ln_fases.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_lag_scan_en_ln_fases.csv.manifest.json",
+      "files": 1,
+      "bytes": 12753
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_pca_loadings_por_fase.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_pca_loadings_por_fase.csv",
+      "files": 1,
+      "bytes": 34016
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_pca_loadings_por_fase.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_pca_loadings_por_fase.csv.manifest.json",
+      "files": 1,
+      "bytes": 10871
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_pca_por_fase.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_pca_por_fase.csv",
+      "files": 1,
+      "bytes": 3059
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_pca_por_fase.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_pca_por_fase.csv.manifest.json",
+      "files": 1,
+      "bytes": 10896
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_peak_band_sensitivity.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_peak_band_sensitivity.csv",
+      "files": 1,
+      "bytes": 7773
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_peak_band_sensitivity.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_peak_band_sensitivity.csv.manifest.json",
+      "files": 1,
+      "bytes": 11138
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_preprocessing_contract.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_preprocessing_contract.csv",
+      "files": 1,
+      "bytes": 10661
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_preprocessing_contract.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_preprocessing_contract.csv.manifest.json",
+      "files": 1,
+      "bytes": 11506
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_rolling_origin_folds.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_rolling_origin_folds.csv",
+      "files": 1,
+      "bytes": 6915
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_rolling_origin_folds.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_rolling_origin_folds.csv.manifest.json",
+      "files": 1,
+      "bytes": 11566
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_rolling_origin_targets.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_rolling_origin_targets.csv",
+      "files": 1,
+      "bytes": 1837056
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_rolling_origin_targets.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_rolling_origin_targets.csv.manifest.json",
+      "files": 1,
+      "bytes": 11631
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_temporal_integrity_audit.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_temporal_integrity_audit.csv",
+      "files": 1,
+      "bytes": 2349
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3_temporal_integrity_audit.md",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3_temporal_integrity_audit.md",
+      "files": 1,
+      "bytes": 1375
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_cobertura_indices.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_cobertura_indices.csv",
+      "files": 1,
+      "bytes": 543
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_cobertura_variaveis.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_cobertura_variaveis.csv",
+      "files": 1,
+      "bytes": 2110
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_cobertura_variaveis.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_cobertura_variaveis.csv.manifest.json",
+      "files": 1,
+      "bytes": 8056
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_fontes_unidades.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_fontes_unidades.csv",
+      "files": 1,
+      "bytes": 933
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_fontes_variaveis.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_fontes_variaveis.csv",
+      "files": 1,
+      "bytes": 624
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_fontes_variaveis.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_fontes_variaveis.csv.manifest.json",
+      "files": 1,
+      "bytes": 7869
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_hovmoller_ssta.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_hovmoller_ssta.csv",
+      "files": 1,
+      "bytes": 57894385
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_hovmoller_ssta.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_hovmoller_ssta.csv.manifest.json",
+      "files": 1,
+      "bytes": 7821
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_picos_epicentros.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_picos_epicentros.csv",
+      "files": 1,
+      "bytes": 991
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_picos_epicentros.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_picos_epicentros.csv.manifest.json",
+      "files": 1,
+      "bytes": 8162
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_sla_janelas_long.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_sla_janelas_long.csv",
+      "files": 1,
+      "bytes": 49675671
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_sla_janelas_long.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_sla_janelas_long.csv.manifest.json",
+      "files": 1,
+      "bytes": 7858
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_taux_quinzenal_janelas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_taux_quinzenal_janelas.csv",
+      "files": 1,
+      "bytes": 9363
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3A_taux_quinzenal_janelas.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3A_taux_quinzenal_janelas.csv.manifest.json",
+      "files": 1,
+      "bytes": 7844
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_autocorrelacao.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_autocorrelacao.csv",
+      "files": 1,
+      "bytes": 4489
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_eventos_taxas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_eventos_taxas.csv",
+      "files": 1,
+      "bytes": 1261
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_faixa_pico_eventos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_faixa_pico_eventos.csv",
+      "files": 1,
+      "bytes": 1292
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_grupos_classes_noaa.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_grupos_classes_noaa.csv",
+      "files": 1,
+      "bytes": 464
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_grupos_medias_elnino.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_grupos_medias_elnino.csv",
+      "files": 1,
+      "bytes": 285
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_mapa_composto_resumo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_mapa_composto_resumo.csv",
+      "files": 1,
+      "bytes": 98
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_memoria_persistencia.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_memoria_persistencia.csv",
+      "files": 1,
+      "bytes": 512
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3B_trajetorias_compostas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3B_trajetorias_compostas.csv",
+      "files": 1,
+      "bytes": 8623
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_lag_correlacoes.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_lag_correlacoes.csv",
+      "files": 1,
+      "bytes": 47777
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_lag_correlacoes.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_lag_correlacoes.csv.manifest.json",
+      "files": 1,
+      "bytes": 9765
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_mapa_lon_lag.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_mapa_lon_lag.csv",
+      "files": 1,
+      "bytes": 794829
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_mapa_lon_lag.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_mapa_lon_lag.csv.manifest.json",
+      "files": 1,
+      "bytes": 7768
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_precursor_ranking.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_precursor_ranking.csv",
+      "files": 1,
+      "bytes": 459
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_precursor_screening.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_precursor_screening.csv",
+      "files": 1,
+      "bytes": 551
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_precursor_screening.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_precursor_screening.csv.manifest.json",
+      "files": 1,
+      "bytes": 8093
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_ranking_lags.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_ranking_lags.csv",
+      "files": 1,
+      "bytes": 7839
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3C_ranking_lags.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3C_ranking_lags.csv.manifest.json",
+      "files": 1,
+      "bytes": 8401
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_forest_ic95_legenda.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_forest_ic95_legenda.csv",
+      "files": 1,
+      "bytes": 3779
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_forest_ic95_legenda.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_forest_ic95_legenda.csv.manifest.json",
+      "files": 1,
+      "bytes": 8084
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_mapa_fdr_resumo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_mapa_fdr_resumo.csv",
+      "files": 1,
+      "bytes": 107
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_mapa_lon_lag_fdr.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_mapa_lon_lag_fdr.csv",
+      "files": 1,
+      "bytes": 1459153
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_mapa_lon_lag_fdr.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_mapa_lon_lag_fdr.csv.manifest.json",
+      "files": 1,
+      "bytes": 7937
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_ranking_significativo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_ranking_significativo.csv",
+      "files": 1,
+      "bytes": 6761
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_ranking_significativo.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_ranking_significativo.csv.manifest.json",
+      "files": 1,
+      "bytes": 8750
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_testes_completos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_testes_completos.csv",
+      "files": 1,
+      "bytes": 552241
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3D_testes_completos.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3D_testes_completos.csv.manifest.json",
+      "files": 1,
+      "bytes": 10053
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3E_bootstrap_blocos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3E_bootstrap_blocos.csv",
+      "files": 1,
+      "bytes": 16718
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3E_bootstrap_correlacoes.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3E_bootstrap_correlacoes.csv",
+      "files": 1,
+      "bytes": 3172872
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3E_estabilidade.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3E_estabilidade.csv",
+      "files": 1,
+      "bytes": 6145
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3E_leave_one_event_out.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3E_leave_one_event_out.csv",
+      "files": 1,
+      "bytes": 27183
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3E_sensibilidade_resumo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3E_sensibilidade_resumo.csv",
+      "files": 1,
+      "bytes": 6145
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_kelvin_eventos_resumo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_kelvin_eventos_resumo.csv",
+      "files": 1,
+      "bytes": 686
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_kelvin_eventos_resumo.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_kelvin_eventos_resumo.csv.manifest.json",
+      "files": 1,
+      "bytes": 8421
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_kelvin_resumo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_kelvin_resumo.csv",
+      "files": 1,
+      "bytes": 84
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_kelvin_setas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_kelvin_setas.csv",
+      "files": 1,
+      "bytes": 1012
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_kelvin_setas.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_kelvin_setas.csv.manifest.json",
+      "files": 1,
+      "bytes": 8049
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_sla_janelas_long.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_sla_janelas_long.csv",
+      "files": 1,
+      "bytes": 49730343
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_sla_janelas_long.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_sla_janelas_long.csv.manifest.json",
+      "files": 1,
+      "bytes": 7858
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_taux_sla_series.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_taux_sla_series.csv",
+      "files": 1,
+      "bytes": 123960
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3F_taux_sla_series.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3F_taux_sla_series.csv.manifest.json",
+      "files": 1,
+      "bytes": 8107
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_composto_ssta.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_composto_ssta.csv",
+      "files": 1,
+      "bytes": 2429
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_composto_ssta.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_composto_ssta.csv.manifest.json",
+      "files": 1,
+      "bytes": 7694
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_composto_ssta_classes_noaa.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_composto_ssta_classes_noaa.csv",
+      "files": 1,
+      "bytes": 17434
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_composto_ssta_classes_noaa.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_composto_ssta_classes_noaa.csv.manifest.json",
+      "files": 1,
+      "bytes": 7924
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_escalonamento_ssta.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_escalonamento_ssta.csv",
+      "files": 1,
+      "bytes": 76
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_escalonamento_ssta.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_escalonamento_ssta.csv.manifest.json",
+      "files": 1,
+      "bytes": 7714
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_estado_atual.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_estado_atual.csv",
+      "files": 1,
+      "bytes": 53
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_estado_atual.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_estado_atual.csv.manifest.json",
+      "files": 1,
+      "bytes": 7729
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_eventos_ssta.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_eventos_ssta.csv",
+      "files": 1,
+      "bytes": 815
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_eventos_ssta.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_eventos_ssta.csv.manifest.json",
+      "files": 1,
+      "bytes": 8163
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_mapa_ssta_lon_eventos_forte_super.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_mapa_ssta_lon_eventos_forte_super.csv",
+      "files": 1,
+      "bytes": 586
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3G_mapa_ssta_lon_eventos_forte_super.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3G_mapa_ssta_lon_eventos_forte_super.csv.manifest.json",
+      "files": 1,
+      "bytes": 8170
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_ciclo_vida_media.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_ciclo_vida_media.csv",
+      "files": 1,
+      "bytes": 17241
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_ciclo_vida_media.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_ciclo_vida_media.csv.manifest.json",
+      "files": 1,
+      "bytes": 8336
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv",
+      "files": 1,
+      "bytes": 36090
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_ciclo_vida_media_subsuperficie_atmosfera.csv.manifest.json",
+      "files": 1,
+      "bytes": 9098
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_compostos_onset.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_compostos_onset.csv",
+      "files": 1,
+      "bytes": 76526
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_compostos_onset.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_compostos_onset.csv.manifest.json",
+      "files": 1,
+      "bytes": 8193
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_estado_precursor_por_classe.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_estado_precursor_por_classe.csv",
+      "files": 1,
+      "bytes": 3077
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_estado_precursor_por_classe.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_estado_precursor_por_classe.csv.manifest.json",
+      "files": 1,
+      "bytes": 8146
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_fases_ciclo_vida.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_fases_ciclo_vida.csv",
+      "files": 1,
+      "bytes": 309
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_fases_ciclo_vida.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_fases_ciclo_vida.csv.manifest.json",
+      "files": 1,
+      "bytes": 7801
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_grupos_classes_noaa.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_grupos_classes_noaa.csv",
+      "files": 1,
+      "bytes": 464
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_grupos_classes_noaa.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_grupos_classes_noaa.csv.manifest.json",
+      "files": 1,
+      "bytes": 7744
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_grupos_medias_elnino.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_grupos_medias_elnino.csv",
+      "files": 1,
+      "bytes": 285
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_proveniencia_eventos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_proveniencia_eventos.csv",
+      "files": 1,
+      "bytes": 1333
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_proveniencia_eventos.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_proveniencia_eventos.csv.manifest.json",
+      "files": 1,
+      "bytes": 8162
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_separacao_genese.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_separacao_genese.csv",
+      "files": 1,
+      "bytes": 202
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3H_separacao_genese.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3H_separacao_genese.csv.manifest.json",
+      "files": 1,
+      "bytes": 7812
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_classificacao_noaa_oni.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_classificacao_noaa_oni.csv",
+      "files": 1,
+      "bytes": 1051
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_conclusoes_decisao.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_conclusoes_decisao.csv",
+      "files": 1,
+      "bytes": 4802
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_conjunto_antecipacao_pico.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_conjunto_antecipacao_pico.csv",
+      "files": 1,
+      "bytes": 6200
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_estado_2026.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_estado_2026.csv",
+      "files": 1,
+      "bytes": 305
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_interpretacao_integrada.md",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_interpretacao_integrada.md",
+      "files": 1,
+      "bytes": 4063
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_medias_classes_noaa.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_medias_classes_noaa.csv",
+      "files": 1,
+      "bytes": 792
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_modelos_candidatos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_modelos_candidatos.csv",
+      "files": 1,
+      "bytes": 3536
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_nested_loo_eventos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_nested_loo_eventos.csv",
+      "files": 1,
+      "bytes": 1415
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_nested_loo_metricas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_nested_loo_metricas.csv",
+      "files": 1,
+      "bytes": 252
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_nested_loo_selecao.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_nested_loo_selecao.csv",
+      "files": 1,
+      "bytes": 1919
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_projecao_pico_2026.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_projecao_pico_2026.csv",
+      "files": 1,
+      "bytes": 690
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_referencias_metodologicas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_referencias_metodologicas.csv",
+      "files": 1,
+      "bytes": 1042
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_skill_horizontes.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_skill_horizontes.csv",
+      "files": 1,
+      "bytes": 3839
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3I_skill_por_variavel.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3I_skill_por_variavel.csv",
+      "files": 1,
+      "bytes": 6591
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3J_conjunto_indispensavel.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3J_conjunto_indispensavel.csv",
+      "files": 1,
+      "bytes": 257
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3J_pca_loadings.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3J_pca_loadings.csv",
+      "files": 1,
+      "bytes": 327
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3J_pca_variancia.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3J_pca_variancia.csv",
+      "files": 1,
+      "bytes": 180
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3J_ranking_crescimento.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3J_ranking_crescimento.csv",
+      "files": 1,
+      "bytes": 323
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_conjunto_indispensavel.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_conjunto_indispensavel.csv",
+      "files": 1,
+      "bytes": 214
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_pca_loadings.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_pca_loadings.csv",
+      "files": 1,
+      "bytes": 295
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_pca_variancia.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_pca_variancia.csv",
+      "files": 1,
+      "bytes": 165
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_pcs_explicados.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_pcs_explicados.csv",
+      "files": 1,
+      "bytes": 315
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_previsao_pico_loo.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_previsao_pico_loo.csv",
+      "files": 1,
+      "bytes": 1441
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_eventos.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_eventos.csv",
+      "files": 1,
+      "bytes": 1530
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_metricas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_metricas.csv",
+      "files": 1,
+      "bytes": 252
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_selecao.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3K_previsao_pico_nested_loo_selecao.csv",
+      "files": 1,
+      "bytes": 2230
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3L_loo_previsao_pico.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3L_loo_previsao_pico.csv",
+      "files": 1,
+      "bytes": 266
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase3L_projecao_2026.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase3L_projecao_2026.csv",
+      "files": 1,
+      "bytes": 187
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_best_lag_pixel.parquet",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_best_lag_pixel.parquet",
+      "files": 1,
+      "bytes": 97035441
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_best_lag_pixel.parquet.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_best_lag_pixel.parquet.manifest.json",
+      "files": 1,
+      "bytes": 9752
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_best_lag_pixel_key.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_best_lag_pixel_key.csv",
+      "files": 1,
+      "bytes": 107583842
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_best_lag_pixel_key.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_best_lag_pixel_key.csv.manifest.json",
+      "files": 1,
+      "bytes": 9751
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_cobertura_unidades.parquet",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_cobertura_unidades.parquet",
+      "files": 1,
+      "bytes": 44901
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_cobertura_unidades.parquet.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_cobertura_unidades.parquet.manifest.json",
+      "files": 1,
+      "bytes": 9390
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_field_significance.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_field_significance.csv",
+      "files": 1,
+      "bytes": 317500
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_field_significance.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_field_significance.csv.manifest.json",
+      "files": 1,
+      "bytes": 9455
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_lags_por_unidade.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_lags_por_unidade.csv",
+      "files": 1,
+      "bytes": 153134504
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_lags_por_unidade.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_lags_por_unidade.csv.manifest.json",
+      "files": 1,
+      "bytes": 9569
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_pixel_membership_exact.parquet",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_pixel_membership_exact.parquet",
+      "files": 1,
+      "bytes": 317486
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_predictor_treatment.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_predictor_treatment.csv",
+      "files": 1,
+      "bytes": 26041
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4C_native_predictor_treatment.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4C_native_predictor_treatment.csv.manifest.json",
+      "files": 1,
+      "bytes": 9187
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_cluster_profiles.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_cluster_profiles.csv",
+      "files": 1,
+      "bytes": 837837
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_cluster_profiles.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_cluster_profiles.csv.manifest.json",
+      "files": 1,
+      "bytes": 13712
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_cluster_ranking.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_cluster_ranking.csv",
+      "files": 1,
+      "bytes": 3941
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_cluster_ranking.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_cluster_ranking.csv.manifest.json",
+      "files": 1,
+      "bytes": 13748
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_clusters_pixels.parquet",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_clusters_pixels.parquet",
+      "files": 1,
+      "bytes": 105467
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_clusters_pixels.parquet.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_clusters_pixels.parquet.manifest.json",
+      "files": 1,
+      "bytes": 13747
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_gate_event_jackknife.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_gate_event_jackknife.csv",
+      "files": 1,
+      "bytes": 243568
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_gate_event_jackknife.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_gate_event_jackknife.csv.manifest.json",
+      "files": 1,
+      "bytes": 14503
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_hypothesis_summary.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_hypothesis_summary.csv",
+      "files": 1,
+      "bytes": 14650
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_hypothesis_summary.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_hypothesis_summary.csv.manifest.json",
+      "files": 1,
+      "bytes": 13863
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_target_coverage.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_target_coverage.csv",
+      "files": 1,
+      "bytes": 46951811
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase4D_native_target_coverage.csv.manifest.json",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase4D_native_target_coverage.csv.manifest.json",
+      "files": 1,
+      "bytes": 13624
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_alvos_por_evento.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_alvos_por_evento.csv",
+      "files": 1,
+      "bytes": 2134
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_cv_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_cv_rf.csv",
+      "files": 1,
+      "bytes": 387
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_cv_xgb.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_cv_xgb.csv",
+      "files": 1,
+      "bytes": 149
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_importancia_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_importancia_rf.csv",
+      "files": 1,
+      "bytes": 10809
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_importancia_xgb.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_importancia_xgb.csv",
+      "files": 1,
+      "bytes": 8196
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_pdp_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_pdp_rf.csv",
+      "files": 1,
+      "bytes": 26575
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_pdp_xgb.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_pdp_xgb.csv",
+      "files": 1,
+      "bytes": 25444
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_regressao_eventos_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_regressao_eventos_rf.csv",
+      "files": 1,
+      "bytes": 511
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_regressao_importancias_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_regressao_importancias_rf.csv",
+      "files": 1,
+      "bytes": 2961
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_regressao_predicoes_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_regressao_predicoes_rf.csv",
+      "files": 1,
+      "bytes": 5791
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase5_rfecv_selecionadas.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase5_rfecv_selecionadas.csv",
+      "files": 1,
+      "bytes": 986
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase6_importancias_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase6_importancias_rf.csv",
+      "files": 1,
+      "bytes": 1202
+    },
+    {
+      "source": "data/processed/parquet/statistics/phase6_skill_rf.csv",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/phase6_skill_rf.csv",
+      "files": 1,
+      "bytes": 1027
+    },
+    {
+      "source": "data/processed/parquet/statistics/pilots",
+      "destination": "data/quarantine/output_reset_20260713T220000BRT/data/processed/parquet/statistics/pilots",
+      "files": 92,
+      "bytes": 9603458
+    }
+  ],
+  "totals": {
+    "paths": 216,
+    "files": 8819,
+    "bytes": 9961709412
+  },
+  "canonical_notebooks_with_embedded_outputs": [],
+  "protected_paths": [
+    "data/raw",
+    "data/processed/zarr/features/chirps_native_daily_brazil_box.zarr",
+    "data/processed/zarr/features/chirps_native_weekly_targets.zarr",
+    "data/processed/parquet/features/phase4_chirps_native_pixels.csv"
+  ],
+  "missing_noncritical_protected_paths": []
+}

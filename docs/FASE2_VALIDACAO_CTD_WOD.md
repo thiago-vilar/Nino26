@@ -58,4 +58,4 @@ Esta validacao usa medias anuais. Ela testa vies medio anual, mas nao substitui
 uma validacao ponto-a-ponto. Para validacao forte, o proximo passo e parear cada
 perfil CTD com a reanalise no mesmo dia/localidade, calcular bias, MAE, RMSE,
 correlacao, IC95% por bootstrap e graficos Bland-Altman por fonte
-UFS/GLORYS/GLO12.
+UFS+GLORYS, mantendo a identificação interna do componente e do período.

@@ -4,11 +4,11 @@ Diagnostico local em `C:\DEV\NINO26`.
 
 ## Kernel para a Fase 4 no VS Code
 
-Use este kernel ao abrir os notebooks em `notebooks/fase4/` pelo VS Code no
-Windows:
+Use este kernel ao abrir os notebooks em `notebooks/fase4_nino/` ou
+`notebooks/fase4_nina/` pelo VS Code no Windows:
 
 ```text
-Python 3 (.venv NINO26)
+Python 3.12 (.venv NINO26)
 ```
 
 Detalhes:
@@ -96,9 +96,8 @@ cuda device name: Quadro T1000 with Max-Q Design
 
 | Fase | Ambiente recomendado | Kernel |
 |---|---|---|
-| Fase 4 | VS Code no Windows | `Python 3 (.venv NINO26)` |
-| Fase 5 CPU/baselines | VS Code no Windows ou WSL | depende do volume |
-| Fase 6 neural/GPU | VS Code Remote WSL | `Python 3 (.venv-wsl NINO26 GPU)` |
+| Fases 3–6 (estatística/RF/XGBoost) | VS Code no Windows | `nino-brasil` / `Python 3.12 (.venv NINO26)` |
+| Fases 7–8 (ConvLSTM) | VS Code Remote WSL para treino | `nino26-wsl-gpu` |
 
 A Quadro T1000 tem aproximadamente 4 GB de VRAM. Para as fases neurais, usar
 batch pequeno, `float16`/mixed precision quando possivel, modelos compactos e

@@ -1,100 +1,204 @@
 #!/usr/bin/env python3
-"""Executa todos os notebooks da Fase 4 de uma vez (headless) e grava as
-saidas (tabelas + graficos) dentro de cada .ipynb, para abrir e analisar depois.
-
-Uso (no terminal, com o ambiente .venv NINO26 ativo):
-
-    python scripts/run_fase4_all.py              # sequencial (recomendado)
-    python scripts/run_fase4_all.py --only 4.0 4A # so alguns notebooks
-
-Cada notebook e executado in-place: ao terminar, abra-o no VS Code e role as
-celulas para ver as tabelas (DataFrame) e figuras renderizadas. As figuras e
-CSVs tambem ficam em data/processed/figures e data/processed/parquet/statistics.
-A camada obrigatoria figura->tabela fica em data/processed/numeric-tables.
-
-Requer nbconvert (instale com:  pip install nbconvert ipykernel).
-"""
+"""Run one isolated F4 signal: numerical core C -> D -> clean viewers."""
 from __future__ import annotations
-import subprocess, sys, time
+
+import argparse
+import os
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-NBDIR = ROOT / "notebooks" / "fase4"
-KERNEL = "python3"
-TIMEOUT = 7200  # 2 h por notebook (a 1a execucao de B/C le ERA5/CHIRPS)
-
-NOTEBOOKS = {
-    "4.0": "4_0_fase4_abertura.ipynb",
-    "4A": "4A_ciclo_enso_fases.ipynb",
-    "4B": "4B_variaveis_determinantes_fases.ipynb",
-    "4C": "4C_sinal_pixel_lags.ipynb",
-    "4D": "4D_clusters_alvo.ipynb",
-}
+import subprocess
+import sys
 
 
-def cmd(nb: Path) -> list[str]:
-    return [
-        sys.executable, "-m", "jupyter", "nbconvert",
-        "--to", "notebook", "--execute", "--inplace",
-        f"--ExecutePreprocessor.timeout={TIMEOUT}",
-        f"--ExecutePreprocessor.kernel_name={KERNEL}",
-        str(nb),
-    ]
+ROOT = Path(__file__).resolve().parents[1]
+ENSO_TYPES = ("el_nino", "la_nina")
+TARGET = ROOT / "data/processed/zarr/features/chirps_native_weekly_targets.zarr"
 
 
-def main(argv: list[str]) -> int:
-    if "--parallel" in argv:
-        print(
-            "ERRO: a Fase 4 tem dependencias 4.0 -> 4A -> 4B -> 4C -> 4D; "
-            "execucao paralela nao e valida."
+def notebook_contract(enso_type: str) -> tuple[Path, dict[str, str]]:
+    if enso_type == "el_nino":
+        return ROOT / "notebooks/fase4_nino", {
+            "4C": "F4NinoC_sinal_pixel_lags.ipynb",
+            "4D": "F4NinoD_clusters_alvo.ipynb",
+        }
+    return ROOT / "notebooks/fase4_nina", {
+        "4C": "F4NinaC_sinal_pixel_lags.ipynb",
+        "4D": "F4NinaD_clusters_alvo.ipynb",
+    }
+
+
+def execute_notebook(
+    source: Path,
+    destination: Path,
+    *,
+    kernel: str,
+    timeout: int,
+    environment: dict[str, str],
+) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "jupyter",
+            "nbconvert",
+            "--to",
+            "notebook",
+            "--execute",
+            "--output-dir",
+            str(destination.parent),
+            "--output",
+            destination.name,
+            f"--ExecutePreprocessor.timeout={timeout}",
+            f"--ExecutePreprocessor.kernel_name={kernel}",
+            str(source),
+        ],
+        cwd=ROOT,
+        env=environment,
+        check=True,
+    )
+
+
+def _ensure_target(*, allow_build: bool) -> None:
+    if TARGET.exists():
+        return
+    if not allow_build:
+        raise FileNotFoundError(
+            "CHIRPS nativo ausente. A F4 não reconstrói o alvo sem "
+            "--allow-build-chirps."
         )
-        return 2
-    only = None
-    if "--only" in argv:
-        i = argv.index("--only")
-        only = [a.upper() for a in argv[i + 1:] if not a.startswith("--")]
-    keys = [k for k in NOTEBOOKS if only is None or k.upper() in only]
-    if only is not None and not keys:
-        valid = ", ".join(NOTEBOOKS)
-        print(f"ERRO: nenhum notebook reconhecido em --only. Opcoes: {valid}")
-        return 2
-    nbs = [NBDIR / NOTEBOOKS[k] for k in keys]
-    missing = [str(p) for p in nbs if not p.exists()]
-    if missing:
-        print("Notebooks ausentes:", missing); return 1
+    subprocess.run(
+        [sys.executable, "scripts/build_phase4_chirps_targets.py"],
+        cwd=ROOT,
+        check=True,
+    )
 
-    print(f"Executando {len(nbs)} notebook(s) em modo SEQUENCIAL:")
-    for p in nbs:
-        print("  -", p.name)
-    print()
 
-    t0 = time.time()
-    results: dict[str, str] = {}
-    for p in nbs:
-        print(f">>> {p.name} ...", flush=True)
-        r = subprocess.run(cmd(p))
-        results[p.name] = "OK" if r.returncode == 0 else "FALHOU"
-        print(f"    {results[p.name]}\n", flush=True)
-        if r.returncode != 0:
-            print("Execucao interrompida: corrija o primeiro notebook com erro.")
-            break
+def _run_numeric_core(enso_type: str, keys: list[str]) -> None:
+    if "4C" in keys:
+        subprocess.run(
+            [
+                sys.executable,
+                "scripts/run_fase4c_regional.py",
+                "--enso-type",
+                enso_type,
+                "--field-permutations",
+                "199",
+                "--replace-existing",
+            ],
+            cwd=ROOT,
+            check=True,
+        )
+    if "4D" in keys:
+        subprocess.run(
+            [
+                sys.executable,
+                "scripts/run_fase4d_targets.py",
+                "--enso-type",
+                enso_type,
+            ],
+            cwd=ROOT,
+            check=True,
+        )
 
-    print("=" * 60)
-    for name, st in results.items():
-        print(f"{st:8s} {name}")
-    ok = all(v == "OK" for v in results.values())
-    if ok:
-        print(">>> export_numeric_tables_for_figures.py", flush=True)
-        subprocess.run([
-            sys.executable, "scripts/export_numeric_tables_for_figures.py",
-            "--force", "--strict",
-        ], cwd=ROOT, check=True)
-    print(f"tempo total: {time.time()-t0:.0f}s")
-    print("\nResultados gravados dentro de cada .ipynb (abra no VS Code).")
-    print("Figuras: data/processed/figures/ | Tabelas: data/processed/parquet/statistics/")
-    print("Numeric-tables: data/processed/numeric-tables/")
-    return 0 if ok else 2
+
+def _validate_scoped_outputs(enso_type: str, keys: list[str]) -> None:
+    from scripts.notebook_run_viewer import audit_phase4_outputs
+    from scripts.run_fase4c_regional import scoped_artifact_path
+    from scripts.run_fase4d_targets import f4c_artifact_paths
+
+    groups: list[tuple[str, list[Path], bool]] = []
+    if "4C" in keys:
+        groups.append(("F4C", list(f4c_artifact_paths(enso_type).values()), True))
+    if "4D" in keys:
+        stats = ROOT / "data/processed/parquet/statistics"
+        groups.append(
+            (
+                "F4D",
+                [
+                    scoped_artifact_path(stats / "phase4D_native_clusters_pixels.parquet", enso_type),
+                    scoped_artifact_path(stats / "phase4D_native_cluster_profiles.csv", enso_type),
+                    scoped_artifact_path(stats / "phase4D_native_cluster_ranking.csv", enso_type),
+                    scoped_artifact_path(stats / "phase4D_native_gate_event_jackknife.csv", enso_type),
+                    scoped_artifact_path(stats / "phase4D_native_hypothesis_summary.csv", enso_type),
+                    scoped_artifact_path(stats / "phase4D_native_target_coverage.csv", enso_type),
+                ],
+                False,
+            )
+        )
+    for stage, paths, canonical_f4c in groups:
+        audit, run_id = audit_phase4_outputs(
+            paths,
+            canonical_f4c=canonical_f4c,
+            expected_stage=stage,
+            expected_enso_type=enso_type,
+        )
+        if run_id is None:
+            raise RuntimeError(
+                f"validação scoped {stage}/{enso_type} falhou:\n{audit.to_string(index=False)}"
+            )
+        print(f"[ok] {stage}/{enso_type}: {run_id}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--enso-type", required=True, choices=ENSO_TYPES)
+    parser.add_argument(
+        "--run-pipeline",
+        action="store_true",
+        help="executa o núcleo numérico antes dos notebooks viewers",
+    )
+    parser.add_argument("--allow-build-chirps", action="store_true")
+    parser.add_argument("--only", nargs="+", choices=("4C", "4D"))
+    parser.add_argument("--kernel", default="nino-brasil")
+    parser.add_argument("--timeout", type=int, default=43200)
+    args = parser.parse_args(argv)
+    if args.timeout <= 0:
+        parser.error("--timeout deve ser positivo")
+
+    keys = [key for key in ("4C", "4D") if args.only is None or key in args.only]
+    nbdir, inventory = notebook_contract(args.enso_type)
+    sources = [nbdir / inventory[key] for key in keys]
+    missing_notebooks = [path for path in sources if not path.is_file()]
+    if missing_notebooks:
+        raise FileNotFoundError(f"notebooks F4 ausentes: {missing_notebooks}")
+
+    _ensure_target(allow_build=args.allow_build_chirps)
+    if args.run_pipeline:
+        _run_numeric_core(args.enso_type, keys)
+    _validate_scoped_outputs(args.enso_type, keys)
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "NINO26_NOTEBOOK_MODE": "official",
+            "NINO26_RUN_PIPELINE": "0",
+            "NINO26_ENSO_TYPE": args.enso_type,
+        }
+    )
+    local_jupyter = ROOT / ".venv/share/jupyter"
+    if local_jupyter.exists():
+        current = environment.get("JUPYTER_PATH", "")
+        environment["JUPYTER_PATH"] = os.pathsep.join(
+            value for value in (str(local_jupyter), current) if value
+        )
+    runtime = ROOT / "data/interim/notebook-runtime"
+    (runtime / "ipython").mkdir(parents=True, exist_ok=True)
+    (runtime / "jupyter").mkdir(parents=True, exist_ok=True)
+    environment["IPYTHONDIR"] = str(runtime / "ipython")
+    environment["JUPYTER_RUNTIME_DIR"] = str(runtime / "jupyter")
+
+    for key, source in zip(keys, sources, strict=True):
+        destination = nbdir / "executed" / source.name
+        print(f">>> {key}: {source.name}", flush=True)
+        execute_notebook(
+            source,
+            destination,
+            kernel=args.kernel,
+            timeout=args.timeout,
+            environment=environment,
+        )
+    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main())

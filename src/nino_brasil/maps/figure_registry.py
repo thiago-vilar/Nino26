@@ -52,7 +52,9 @@ def figure_code(phase: str | int, block: str, index: int, slug: str) -> str:
     slug_clean = _slugify(slug)
     if not slug_clean:
         raise ValueError("slug must contain at least one alphanumeric character.")
-    return f"Fig_{phase}{block}{int(index)}_{slug_clean}"
+    # Código canônico ÚNICO com descritivo: Fig_<F><B><NN>_<slug>. O prefixo
+    # Fig_<F><B><NN> é a chave de vínculo; o slug diz em 1-2 palavras o que a figura faz.
+    return f"Fig_{phase}{block}{int(index):02d}_{slug_clean}"
 
 
 def stamp_interpretation(fig, *, metadata: str, interpretation: str) -> None:
@@ -110,30 +112,60 @@ def save_registered_figure(
         pass
     output.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output, dpi=dpi, bbox_inches="tight", facecolor="white")
+    # A legenda JÁ ESTÁ dentro da figura (stamp_interpretation). Em vez do antigo
+    # CSV de legendas (removido — era redundante/poluição), co-geramos a
+    # numeric-table padronizada da figura, sob o MESMO código, por sobreposição.
+    try:
+        from nino_brasil.viz import (
+            extrair_dados, NUM_ROOT, _sha256_file, _sha256_df,
+            _align_manifest_columns,
+        )
+        import json as _json
+        import shutil as _sh
+        tdir = Path(NUM_ROOT) / f"fase{phase}" / code
+        if tdir.exists():
+            _sh.rmtree(tdir, ignore_errors=True)
+        tdir.mkdir(parents=True, exist_ok=True)
+        _manifest_rows = []
+        for _nome, _df in extrair_dados(fig).items():
+            _table_path = tdir / f"{_nome}.csv"
+            _df.to_csv(_table_path, index=False)
+            _manifest_rows.append({
+                "tabela": _table_path.name,
+                "linhas": int(_df.shape[0]),
+                "colunas": int(_df.shape[1]),
+                "sha256": _sha256_file(_table_path),
+                "dataframe_sha256": _sha256_df(_df),
+                "schema_json": _json.dumps({c: str(t) for c, t in _df.dtypes.items()}, sort_keys=True),
+                "semantic_source": False,
+            })
+        pd.DataFrame(_manifest_rows).to_csv(tdir / "manifest.csv", index=False)
+        (tdir / "README.md").write_text(
+            f"# {code}\n\n- Figura: `../../figures/fase{phase}/{code}.png`\n"
+            f"- Legenda (impressa na figura): {' '.join(str(interpretation).split())}\n"
+            f"- Metadados: {' '.join(str(metadata).split())}\n",
+            encoding="utf-8")
+        # Indexa no manifesto global: código <-> notebook <-> figura <-> tabelas.
+        from nino_brasil.viz import MANIFEST, MANIFEST_COLS
+        _csvs = sorted(row["tabela"] for row in _manifest_rows)
+        _row = {"codigo": code, "fase": int(phase), "bloco": str(block).upper(),
+                "arquivo": f"fase{phase}/{code}.png", "notebook": f"fase{phase}",
+                "titulo": title or slug, "hipotese": "",
+                "descricao": " ".join(str(interpretation).split()),
+                "tabelas": ";".join(_csvs), "n_tabelas": len(_csvs),
+                "audit_level": "render_extraction_only", "run_id": "",
+                "atualizado_em": _dt.datetime.now().isoformat(timespec="seconds")}
+        if Path(MANIFEST).exists():
+            _m = _align_manifest_columns(pd.read_csv(MANIFEST))
+            _m = _m[_m["codigo"] != code]
+            _m = pd.concat([_m, pd.DataFrame([_row])], ignore_index=True)
+        else:
+            _m = pd.DataFrame([_row], columns=MANIFEST_COLS)
+        _m.sort_values("codigo").to_csv(MANIFEST, index=False)
+    except Exception as exc:  # best-effort: nunca quebra a figura
+        print(f"[aviso] numeric-table de {code} nao gerada: {exc}")
     if close:
         plt.close(fig)
-
-    registry_dir = Path(registry_dir) if registry_dir is not None else figures_dir
-    registry_dir.mkdir(parents=True, exist_ok=True)
-    registry_path = registry_dir / f"fase{phase}_legendas_figuras.csv"
-    row = {
-        "codigo": code,
-        "arquivo": output.name,
-        "fase": str(phase),
-        "bloco": str(block).upper(),
-        "titulo": title or "",
-        "legenda_interpretativa": " ".join(str(interpretation).split()),
-        "metadados": " ".join(str(metadata).split()),
-        "atualizado_em": _dt.datetime.now().isoformat(timespec="seconds"),
-    }
-    if registry_path.exists():
-        registry = pd.read_csv(registry_path)
-        registry = registry[registry["codigo"] != code]
-        registry = pd.concat([registry, pd.DataFrame([row])], ignore_index=True)
-    else:
-        registry = pd.DataFrame([row])
-    registry = registry.sort_values("codigo").reset_index(drop=True)
-    registry.to_csv(registry_path, index=False)
     return output
 
 
@@ -147,32 +179,11 @@ def register_only(
     metadata: str,
     registry_dir: str | Path,
     title: str = "",
-) -> Path:
-    """Register a legend for a figure saved by another routine (e.g. pixel maps)."""
-
-    import datetime as _dt
-
-    registry_dir = Path(registry_dir)
-    registry_dir.mkdir(parents=True, exist_ok=True)
-    registry_path = registry_dir / f"fase{phase}_legendas_figuras.csv"
-    row = {
-        "codigo": code,
-        "arquivo": arquivo,
-        "fase": str(phase),
-        "bloco": str(block).upper(),
-        "titulo": title,
-        "legenda_interpretativa": " ".join(str(interpretation).split()),
-        "metadados": " ".join(str(metadata).split()),
-        "atualizado_em": _dt.datetime.now().isoformat(timespec="seconds"),
-    }
-    if registry_path.exists():
-        registry = pd.read_csv(registry_path)
-        registry = registry[registry["codigo"] != code]
-        registry = pd.concat([registry, pd.DataFrame([row])], ignore_index=True)
-    else:
-        registry = pd.DataFrame([row])
-    registry.sort_values("codigo").reset_index(drop=True).to_csv(registry_path, index=False)
-    return registry_path
+) -> None:
+    """Compat: NÃO grava mais o CSV de legendas (removido — a legenda vive na
+    figura). Mantido para não quebrar chamadas legadas; vira no-op. A figura
+    correspondente já co-gera sua numeric-table via nino_brasil.viz."""
+    return None
 
 
 def write_caption_index(registry_path: str | Path, output_md: str | Path) -> Path:

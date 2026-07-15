@@ -30,7 +30,11 @@ __pycache__/
 !.env.example
 painel_executivo.md
 *.pyc
+*.egg-info/
 2602.24281v1.pdf
+
+# Artefatos derivados em quarentena (nunca dados brutos removidos)
+data/quarantine/**
 
 # Literatura local e temporarios (nao versionar)
 papers/

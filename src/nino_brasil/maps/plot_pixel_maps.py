@@ -245,6 +245,7 @@ def save_phase_pixel_panels(
     kind: str = "effect",
     vmin: float | None = None,
     vmax: float | None = None,
+    fdr_alpha: float = 0.05,
 ) -> Path:
     """Save the four El Niño source phases as spacious 2x2 map panels."""
 
@@ -281,7 +282,12 @@ def save_phase_pixel_panels(
     colorbar.ax.tick_params(labelsize=10)
     legend = [
         Patch(facecolor=NO_DATA_COLOR, edgecolor="#6b7280", label="Sem dado / fora da máscara"),
-        Patch(facecolor="none", edgecolor="#111827", hatch="....", label="FDR BH q<0,10"),
+        Patch(
+            facecolor="none",
+            edgecolor="#111827",
+            hatch="....",
+            label=f"FDR BH q<{fdr_alpha:.2f}",
+        ),
         Patch(facecolor=YELLOW_NEUTRAL, edgecolor="#6b7280", label="Valor neutro/zero (não é ausência)"),
     ]
     fig.legend(handles=legend, loc="lower center", ncol=3, bbox_to_anchor=(0.5, 0.075), fontsize=10)
@@ -344,7 +350,7 @@ def save_unit_lag_heatmap(
         "fase_fonte_em_t_menos_lag",
         "lag_sem",
         "r",
-        "fdr_bh_0_10",
+        "fdr_bh_reject",
     }
     missing = required.difference(table.columns)
     if missing:
@@ -363,7 +369,7 @@ def save_unit_lag_heatmap(
                 continue
             record = row.iloc[0]
             lag_grid[i, j] = float(record["lag_sem"])
-            marker = "●" if bool(record["fdr_bh_0_10"]) else "○"
+            marker = "●" if bool(record["fdr_bh_reject"]) else "○"
             annotations[i, j] = f"{record['lag_sem']:.0f} sem\nr={record['r']:+.2f} {marker}"
 
     fig_height = max(7.5, 1.15 * len(units) + 3.5)
@@ -389,7 +395,18 @@ def save_unit_lag_heatmap(
     ax.tick_params(which="minor", bottom=False, left=False)
     colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
     colorbar.set_label("Melhor lag descritivo da correlação direta (semanas)", fontsize=11)
-    fig.text(0.5, 0.095, "● FDR BH q<0,10  |  ○ efeito estimado sem rejeição FDR", ha="center", fontsize=10)
+    alpha = 0.05
+    if "fdr_alpha" in table:
+        recorded_alpha = pd.to_numeric(table["fdr_alpha"], errors="coerce").dropna()
+        if not recorded_alpha.empty:
+            alpha = float(recorded_alpha.iloc[0])
+    fig.text(
+        0.5,
+        0.095,
+        f"● FDR BH q<{alpha:.2f}  |  ○ efeito estimado sem rejeição FDR",
+        ha="center",
+        fontsize=10,
+    )
     add_interpretive_caption(fig, metadata=metadata, interpretation=interpretation)
     fig.subplots_adjust(left=0.22, right=0.91, top=0.89, bottom=0.17)
     return _figure_save(fig, Path(output_path))
