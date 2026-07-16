@@ -199,7 +199,7 @@ def iter_complete_annual_years(
     return range(start_year, final_year + 1)
 
 
-def iter_complete_year_months(
+def iter_available_year_months(
     start_year: int,
     end_year: int | None,
     source: str,
@@ -211,12 +211,15 @@ def iter_complete_year_months(
     year_months: list[tuple[int, int]] = []
     for year in range(start_year, resolved_end.year + 1):
         for month in requested_months:
-            month_end = date(year, month, calendar.monthrange(year, month)[1])
-            if month_end <= resolved_end:
+            # O mês corrente pode ser parcial. A requisição ERA5 limita os
+            # dias à data disponível (D-latência), portanto basta o mês já
+            # ter começado; meses futuros continuam excluídos.
+            month_start = date(year, month, 1)
+            if month_start <= resolved_end:
                 year_months.append((year, month))
     if not year_months:
         raise ValueError(
-            f"No complete monthly {source} periods available for {start_year} "
+            f"No monthly {source} periods available for {start_year} "
             f"through {resolved_end.isoformat()}."
         )
     return year_months
@@ -1425,7 +1428,7 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
                 )
         return 0
 
-    year_months = iter_complete_year_months(args.start_year, args.end_year, "era5", cfg, args.month)
+    year_months = iter_available_year_months(args.start_year, args.end_year, "era5", cfg, args.month)
     tasks = [
         (year, month, region)
         for year, month in year_months
