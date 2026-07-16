@@ -22,10 +22,13 @@ from nino_brasil.data.phase2_master import (
 )
 
 
-def test_phase2_contract_has_exactly_31_physical_variables() -> None:
-    assert len(PHYSICAL_COLUMNS) == 31
+def test_phase2_contract_publishes_every_contracted_pressure_level() -> None:
+    assert len(PHYSICAL_COLUMNS) == 44
     assert len(OCEAN_COLUMNS) == 17
-    assert len(ATMOSPHERIC_COLUMNS) == 14
+    assert len(ATMOSPHERIC_COLUMNS) == 27
+    for prefix in ("u", "v", "q", "z", "omega", "div"):
+        for level in (200, 500, 850):
+            assert f"{prefix}{level}_anom" in ATMOSPHERIC_COLUMNS
     assert "ocean_source_code" not in PHYSICAL_COLUMNS
     contract = variable_contract_frame()
     physical = contract.loc[contract["is_physical_predictor"], "name"].tolist()
@@ -94,7 +97,7 @@ def test_master_validator_enforces_schema_and_metadata() -> None:
     broken = frame.rename(columns={"d20_m": "wrong_name"})
     broken_result = validate_master(broken)
     assert not bool(
-        broken_result.loc[broken_result["checagem"].eq("contrato_31_variaveis_fisicas"), "passou"].iloc[0]
+        broken_result.loc[broken_result["checagem"].eq("contrato_variaveis_fisicas"), "passou"].iloc[0]
     )
 
 

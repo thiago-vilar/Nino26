@@ -90,12 +90,11 @@ MASTER_METADATA_COLUMNS: frozenset[str] = frozenset(
 )
 
 
-def physical_predictor_columns(master: pd.DataFrame, *, expected: int | None = 31) -> list[str]:
+def physical_predictor_columns(master: pd.DataFrame, *, expected: int | None = None) -> list[str]:
     """Return physical master variables, excluding dates and provenance columns.
 
-    The canonical F2 contract has 31 physical variables.  ``expected=None`` is
-    useful for reduced sensitivity experiments; official F5/F6 runs should keep
-    the default and fail if the master silently loses or gains a variable.
+    When ``expected`` is omitted, the current named Phase 2 contract is loaded
+    dynamically; reduced sensitivity experiments may pass another value.
     """
 
     columns: list[str] = []
@@ -105,7 +104,11 @@ def physical_predictor_columns(master: pd.DataFrame, *, expected: int | None = 3
             continue
         if pd.api.types.is_numeric_dtype(master[name]):
             columns.append(str(name))
-    if expected is not None and len(columns) != int(expected):
+    if expected is None:
+        from nino_brasil.data.phase2_master import PHYSICAL_COLUMNS
+
+        expected = len(PHYSICAL_COLUMNS)
+    if len(columns) != int(expected):
         raise ValueError(
             f"Contrato F2/F5 exige {expected} variaveis fisicas; encontrei {len(columns)}: {columns}"
         )

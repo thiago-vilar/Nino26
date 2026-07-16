@@ -115,7 +115,7 @@ F3_BLOCKS: dict[str, tuple[str, str, str]] = {
 
 F3_SCIENTIFIC_DETAILS: dict[str, tuple[str, str, str, tuple[str, ...]]] = {
     "A": (
-        "Este notebook apresenta a série histórica semanal completa das 31 variáveis do Pacífico tropical que sustentam a análise de El Niño. Os índices são separados em painéis oceânicos e atmosféricos; para cada variável, o leitor vê o valor semanal original do master, unidade, fonte e tendência linear de longo prazo. O objetivo é sanidade e contexto físico da série, não testar ainda diferenças entre fases.",
+        "Este notebook apresenta a série histórica semanal completa das 44 variáveis do Pacífico tropical que sustentam a análise de El Niño. Os índices são separados em painéis oceânicos e atmosféricos; para cada variável, o leitor vê o valor semanal original do master, unidade, fonte e tendência linear de longo prazo. O objetivo é sanidade e contexto físico da série, não testar ainda diferenças entre fases.",
         "Os índices oceânicos e atmosféricos exibem trajetórias históricas observáveis e tendências descritivas próprias; essas tendências não devem ser confundidas com efeito de fase, causalidade ou poder preditivo do El Niño.",
         "Cada série é mantida na unidade do master semanal e recebe uma tendência OLS calculada sobre todo o período disponível, apenas como referência visual. A separação oceano/atmosfera evita escalas incompatíveis no mesmo eixo. Como semanas são autocorrelacionadas, a tendência não recebe p-valor nem é usada como teste; evento-fase, lags e robustez são avaliados nos blocos F3NinoC–E.",
         (
@@ -146,7 +146,7 @@ F3_SCIENTIFIC_DETAILS: dict[str, tuple[str, str, str, tuple[str, ...]]] = {
     ),
     "D": (
         "Este notebook pergunta quais variáveis realmente mudam entre as quatro fases dentro dos mesmos eventos. Ele funciona como filtro inferencial do comportamento multivariado, não como repetição do ranking de correlações do notebook anterior.",
-        "Para {signal}, ao menos parte das 31 variáveis apresenta distribuições diferentes entre as quatro fases com tamanho de efeito consistente; outras variáveis permanecerão indistinguíveis e deverão ser registradas como resultado nulo.",
+        "Para {signal}, ao menos parte das 44 variáveis apresenta distribuições diferentes entre as quatro fases com tamanho de efeito consistente; outras variáveis permanecerão indistinguíveis e deverão ser registradas como resultado nulo.",
         "Friedman é usado porque as quatro fases são medidas repetidas dentro do evento e não se presume normalidade. Kendall W quantifica o tamanho do efeito e BH-FDR controla a família de 31 testes; semanas não entram como réplicas independentes.",
         (
             "estatística de Friedman, p, q BH-FDR e Kendall W para cada variável",
@@ -189,14 +189,14 @@ F3_SCIENTIFIC_DETAILS: dict[str, tuple[str, str, str, tuple[str, ...]]] = {
         "Diferenças no pré-condicionamento oceânico e atmosférico durante a gênese separam parcialmente as classes futuras de {signal}, sobretudo em variáveis ligadas à recarga, termoclina e acoplamento do vento.",
         "Calculam-se médias por evento na gênese e contrastes entre classes, com classificação pela magnitude absoluta do pico. O resultado é diagnóstico de separabilidade e não uma estimativa operacional de previsão.",
         (
-            "estado das 31 variáveis na gênese para cada evento",
+            "estado das 44 variáveis na gênese para cada evento",
             "contrastes e tamanhos de efeito entre classes de intensidade",
             "lista de candidatos precursores sem alegação automática de causalidade ou skill",
         ),
     ),
     "I": (
         "Este notebook integra três dimensões que não podem ser confundidas: diferença entre fases, antecedência temporal e estabilidade entre eventos. Uma variável só ganha interpretação forte quando as evidências convergem e a direção permanece fisicamente plausível.",
-        "Um subconjunto das 31 variáveis reúne, para {signal}, efeito entre fases, lag antecedente e estabilidade entre eventos; variáveis apoiadas por apenas uma dimensão permanecem evidência parcial.",
+        "Um subconjunto das 44 variáveis reúne, para {signal}, efeito entre fases, lag antecedente e estabilidade entre eventos; variáveis apoiadas por apenas uma dimensão permanecem evidência parcial.",
         "A síntese cruza tabelas confirmatórias já produzidas, sem reabrir testes nem criar um novo limiar pós-hoc. Cada conclusão aponta para efeito, lag e estabilidade que a sustentam, preservando resultados nulos e divergências.",
         (
             "matriz integrada variável × fase com efeito, lag e estabilidade",
@@ -205,12 +205,12 @@ F3_SCIENTIFIC_DETAILS: dict[str, tuple[str, str, str, tuple[str, ...]]] = {
         ),
     ),
     "K": (
-        "Este notebook investiga a covariação entre as 31 variáveis sem contar variáveis colineares como evidências independentes. A PCA é aplicada às médias evento-fase e descreve modos conjuntos específicos de cada período do {signal}.",
+        "Este notebook investiga a covariação entre as 44 variáveis sem contar variáveis colineares como evidências independentes. A PCA é aplicada às médias evento-fase e descreve modos conjuntos específicos de cada período do {signal}.",
         "Gênese, crescimento, pico e decaimento de {signal} são dominados por combinações distintas de recarga oceânica, estado térmico e acoplamento atmosférico, expressas por cargas diferentes nos componentes principais.",
         "As variáveis são padronizadas com parâmetros do conjunto analisado e a unidade é o evento-fase. A PCA é descritiva, não EOF espacial nem teste de hipótese; variância explicada e loadings devem ser lidos junto com o pequeno número de eventos.",
         (
             "variância explicada e critério de retenção por fase",
-            "loadings das 31 variáveis em cada componente e fase",
+            "loadings das 44 variáveis em cada componente e fase",
             "interpretação física dos modos com ressalva explícita de incerteza amostral",
         ),
     ),
@@ -285,7 +285,7 @@ F3_REFERENCES: dict[str, tuple[str, ...]] = {
 F3_NINO_OVERRIDES: dict[str, dict[str, object]] = {
     "A": {
         "context": (
-            "Este notebook apresenta a série histórica semanal completa das 31 variáveis do "
+            "Este notebook apresenta a série histórica semanal completa das 44 variáveis do "
             "Pacífico tropical que sustentam a análise do El Niño. Os índices são separados em "
             "painéis oceânicos e atmosféricos; para cada variável, o leitor vê o valor semanal "
             "original do master, unidade, fonte e tendência linear de longo prazo. Esta é a base "
@@ -352,7 +352,7 @@ F3_NINO_OVERRIDES: dict[str, dict[str, object]] = {
             "El Niños fortes, e com que grau de sensibilidade?"
         ),
         "context": (
-            "Este notebook mede o grau de sensibilidade de cada uma das 31 variáveis às quatro "
+            "Este notebook mede o grau de sensibilidade de cada uma das 44 variáveis às quatro "
             "fases dos El Niños com pico acima de 1 °C, dentro dos mesmos eventos. Friedman "
             "pareado por evento com Kendall W fornece o tamanho de efeito que alimenta o peso "
             "discriminante usado na influência percentual do bloco I."
@@ -465,7 +465,7 @@ F3_NINO_OVERRIDES: dict[str, dict[str, object]] = {
             "mudam consistentemente entre fases adjacentes dos eventos elegíveis."
         ),
         "hypothesis_statement": (
-            "Um subconjunto das 31 variáveis concentra a maior parte do peso descritivo e "
+            "Um subconjunto das 44 variáveis concentra a maior parte do peso descritivo e "
             "discriminante do ciclo dos El Niños fortes, e variáveis ligadas à recarga oceânica, "
             "ao acoplamento vento-oceano e à atmosfera mudam de forma consistente nas transições "
             "adjacentes."
@@ -491,7 +491,7 @@ F3_NINO_OVERRIDES: dict[str, dict[str, object]] = {
     },
     "K": {
         "context": (
-            "Este notebook investiga a covariação entre as 31 variáveis nos El Niños com pico "
+            "Este notebook investiga a covariação entre as 44 variáveis nos El Niños com pico "
             "acima de 1 °C, sem contar variáveis colineares como evidências independentes. A PCA "
             "é aplicada às médias evento-fase e descreve os modos conjuntos específicos de cada "
             "período do ciclo."
@@ -629,15 +629,32 @@ CANONICAL_NOTEBOOKS: tuple[NotebookSpec, ...] = tuple(
                 "diagnóstico de lacunas, duplicidades, descontinuidades e faixas implausíveis",
                 "frescor real por variável, sem confundir extensão do eixo com dado válido",
                 "validação CTD/WOD de UFS+GLORYS e auditoria das malhas IBGE quando disponível",
+                "comparação explícita de frequência, cobertura, variáveis diretas e variáveis calculadas de UFS+GLORYS e ORAS5",
             ),
         ),
         NotebookSpec(
             "F2V",
             "notebooks/fase2/F2V_validacao_insitu.ipynb",
             "F2V — Validação independente in situ",
-            "Qual é a cobertura observacional disponível em CTD/WOD, TAO/TRITON e Argo para validar UFS+GLORYS?",
-            "Inventário dos Zarrs observacionais, cobertura temporal e vertical e agregação comparativa semanal W-SUN sem preenchimento artificial.",
+            "UFS+GLORYS reproduz a variabilidade do ORAS5 e apresenta diferenças sistemáticas quando comparado a CTD/WOD, TAO/TRITON e Argo?",
+            "Comparação mensal UFS+GLORYS–ORAS5 com correlações em nível e anomalias sem sazonalidade; pareamento in situ por dia, nó e profundidade; viés, MAE, RMSE, IC95%, tamanho amostral efetivo e FDR BH.",
             "HIP0",
+            context=(
+                "A validação in situ é independente do master semanal: CTD/WOD, TAO/TRITON e Argo não preenchem lacunas. O notebook compara observações com os campos diários UFS+GLORYS antes da agregação W-SUN e declara diferenças de representatividade espacial, temporal e instrumental."
+            ),
+            hypothesis_statement=(
+                "A hipótese nula in situ é que o resíduo médio UFS+GLORYS menos observação é centrado em zero; a comparação de reanálises testa se as anomalias mensais UFS+GLORYS e ORAS5 não apresentam correlação diferente de zero."
+            ),
+            method_rationale=(
+                "A contagem de arquivos não demonstra validade física. O pareamento observação–reanálise e a agregação por perfil evitam tratar várias profundidades correlacionadas como réplicas independentes."
+            ),
+            expected_outputs=(
+                "inventário e cobertura de CTD/WOD, TAO/TRITON e Argo",
+                "tabela de resíduos por perfil ou boia-dia",
+                "viés, MAE, RMSE, correlação e intervalo bootstrap por fonte e variável",
+                "conclusão sobre diferença sistemática com correção FDR BH",
+                "séries mensais sobrepostas e correlações UFS+GLORYS–ORAS5 por variável e segmento de fonte",
+            ),
         ),
         *_f3_specs(),
         NotebookSpec(

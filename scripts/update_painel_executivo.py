@@ -26,11 +26,16 @@ import os
 from pathlib import Path
 import platform
 import subprocess
+import sys
 import tempfile
 from typing import Any, Iterable, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+from nino_brasil.data.phase2_master import PHYSICAL_COLUMNS
 OUTPUT_PATH = ROOT / "painel_executivo.md"
 SNAPSHOT_PATH = ROOT / "data/audit/project_status_snapshot.json"
 SCHEMA_VERSION = "nino26-project-status-snapshot/v1"
@@ -83,9 +88,9 @@ PHASE_SPECS: tuple[PhaseSpec, ...] = (
     ),
     PhaseSpec(
         2,
-        "Master semanal de 31 variáveis",
+        f"Master semanal de {len(PHYSICAL_COLUMNS)} variáveis",
         ("scripts/build_master_weekly.py", "src/nino_brasil/data/phase2_master.py"),
-        "Manter as 31 variáveis físicas e o metadado de fonte sob o mesmo contrato.",
+        f"Manter as {len(PHYSICAL_COLUMNS)} variáveis físicas e o metadado de fonte sob o mesmo contrato.",
     ),
     PhaseSpec(
         3,
@@ -216,7 +221,7 @@ PHASE2_VALIDATION_CHECKS: tuple[str, ...] = (
     "sem_semanas_duplicadas",
     "grade_semanal_W-SUN_regular",
     "eixo_1981_ao_ano_atual",
-    "contrato_31_variaveis_fisicas",
+    "contrato_variaveis_fisicas",
     "source_code_apenas_metadado",
     "nenhuma_variavel_totalmente_vazia",
     "cobertura_final_alinhada_12_semanas",
@@ -240,52 +245,20 @@ PHASE2_VALIDATION_CHECKS: tuple[str, ...] = (
     "escala_plausivel:div850_anom",
 )
 
-PHASE2_PHYSICAL_COLUMNS: tuple[str, ...] = (
-    "nino34_ssta",
-    "d20_m",
-    "tilt_m",
-    "tilt_slope",
-    "ohc_0_100",
-    "ohc_0_300",
-    "ohc_0_700",
-    "ohc_300_700",
-    "ssh_m",
-    "wwv",
-    "t50m",
-    "t100m",
-    "t150m",
-    "t200m",
-    "t300m",
-    "t500m",
-    "t700m",
-    "tau_x_anom",
-    "u10_anom",
-    "v10_anom",
-    "mslp_anom",
-    "tcwv_anom",
-    "slhf_anom",
-    "sshf_anom",
-    "ssr_anom",
-    "str_anom",
-    "u850_anom",
-    "u200_anom",
-    "omega850_anom",
-    "omega500_anom",
-    "div850_anom",
-)
+PHASE2_PHYSICAL_COLUMNS: tuple[str, ...] = tuple(PHYSICAL_COLUMNS)
 
 PHASE2_REQUIRED_PATHS: Mapping[str, frozenset[str]] = {
     "code": frozenset(
         {
             "scripts/build_master_weekly.py",
+            "scripts/build_phase2_daily_inputs.py",
             "src/nino_brasil/data/phase2_master.py",
             "src/nino_brasil/data/audit.py",
         }
     ),
     "inputs": frozenset(
         {
-            "data/processed/parquet/features/nino34_physical_signal.csv",
-            "data/processed/parquet/features/era5_nino34_daily_cache.parquet",
+            "data/processed/numeric-tables/fase2/nino34_physical_daily.csv",
         }
     ),
     "outputs": frozenset(
@@ -4082,8 +4055,8 @@ def _phase2(root: Path, spec: PhaseSpec) -> dict[str, Any]:
         if started == datetime.min.replace(tzinfo=timezone.utc) or completed < started:
             problems.append("phase2_timestamps_invalid")
         contract = manifest.get("contract") or {}
-        if int(contract.get("physical_variable_count") or 0) != 31:
-            problems.append("physical_variable_count_not_31")
+        if int(contract.get("physical_variable_count") or 0) != len(PHASE2_PHYSICAL_COLUMNS):
+            problems.append("physical_variable_count_mismatch")
         if tuple(contract.get("physical_columns") or ()) != PHASE2_PHYSICAL_COLUMNS:
             problems.append("physical_columns_catalog_mismatch")
         if contract.get("metadata_columns") != ["ocean_source_code"]:
@@ -4115,7 +4088,7 @@ def _phase2(root: Path, spec: PhaseSpec) -> dict[str, Any]:
             isinstance(raw_shape, list)
             and len(raw_shape) == 2
             and raw_rows > 0
-            and raw_columns == 32
+            and raw_columns == len(PHASE2_PHYSICAL_COLUMNS) + 1
         ):
             problems.append("phase2_raw_shape_invalid")
         if not (
@@ -4175,7 +4148,7 @@ def _phase2(root: Path, spec: PhaseSpec) -> dict[str, Any]:
     promoted = passed and notebooks.get("state") == "passed"
     data = _status(
         "complete" if passed else ("invalidated" if manifest else "missing"),
-        f"{len(validation_rows)} validações; contrato de 31 variáveis {'íntegro' if passed else 'não íntegro'}.",
+        f"{len(validation_rows)} validações; contrato de {len(PHYSICAL_COLUMNS)} variáveis {'íntegro' if passed else 'não íntegro'}.",
         [_relative(root, manifest_path), _relative(root, validation_path)],
         problems=problems,
     )
@@ -4402,7 +4375,7 @@ def collect_phase7_cube_status(root: Path) -> dict[str, Any]:
                     and attrs.get("daily_concat_before_weekly_resample") is True
                     and attrs.get("weekly_anchor") == "W-SUN"
                     and attrs.get("spatial_operation") == "block_mean_4x4"
-                    and str(attrs.get("scalar_fusion") or "").startswith("31 physical F2 variables")
+                    and str(attrs.get("scalar_fusion") or "").startswith(f"{len(PHASE2_PHYSICAL_COLUMNS)} physical F2 variables")
                 ):
                     problems.append("phase7_cube_attribute_contract_mismatch")
                 for name in sorted(PHASE7_CUBE_VARIABLES):

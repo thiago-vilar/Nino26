@@ -36,8 +36,15 @@ clima do Brasil.
 
 ### Fase 1 — ingestão e base local
 
-Reúne OISST, ERA5, CHIRPS, UFS+GLORYS, ORAS5 e fontes de validação. Cada conjunto
-mantém procedência, unidade, cobertura temporal e resolução originais.
+Reúne OISST, ERA5, CHIRPS, UFS+GLORYS e fontes de validação. Cada conjunto
+primário deve ter frequência nativa diária, subdiária ou semanal. Produtos
+mensais, incluindo ORAS5 mensal, não integram o fluxo primário das Fases 1 e 2
+e não podem ser interpolados, repetidos ou promovidos para preencher semanas.
+A única exceção é um índice mensal já consolidado, mantido separadamente e
+usado apenas para comparação; ele nunca entra na matriz semanal como variável,
+alvo, preenchimento de lacuna ou substituto de observações diárias/semanais.
+Cada conjunto mantém procedência, unidade, cobertura temporal e resolução
+originais.
 
 A Fase 1 é a única responsável por baixar e atualizar fontes. Para IBGE, deve
 baixar e auditar UFs, Grandes Regiões e Biomas, registrando URL oficial, versão,

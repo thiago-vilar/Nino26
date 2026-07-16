@@ -31,6 +31,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args(argv)
     ensure_processed_output_roots()
+    if not args.validate_only:
+        run(python("scripts/data_pipeline.py", "build-nino34-daily-index"))
+        run(python("scripts/build_phase2_daily_inputs.py"))
     command = python(
         "scripts/build_master_weekly.py",
         "--era5-years",
@@ -40,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.validate_only:
         command.append("--validate-only")
     run(command)
+    run(python("scripts/build_phase2_insitu_validation.py"))
     execute_viewer("F2Z", kernel=args.kernel, timeout=args.timeout)
     execute_viewer("F2V", kernel=args.kernel, timeout=args.timeout)
     return 0

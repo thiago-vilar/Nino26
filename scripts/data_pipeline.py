@@ -44,10 +44,16 @@ from nino_brasil.data.download_ctd_noaa import (
     THERMOCLINE_MIN_LEVELS,
     download_wod_ctd_year,
     etl_wod_ctd_year,
+    wod_ctd_zarr_path,
 )
 from nino_brasil.data.download_ibge import download_ibge
 from nino_brasil.data.download_oisst import download_oisst_year
-from nino_brasil.data.download_validation_insitu import download_argo_year, download_tao_triton_year, validation_csv_to_zarr
+from nino_brasil.data.download_validation_insitu import (
+    download_argo_year,
+    download_tao_triton_year,
+    validation_csv_to_zarr,
+    validation_zarr_last_time,
+)
 from nino_brasil.data.regrid import normalize_for_common_grid, regrid_dataset, target_grid_from_config
 from nino_brasil.data.zarr_store import ZARR_FORMAT, chunk_plan, dataframe_to_zarr, validate_zarr
 from nino_brasil.data.anomalies import daily_anomaly, dayofyear_climatology
@@ -149,8 +155,7 @@ def cmd_plan(_: argparse.Namespace) -> int:
     print("5. download-oisst: daily SST/SSTA primary source for Nino 3.4")
     print("6. ingest-era5: request annual-kind by region/type, split to annual daily Zarr by variable")
     print("7. ocean_daily_pipeline.py: ingest originally daily NOAA UFS/GLORYS ocean fields")
-    print("8. ocean_monthly_pipeline.py: ingest ORAS5 monthly means without daily promotion")
-    print("9. audit_ocean_phase2.py: verify daily continuity, monthly integrity and source transitions")
+    print("8. audit_ocean_phase2.py: verify daily UFS+GLORYS continuity and source transitions")
     print("10. download-ctd: WOD CTD annual raw files, thermocline QC and Zarr")
     print("11. download-validation: TAO/TRITON and Argo in-situ validation for Nino 3.4")
     print("12. regrid-zarr: reconcile only sources that require a common spatial grid")
@@ -1151,6 +1156,12 @@ def cmd_download_ctd(args: argparse.Namespace) -> int:
     audit = AuditLog()
     record_source_latency(audit, "noaa_wod_ctd", cfg)
     for year in tqdm(iter_years(args.start_year, args.end_year, "noaa_wod_ctd", cfg), desc="WOD CTD years", unit="year"):
+        final_zarr = wod_ctd_zarr_path(zarr_root, year)
+        if final_zarr.exists() and not args.overwrite and not args.raw_only:
+            summary = dataset_summary(final_zarr, zarr=True)
+            if summary.get("variables"):
+                print(f"valid final CTD/WOD Zarr exists; download skipped: {final_zarr}")
+                continue
         raw_path = run_or_continue(
             f"CTD/WOD download {year}",
             lambda year=year: download_wod_ctd_year(
@@ -1512,10 +1523,27 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
     end_year = args.end_year or end_date.year
     years = range(args.start_year, end_year + 1)
 
+    def incremental_start(target: Path, year: int) -> date | None:
+        if args.overwrite or not target.exists():
+            return None
+        if year < end_date.year:
+            return date(year + 1, 1, 1)
+        last = validation_zarr_last_time(target)
+        if last is None:
+            return None
+        # Uma pequena sobreposicao captura observacoes atrasadas/revisadas sem
+        # baixar novamente o ano corrente inteiro.
+        return max(date(year, 1, 1), (last - pd.Timedelta(days=7)).date())
+
     if args.source in {"tao_triton", "all"}:
         tao_products = args.tao_product or ["temperature", "salinity"]
         tasks = [(year, product) for year in years for product in tao_products]
         for year, product in tqdm(tasks, desc="TAO/TRITON validation", unit="task"):
+            target = zarr_tao / product / f"tao_triton_{product}_{year}.zarr"
+            start_date = incremental_start(target, year)
+            if start_date is not None and start_date.year > year:
+                print(f"valid historical validation Zarr exists; download skipped: {target}")
+                continue
             raw_path = run_or_continue(
                 f"TAO/TRITON {product} {year}",
                 lambda year=year, product=product: download_tao_triton_year(
@@ -1523,9 +1551,10 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
                     raw_dir=raw_tao,
                     product=product,
                     max_depth_m=args.max_depth,
+                    start_date=start_date,
                     end_date=end_date,
                     dry_run=not args.execute,
-                    overwrite=args.overwrite,
+                    overwrite=args.overwrite or start_date is not None,
                     include_hash=args.hash,
                     audit=audit,
                 ),
@@ -1534,23 +1563,30 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
             if args.execute and args.etl_zarr and raw_path is not None and raw_path.exists():
                 validation_csv_to_zarr(
                     raw_path,
-                    zarr_tao / product / f"tao_triton_{product}_{year}.zarr",
+                    target,
                     source=f"TAO/TRITON {product}",
                     delete_raw_after_zarr=args.delete_raw_after_zarr,
+                    merge_existing=not args.overwrite,
                 )
 
     if args.source in {"argo", "all"}:
         argo_start = max(args.start_year, args.argo_start_year)
         for year in tqdm(range(argo_start, end_year + 1), desc="Argo validation", unit="year"):
+            target = zarr_argo / f"argo_nino34_{year}.zarr"
+            start_date = incremental_start(target, year)
+            if start_date is not None and start_date.year > year:
+                print(f"valid historical validation Zarr exists; download skipped: {target}")
+                continue
             raw_path = run_or_continue(
                 f"Argo Nino34 {year}",
                 lambda year=year: download_argo_year(
                     year=year,
                     raw_dir=raw_argo,
                     max_depth_m=args.max_depth,
+                    start_date=start_date,
                     end_date=end_date,
                     dry_run=not args.execute,
-                    overwrite=args.overwrite,
+                    overwrite=args.overwrite or start_date is not None,
                     include_hash=args.hash,
                     audit=audit,
                 ),
@@ -1559,9 +1595,10 @@ def cmd_download_validation(args: argparse.Namespace) -> int:
             if args.execute and args.etl_zarr and raw_path is not None and raw_path.exists():
                 validation_csv_to_zarr(
                     raw_path,
-                    zarr_argo / f"argo_nino34_{year}.zarr",
+                    target,
                     source="Argo GDAC",
                     delete_raw_after_zarr=args.delete_raw_after_zarr,
+                    merge_existing=not args.overwrite,
                 )
     return 0
 

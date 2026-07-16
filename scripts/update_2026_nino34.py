@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
 
     today = date.today()
     print(f"Atualizacao Nino 3.4 gerada em {today.isoformat()} | modo={'EXECUTE' if args.execute else 'DRY-RUN'}")
-    print("Latencias usadas pelo projeto: OISST/ERA5=7d, GLO12 operacional=1d, ORAS5=15d, in situ=3d.")
+    print("Latencias usadas pelo projeto: OISST/ERA5=7d, GLO12 operacional=1d, in situ=3d.")
     print(f"Alvo operacional aproximado: OISST/ERA5 ate {today - timedelta(days=7)}, GLO12 ate {today - timedelta(days=1)}.")
 
     if not args.skip_downloads:
@@ -87,19 +87,6 @@ def main(argv: list[str] | None = None) -> int:
                 "--start-date",
                 args.glorys_operational_start,
                 "--delete-source-after-zarr",
-                "--execute",
-            ),
-            execute=args.execute,
-        )
-        run_step(
-            "ORAS5 mensal 2026: memoria mensal independente",
-            cmd(
-                "scripts/ocean_monthly_pipeline.py",
-                "ingest",
-                "--start-year",
-                str(args.start_year),
-                "--build-features",
-                "--delete-raw-after-zarr",
                 "--execute",
             ),
             execute=args.execute,

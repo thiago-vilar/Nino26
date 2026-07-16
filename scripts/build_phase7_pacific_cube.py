@@ -3,7 +3,7 @@
 
 The builder reads source-separated GLORYS daily stores, selects physically
 interpretable levels, concatenates daily data across years *before* one W-SUN
-resample, and writes a compact spatial cube.  The 31 scalar F2 predictors are
+resample, and writes a compact spatial cube.  The named scalar F2 predictors are
 fused later by the model; they are not broadcast into fake spatial fields.
 """
 from __future__ import annotations
@@ -22,6 +22,8 @@ import xarray as xr
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+from nino_brasil.data.phase2_master import PHYSICAL_COLUMNS
 
 SOURCE_ROOT = ROOT / "data" / "processed" / "zarr" / "ocean_daily" / "glorys12"
 DEFAULT_OUTPUT = ROOT / "data" / "processed" / "zarr" / "modeling" / "phase7_pacific_weekly.zarr"
@@ -114,7 +116,7 @@ def build(start_year: int, end_year: int, *, spatial_step: int) -> xr.Dataset:
             "spatial_operation": (
                 "native_0p25" if spatial_step == 1 else f"block_mean_{spatial_step}x{spatial_step}"
             ),
-            "scalar_fusion": "31 physical F2 variables are a separate named sequence branch",
+            "scalar_fusion": f"{len(PHYSICAL_COLUMNS)} physical F2 variables are a separate named sequence branch",
             "input_stores_json": json.dumps(paths),
         }
     )

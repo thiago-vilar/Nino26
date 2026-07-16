@@ -596,13 +596,13 @@ def _make_phase2_contract(root: Path) -> tuple[Path, Path]:
         "started_at_utc": "2026-07-13T09:00:00+00:00",
         "completed_at_utc": "2026-07-13T10:00:00+00:00",
         "contract": {
-            "physical_variable_count": 31,
+            "physical_variable_count": len(mirror.PHASE2_PHYSICAL_COLUMNS),
             "physical_columns": list(mirror.PHASE2_PHYSICAL_COLUMNS),
             "metadata_columns": ["ocean_source_code"],
         },
         "options": {"strict": True, "ocean_only": False, "skip_ctd": False},
-        "raw_shape": [1, 32],
-        "source_adjusted_shape": [1, 32],
+        "raw_shape": [1, len(mirror.PHASE2_PHYSICAL_COLUMNS) + 1],
+        "source_adjusted_shape": [1, len(mirror.PHASE2_PHYSICAL_COLUMNS) + 1],
     }
     for section, paths in mirror.PHASE2_REQUIRED_PATHS.items():
         manifest[section] = [_input_record(created[f"{section}:{relative}"]) for relative in paths]

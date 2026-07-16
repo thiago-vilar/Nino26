@@ -1,7 +1,9 @@
 # Fase 2 — disponibilização semanal e validação
 
-- `F2Z_sanidade_variaveis.ipynb`: disponibilidade, continuidade e sanidade de todas as variáveis contratadas na matriz semanal; a quantidade é calculada durante a execução.
-- `F2V_validacao_insitu.ipynb`: inventário e validação independente com CTD/WOD, TAO/TRITON e Argo; semanas sem observação não são preenchidas.
+- `F2Z_sanidade_variaveis.ipynb`: disponibilidade, continuidade e sanidade de todas as variáveis contratadas na matriz semanal. Expõe frequência nativa, cobertura e variáveis diretas/calculadas de UFS+GLORYS e comprova por timestamps que os Zarr ORAS5 são médias mensais excluídas do master.
+- `F2V_validacao_insitu.ipynb`: validação independente de temperatura e salinidade com CTD/WOD, TAO/TRITON e Argo, além da comparação mensal UFS+GLORYS × ORAS5. Publica séries sobrepostas, correlações em nível e anomalias, tamanho amostral efetivo, viés, MAE, RMSE, IC95% bootstrap e FDR BH; observações e ORAS5 não preenchem a matriz principal.
+
+UFS+GLORYS entra com temperatura potencial, salinidade e altura da superfície do mar diárias. Antes da agregação semanal são calculados D20, OHC 0–100 m, OHC 0–300 m, OHC 0–700 m, OHC 300–700 m, WWV e inclinação da termoclina. Apenas semanas completas com fechamento `W-SUN` são publicadas.
 
 Execução completa no WSL2:
 

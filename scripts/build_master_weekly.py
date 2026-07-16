@@ -56,7 +56,7 @@ FEAT = ROOT / "data/processed/parquet/features"
 STATS = ROOT / "data/processed/parquet/statistics"
 ERA5 = ROOT / "data/processed/zarr/era5"
 CTD = ROOT / "data/processed/zarr/ctd_noaa/wod"
-DEFAULT_PHYSICAL = FEAT / "nino34_physical_signal.csv"
+DEFAULT_PHYSICAL = ROOT / "data/processed/numeric-tables/fase2/nino34_physical_daily.csv"
 DEFAULT_ERA5_CACHE = FEAT / "era5_nino34_daily_cache.parquet"
 DEFAULT_MASTER = FEAT / "nino34_master_weekly.csv"
 DEFAULT_MASTER_ZARR = ROOT / "data/processed/zarr/features/nino34_master_weekly.zarr"
@@ -100,9 +100,12 @@ ERA5_SINGLE = {
     "surface_net_thermal_radiation": "str",
 }
 ERA5_PRESSURE = {
-    "u_component_of_wind": [("u850", 850.0), ("u200", 200.0)],
-    "vertical_velocity": [("omega850", 850.0), ("omega500", 500.0)],
-    "divergence": [("div850", 850.0)],
+    "u_component_of_wind": [(f"u{level}", float(level)) for level in (200, 500, 850)],
+    "v_component_of_wind": [(f"v{level}", float(level)) for level in (200, 500, 850)],
+    "specific_humidity": [(f"q{level}", float(level)) for level in (200, 500, 850)],
+    "geopotential": [(f"z{level}", float(level)) for level in (200, 500, 850)],
+    "vertical_velocity": [(f"omega{level}", float(level)) for level in (200, 500, 850)],
+    "divergence": [(f"div{level}", float(level)) for level in (200, 500, 850)],
 }
 ATMO_RAW_COLUMNS = (
     "u10",
@@ -309,8 +312,26 @@ def _atmospheric_weekly(era5_raw: pd.DataFrame) -> pd.DataFrame:
     for column in ATMO_RAW_COLUMNS:
         daily[f"{column}_anom"] = day_of_year_anomaly(daily[column])
     keep = ["tau_x_anom", *[f"{column}_anom" for column in ATMO_RAW_COLUMNS]]
-    weekly = daily[keep].resample("W-SUN").mean()
+    weekly = _complete_weekly_mean(daily[keep])
     return weekly.reindex(columns=ATMOSPHERIC_COLUMNS)
+
+
+def _complete_weekly_mean(frame: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate daily values and publish a cell only when all seven days exist."""
+    if frame.empty:
+        return frame.resample("W-SUN").mean()
+    daily = frame.copy().sort_index()
+    daily.index = pd.DatetimeIndex(daily.index).normalize()
+    daily = daily[~daily.index.duplicated(keep="last")]
+    weekly = daily.resample("W-SUN").mean()
+    valid_days = daily.notna().astype("int8").resample("W-SUN").sum()
+    return weekly.where(valid_days.eq(7))
+
+
+def _complete_weekly_mode(series: pd.Series) -> pd.Series:
+    weekly = weekly_source_mode(series)
+    valid_days = series.notna().astype("int8").resample("W-SUN").sum()
+    return weekly.where(valid_days.eq(7))
 
 
 def build_products(
@@ -327,16 +348,25 @@ def build_products(
         raise ValueError(f"physical input contains {int(physical.index.duplicated().sum())} duplicate dates")
     ocean_daily = physical[list(OCEAN_INPUT_TO_OUTPUT)].rename(columns=OCEAN_INPUT_TO_OUTPUT)
     source_daily = pd.to_numeric(physical["ocean_source_code"], errors="coerce")
-    raw_ocean_weekly = ocean_daily.resample("W-SUN").mean()
+    raw_ocean_weekly = _complete_weekly_mean(ocean_daily)
     adjusted_ocean_daily = source_aware_ocean_adjustment(ocean_daily, source_daily)
-    adjusted_ocean_weekly = adjusted_ocean_daily.resample("W-SUN").mean()
-    source_weekly = weekly_source_mode(source_daily)
+    adjusted_ocean_weekly = _complete_weekly_mean(adjusted_ocean_daily)
+    source_weekly = _complete_weekly_mode(source_daily)
+
+    # Uma semana W-SUN só é publicável depois do domingo. Resample pode criar
+    # um rótulo futuro para a semana corrente parcial; remova-o de todo produto.
+    today = pd.Timestamp.now().normalize()
+    last_complete_sunday = today - pd.Timedelta(days=(today.weekday() + 1) % 7)
+    raw_ocean_weekly = raw_ocean_weekly.loc[:last_complete_sunday]
+    adjusted_ocean_weekly = adjusted_ocean_weekly.loc[:last_complete_sunday]
+    source_weekly = source_weekly.loc[:last_complete_sunday]
 
     if ocean_only:
         atmospheric_weekly = pd.DataFrame(index=raw_ocean_weekly.index, columns=ATMOSPHERIC_COLUMNS, dtype=float)
     else:
         era5_raw = extract_era5(era5_years, cache_path=era5_cache, force_reextract=force_reextract_era5)
         atmospheric_weekly = _atmospheric_weekly(era5_raw)
+        atmospheric_weekly = atmospheric_weekly.loc[:last_complete_sunday]
 
     raw = raw_ocean_weekly.join(atmospheric_weekly, how="outer")
     adjusted = adjusted_ocean_weekly.join(atmospheric_weekly, how="outer")
@@ -458,8 +488,6 @@ def _manifest(
     outputs: list[Path],
 ) -> dict[str, Any]:
     input_paths = [args.physical_input]
-    if not args.ocean_only and args.era5_cache.exists():
-        input_paths.append(args.era5_cache)
     return {
         "schema_version": "phase2-master-manifest/1.0",
         "run_id": run_id,
@@ -470,6 +498,7 @@ def _manifest(
         "environment": _environment(),
         "code": [
             _artifact(Path(__file__)),
+            _artifact(ROOT / "scripts/build_phase2_daily_inputs.py"),
             _artifact(ROOT / "src/nino_brasil/data/phase2_master.py"),
             _artifact(ROOT / "src/nino_brasil/data/audit.py"),
         ],

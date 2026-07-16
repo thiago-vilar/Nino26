@@ -30,6 +30,26 @@ GLORYS_OPERATIONAL_DATASETS = {
 }
 GLORYS_START_YEAR = 1993
 GLORYS_DEFAULT_VARIABLES = ("thetao", "so", "zos")
+GLORYS_PROCESSED_VARIABLES = {"potential_temperature", "salinity", "sea_surface_height"}
+OCEAN_FEATURE_VARIABLES = {
+    "d20_nino34_mean_m",
+    "ohc_0_100_nino34_j_m2",
+    "ohc_0_300_nino34_j_m2",
+    "ohc_0_700_nino34_j_m2",
+    "ohc_300_700_nino34_j_m2",
+    "wwv_equatorial_pacific_m3",
+    "thermocline_tilt_m",
+    "thermocline_tilt_slope_m_per_degree",
+    "ssh_nino34_mean_m",
+    "temperature_50m_nino34_c",
+    "temperature_100m_nino34_c",
+    "temperature_150m_nino34_c",
+    "temperature_200m_nino34_c",
+    "temperature_300m_nino34_c",
+    "temperature_500m_nino34_c",
+    "temperature_700m_nino34_c",
+    "ocean_source_code",
+}
 UFS_ARCHIVE_URL = (
     "https://noaa-ufs-rnrmarine-pds.s3.amazonaws.com/"
     "ng-godas-1deg/3dvar/ana/1979_2019.zip"
@@ -458,6 +478,24 @@ def _daily_store_valid(
         return False
 
 
+def daily_store_valid(
+    path: Path,
+    *,
+    required_variables: set[str],
+    expected_start: str | pd.Timestamp | None = None,
+    expected_end: str | pd.Timestamp | None = None,
+    require_canonical_grid: bool = False,
+) -> bool:
+    """Public, metadata-only gate used before any remote ocean request."""
+    return _daily_store_valid(
+        path,
+        required_variables=required_variables,
+        expected_start=pd.Timestamp(expected_start) if expected_start is not None else None,
+        expected_end=pd.Timestamp(expected_end) if expected_end is not None else None,
+        require_canonical_grid=require_canonical_grid,
+    )
+
+
 def _zarr_encoding(ds: xr.Dataset) -> dict[str, dict[str, object]]:
     compressor = Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE)
     encoding: dict[str, dict[str, object]] = {}
@@ -740,6 +778,21 @@ def ingest_ufs_years(
     if not execute:
         return outputs
 
+    pending: list[tuple[int, Path]] = []
+    for year, output in zip(years, outputs, strict=True):
+        if overwrite or not _daily_store_valid(
+            output,
+            required_variables=GLORYS_PROCESSED_VARIABLES,
+            expected_start=pd.Timestamp(f"{year}-01-01"),
+            expected_end=pd.Timestamp(f"{year}-12-31"),
+            require_canonical_grid=True,
+        ):
+            pending.append((year, output))
+        else:
+            print(f"valid final daily Zarr exists; remote ZIP not opened: {output}")
+    if not pending:
+        return outputs
+
     import fsspec
 
     remote = fsspec.open(
@@ -753,7 +806,7 @@ def ingest_ufs_years(
         archive = zipfile.ZipFile(remote)
         try:
             names = archive.namelist()
-            for year, output in zip(years, outputs, strict=True):
+            for year, output in pending:
                 expected_start = pd.Timestamp(f"{year}-01-01")
                 expected_end = pd.Timestamp(f"{year}-12-31")
                 valid_existing = _daily_store_valid(
@@ -844,15 +897,7 @@ def build_ocean_daily_features(source: Path, output: Path, *, overwrite: bool = 
         ds = _normalize_longitude_360(source_ds)
         _validate_daily_time(ds)
         source_index = pd.DatetimeIndex(ds["time"].values).normalize()
-        required_features = {
-            "d20_nino34_mean_m",
-            "ohc_0_300_nino34_j_m2",
-            "ohc_0_700_nino34_j_m2",
-            "wwv_equatorial_pacific_m3",
-            "thermocline_tilt_m",
-            "thermocline_tilt_slope_m_per_degree",
-            "ocean_source_code",
-        }
+        required_features = OCEAN_FEATURE_VARIABLES
         valid_existing = _daily_store_valid(
             output,
             required_variables=required_features,

@@ -22,6 +22,7 @@ from nino_brasil.data.download_ocean_daily import (
     build_ocean_daily_features,
     glorys_operational_commands,
     glorys_subset_command,
+    ingest_ufs_years,
     process_glorys_year,
     ufs_ocean_members,
 )
@@ -131,6 +132,32 @@ class DailyOceanPipelineTests(unittest.TestCase):
         self.assertEqual(regridded.sizes["lon"], 641)
         self.assertAlmostEqual(float(np.median(np.diff(regridded["lat"]))), 0.25)
         self.assertEqual(regridded.attrs["spatial_information_gain"], "none; interpolation only aligns comparison nodes")
+
+    def test_valid_final_ufs_store_does_not_open_remote_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            year = 1992
+            output = root / str(year) / f"noaa_ufs_equatorial_pacific_{year}_daily.zarr"
+            time = pd.date_range(f"{year}-01-01", f"{year}-12-31", freq="D")
+            dataset = xr.Dataset(
+                {
+                    "potential_temperature": ("time", np.ones(len(time), dtype=np.float32)),
+                    "salinity": ("time", np.ones(len(time), dtype=np.float32)),
+                    "sea_surface_height": ("time", np.ones(len(time), dtype=np.float32)),
+                },
+                coords={
+                    "time": time,
+                    "lat": np.arange(-5.0, 5.01, 0.25),
+                    "lon": np.arange(120.0, 280.01, 0.25),
+                },
+            )
+            output.parent.mkdir(parents=True)
+            dataset.to_zarr(output, mode="w", consolidated=True, zarr_format=2)
+
+            # If the final-first gate regresses, this call attempts the real
+            # 320 GB remote ZIP and the unit test fails/hangs.
+            result = ingest_ufs_years(years=[year], output_root=root, execute=True)
+            self.assertEqual(result, [output])
 
 
 if __name__ == "__main__":

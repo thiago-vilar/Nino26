@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
+
+import pandas as pd
+import xarray as xr
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,10 +17,13 @@ if str(SRC) not in sys.path:
 
 from nino_brasil.data.download_ocean_daily import (
     GLORYS_DEFAULT_VARIABLES,
+    GLORYS_PROCESSED_VARIABLES,
     GLORYS_START_YEAR,
+    OCEAN_FEATURE_VARIABLES,
     UFS_END_YEAR,
     UFS_START_YEAR,
     build_ocean_daily_features,
+    daily_store_valid,
     download_glorys_operational,
     download_glorys_years,
     glorys_zarr_path,
@@ -107,6 +114,32 @@ def cmd_process_glorys(args: argparse.Namespace) -> int:
 def cmd_ingest_glorys(args: argparse.Namespace) -> int:
     """Download, process, validate, and optionally release one annual cache at a time."""
     for year in _years(args.start_year, args.end_year):
+        expected_start = pd.Timestamp(f"{year}-01-01")
+        expected_end = min(
+            pd.Timestamp(f"{year}-12-31"),
+            pd.Timestamp(args.end_date).normalize() if args.end_date else pd.Timestamp(f"{year}-12-31"),
+        )
+        output = PROCESSED_GLORYS_ROOT / str(year) / f"glorys12_equatorial_pacific_{year}_daily_0p25.zarr"
+        feature = _feature_path("glorys12", year)
+        processed_valid = daily_store_valid(
+            output,
+            required_variables=GLORYS_PROCESSED_VARIABLES,
+            expected_start=expected_start,
+            expected_end=expected_end,
+            require_canonical_grid=True,
+        )
+        if processed_valid and not args.overwrite:
+            if daily_store_valid(
+                feature,
+                required_variables=OCEAN_FEATURE_VARIABLES,
+                expected_start=expected_start,
+                expected_end=expected_end,
+            ):
+                print(f"valid final GLORYS Zarr and features exist; download skipped: {year}")
+            else:
+                print(f"valid final GLORYS Zarr exists; rebuilding features locally: {year}")
+                build_ocean_daily_features(output, feature, overwrite=feature.exists())
+            continue
         download_glorys_years(
             years=[year],
             output_root=RAW_GLORYS_ROOT,
@@ -118,9 +151,8 @@ def cmd_ingest_glorys(args: argparse.Namespace) -> int:
         if not args.execute:
             continue
         source = glorys_zarr_path(RAW_GLORYS_ROOT, year)
-        output = PROCESSED_GLORYS_ROOT / str(year) / f"glorys12_equatorial_pacific_{year}_daily_0p25.zarr"
         process_glorys_year(source, output, overwrite=args.overwrite)
-        build_ocean_daily_features(output, _feature_path("glorys12", year), overwrite=args.overwrite)
+        build_ocean_daily_features(output, feature, overwrite=args.overwrite)
         if args.delete_source_after_zarr:
             _delete_validated_raw(source, RAW_GLORYS_ROOT)
     return 0
@@ -146,6 +178,38 @@ def cmd_ingest_glorys_operational(args: argparse.Namespace) -> int:
 
     start = pd.Timestamp(args.start_date).normalize()
     end = pd.Timestamp(args.end_date).normalize() if args.end_date else pd.Timestamp.now().normalize() - pd.Timedelta(days=1)
+    if not args.overwrite:
+        covered = pd.DatetimeIndex([])
+        for processed in sorted(PROCESSED_OPERATIONAL_ROOT.rglob("*.zarr")):
+            if not daily_store_valid(
+                processed,
+                required_variables=GLORYS_PROCESSED_VARIABLES,
+                require_canonical_grid=True,
+            ):
+                continue
+            with xr.open_zarr(processed, consolidated=None) as dataset:
+                index = pd.DatetimeIndex(dataset.time.values).normalize()
+            covered = covered.union(index)
+            match = re.search(r"(\d{8})_(\d{8})", processed.name)
+            if match:
+                feature = FEATURE_ROOT / "glorys12_operational" / str(index[0].year) / (
+                    f"glorys12_operational_ocean_features_{match.group(1)}_{match.group(2)}_daily.zarr"
+                )
+                if not daily_store_valid(
+                    feature,
+                    required_variables=OCEAN_FEATURE_VARIABLES,
+                    expected_start=index[0],
+                    expected_end=index[-1],
+                ):
+                    print(f"valid operational Zarr exists; rebuilding features locally: {processed}")
+                    build_ocean_daily_features(processed, feature, overwrite=feature.exists())
+        requested = pd.date_range(start, end, freq="D")
+        missing = requested.difference(covered)
+        if missing.empty:
+            print(f"operational GLORYS already complete through {end.date()}; download skipped")
+            return 0
+        start = missing[0]
+        print(f"operational GLORYS incremental tail: {start.date()}..{end.date()}")
     sources = download_glorys_operational(
         start_date=start,
         end_date=end,

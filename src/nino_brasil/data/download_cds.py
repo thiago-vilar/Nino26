@@ -224,6 +224,39 @@ def _zarr_valid(path: Path, *, expected_variable: str | None = None) -> bool:
     return True
 
 
+def _zarr_daily_values_complete(
+    path: Path,
+    *,
+    variable: str,
+    expected_start: pd.Timestamp,
+    expected_end: pd.Timestamp,
+) -> bool:
+    """Require one finite spatial value for every expected calendar day."""
+    if not path.exists():
+        return False
+    try:
+        with xr.open_zarr(path, consolidated=None) as dataset:
+            if variable not in dataset or "time" not in dataset.coords:
+                return False
+            array = dataset[variable]
+            spatial_dims = [dim for dim in array.dims if dim != "time"]
+            valid = array.notnull()
+            if spatial_dims:
+                valid = valid.any(spatial_dims)
+            valid_mask = np.asarray(valid.compute().values, dtype=bool)
+            valid_days = pd.DatetimeIndex(array["time"].values[valid_mask]).normalize()
+        expected = pd.date_range(expected_start, expected_end, freq="D")
+        return expected.difference(valid_days).empty
+    except (OSError, ValueError, KeyError, IndexError):
+        return False
+
+
+def _era5_expected_month_bounds(year: int, month: int) -> tuple[pd.Timestamp, pd.Timestamp]:
+    start, end = _month_bounds(year, month)
+    availability = pd.Timestamp.today().normalize() - pd.Timedelta(days=7)
+    return pd.Timestamp(start), min(pd.Timestamp(end), availability)
+
+
 def _all_zarrs_valid(paths: list[Path], *, overwrite: bool, expected_variables: list[str] | None = None) -> bool:
     if overwrite:
         return False
@@ -720,7 +753,15 @@ def ingest_era5_single_month(
     _task_record_start(audit, task_id=task_id, dataset="era5_single", raw_path=raw_path, zarr_path=zarr_path, request=request)
     try:
         expected_variable = requested_variables[0] if len(requested_variables) == 1 else None
-        if _zarr_valid(zarr_path, expected_variable=expected_variable) and not overwrite:
+        expected_start, expected_end = _era5_expected_month_bounds(year, month)
+        valid_existing = _zarr_valid(zarr_path, expected_variable=expected_variable) and _zarr_daily_values_complete(
+            zarr_path,
+            variable=requested_variables[0],
+            expected_start=expected_start,
+            expected_end=expected_end,
+        )
+        replace_invalid = zarr_path.exists() and not valid_existing
+        if valid_existing and not overwrite:
             print(f"skip valid zarr: {zarr_path}")
         else:
             retrieve_cds(
@@ -728,7 +769,7 @@ def ingest_era5_single_month(
                 request=request,
                 output_path=raw_path,
                 dry_run=False,
-                overwrite=overwrite,
+                overwrite=overwrite or replace_invalid,
             )
             start, end = _month_bounds(year, month)
             _cache_to_daily_zarr(
@@ -740,7 +781,7 @@ def ingest_era5_single_month(
                 aggregation=era5_daily_aggregation(requested_variables[0]),
                 daily_start=start,
                 daily_end=end,
-                overwrite=overwrite,
+                overwrite=overwrite or replace_invalid,
             )
         _record_ok(audit, task_id=task_id, dataset="era5_single", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
         if raw_path.exists():
@@ -786,7 +827,15 @@ def ingest_era5_pressure_month(
     _task_record_start(audit, task_id=task_id, dataset="era5_pressure", raw_path=raw_path, zarr_path=zarr_path, request=request)
     try:
         expected_variable = requested_variables[0] if len(requested_variables) == 1 else None
-        if _zarr_valid(zarr_path, expected_variable=expected_variable) and not overwrite:
+        expected_start, expected_end = _era5_expected_month_bounds(year, month)
+        valid_existing = _zarr_valid(zarr_path, expected_variable=expected_variable) and _zarr_daily_values_complete(
+            zarr_path,
+            variable=requested_variables[0],
+            expected_start=expected_start,
+            expected_end=expected_end,
+        )
+        replace_invalid = zarr_path.exists() and not valid_existing
+        if valid_existing and not overwrite:
             print(f"skip valid zarr: {zarr_path}")
         else:
             retrieve_cds(
@@ -794,7 +843,7 @@ def ingest_era5_pressure_month(
                 request=request,
                 output_path=raw_path,
                 dry_run=False,
-                overwrite=overwrite,
+                overwrite=overwrite or replace_invalid,
             )
             start, end = _month_bounds(year, month)
             _cache_to_daily_zarr(
@@ -806,7 +855,7 @@ def ingest_era5_pressure_month(
                 aggregation=era5_daily_aggregation(requested_variables[0]),
                 daily_start=start,
                 daily_end=end,
-                overwrite=overwrite,
+                overwrite=overwrite or replace_invalid,
             )
         _record_ok(audit, task_id=task_id, dataset="era5_pressure", raw_path=raw_path, zarr_path=zarr_path, include_hash=include_hash)
         if raw_path.exists():
@@ -1022,7 +1071,7 @@ def ingest_era5_single_year_variable(
                 variables=[variable],
                 variable_aliases=ERA5_SINGLE_VARIABLE_ALIASES,
                 source_frequency="subdaily",
-                aggregation="mean",
+                aggregation=era5_daily_aggregation(variable),
                 daily_start=f"{year}-01-01",
                 daily_end=f"{year}-12-31",
                 overwrite=overwrite,
@@ -1094,7 +1143,7 @@ def ingest_era5_pressure_year_variable(
                 variables=[variable],
                 variable_aliases=ERA5_PRESSURE_VARIABLE_ALIASES,
                 source_frequency="subdaily",
-                aggregation="mean",
+                aggregation=era5_daily_aggregation(variable),
                 daily_start=f"{year}-01-01",
                 daily_end=f"{year}-12-31",
                 overwrite=overwrite,

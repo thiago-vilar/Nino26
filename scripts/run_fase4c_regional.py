@@ -46,6 +46,7 @@ from nino_brasil.maps.figure_registry import (  # noqa: E402
 from nino_brasil.artifacts import scientific_input_record, sha256_file  # noqa: E402
 from nino_brasil.artifact_codes import notebook_code_for, table_code  # noqa: E402
 from nino_brasil.config import confirmatory_fdr_alpha  # noqa: E402
+from nino_brasil.data.phase2_master import PHYSICAL_COLUMNS  # noqa: E402
 from nino_brasil.maps.plot_pixel_maps import (  # noqa: E402
     plot_pixel_field,
     save_unit_lag_heatmap,
@@ -94,41 +95,9 @@ TARGET_PIXEL_INVENTORY = FEAT / "phase4_chirps_native_pixels.csv"
 LAGS = tuple(range(0, 79, 2))
 FDR_ALPHA = confirmatory_fdr_alpha(fallback=0.05)
 KEY_PREDICTOR = "nino34_ssta"
-PACIFIC_VARS = (
-    "nino34_ssta",
-    "d20_m",
-    "tilt_m",
-    "tilt_slope",
-    "ohc_0_100",
-    "ohc_0_300",
-    "ohc_0_700",
-    "ohc_300_700",
-    "ssh_m",
-    "wwv",
-    "t50m",
-    "t100m",
-    "t150m",
-    "t200m",
-    "t300m",
-    "t500m",
-    "t700m",
-    "tau_x_anom",
-    "u10_anom",
-    "v10_anom",
-    "mslp_anom",
-    "tcwv_anom",
-    "slhf_anom",
-    "sshf_anom",
-    "ssr_anom",
-    "str_anom",
-    "u850_anom",
-    "u200_anom",
-    "omega850_anom",
-    "omega500_anom",
-    "div850_anom",
-)
-if len(PACIFIC_VARS) != 31 or len(set(PACIFIC_VARS)) != 31:
-    raise RuntimeError("The canonical Pacific predictor contract must contain 31 unique variables.")
+PACIFIC_VARS = tuple(PHYSICAL_COLUMNS)
+if len(set(PACIFIC_VARS)) != len(PACIFIC_VARS):
+    raise RuntimeError("The canonical Pacific predictor contract must contain unique variables.")
 OFFICIAL_CONDITIONS = tuple(
     f"{event_type}_{phase}"
     for event_type in ("el_nino", "la_nina")

@@ -745,6 +745,11 @@ class NotebookWorkflow:
                     (self.root / "data/processed/zarr/ctd_noaa/wod", True, "CTD/WOD em Zarr"),
                     (self.root / "data/processed/zarr/validation/tao_triton", False, "TAO/TRITON em Zarr"),
                     (self.root / "data/processed/zarr/validation/argo", False, "Argo em Zarr"),
+                    (self.root / "data/processed/parquet/statistics/phase2_insitu_profile_residuals.csv", True, "residuos pareados por perfil"),
+                    (self.root / "data/processed/parquet/statistics/phase2_insitu_validation_summary.csv", True, "resumo inferencial da validacao in situ"),
+                    (self.root / "data/processed/parquet/statistics/phase2_ocean_source_comparison.csv", True, "comparacao de fontes oceanicas"),
+                    (self.root / "data/processed/parquet/statistics/phase2_ufs_glorys_oras_monthly_pairs.csv", True, "series mensais pareadas UFS+GLORYS e ORAS5"),
+                    (self.root / "data/processed/parquet/statistics/phase2_ufs_glorys_oras_comparison_summary.csv", True, "correlacoes e erros UFS+GLORYS versus ORAS5"),
                 ]
             return [
                 (self.root / "data/processed/parquet/features/nino34_master_weekly.csv", True, "master F2"),
@@ -754,6 +759,7 @@ class NotebookWorkflow:
                 (self.root / "data/processed/parquet/statistics/phase2_master_audit.csv", True, "frescor e cobertura por variável"),
                 (self.root / "data/processed/parquet/statistics/phase2_ctd_validation.csv", True, "validação CTD/WOD"),
                 (self.root / "data/processed/parquet/statistics/phase1_ibge_boundaries_audit.csv", False, "auditoria IBGE da F1"),
+                (self.root / "data/processed/parquet/statistics/phase2_ocean_source_comparison.csv", True, "frequencia e variaveis das fontes oceanicas"),
             ]
         if phase == 3:
             mapping: dict[str, list[tuple[Path, bool, str]]] = {
@@ -880,8 +886,8 @@ class NotebookWorkflow:
                 "intervalo_entrada": "diário",
                 "intervalo_analise": "semanal (W-SUN)",
                 "tratamento_ate_master": (
-                    "ERA5: registros horários agregados a médias diárias; depois média semanal W-SUN."
-                    if source == "ERA5" else "Séries físicas diárias; depois média semanal W-SUN."
+                    "ERA5: registros subdiários agregados ao contrato diário da variável; semana W-SUN publicada somente com sete dias válidos."
+                    if source == "ERA5" else "Séries físicas diárias; semana W-SUN publicada somente com sete dias válidos."
                 ),
                 "representacao_no_master": representation,
                 "inicio_disponivel": valid_dates.min().date().isoformat() if not valid_dates.empty else "",
@@ -966,6 +972,61 @@ class NotebookWorkflow:
         fig.tight_layout()
         return fig
 
+    @staticmethod
+    def _phase2_ocean_source_figure(table: pd.DataFrame):
+        data = table.copy()
+        data["inicio"] = pd.to_datetime(data["inicio"], errors="coerce")
+        data["fim"] = pd.to_datetime(data["fim"], errors="coerce")
+        ordered = data.sort_values("inicio").reset_index(drop=True)
+        fig, axis = plt.subplots(figsize=(12, 4.8))
+        for position, row in ordered.iterrows():
+            color = "#9ca3af" if "excluida" in str(row["fonte"]) else "#2563eb"
+            axis.plot([row["inicio"], row["fim"]], [position, position], lw=9, color=color, solid_capstyle="butt")
+        axis.set_yticks(range(len(ordered)))
+        axis.set_yticklabels(ordered["fonte"])
+        axis.set_title("F2 — fontes oceânicas, frequência nativa e cobertura")
+        axis.set_xlabel("período disponível nos Zarr locais")
+        axis.grid(axis="x", alpha=0.2)
+        fig.tight_layout()
+        return fig
+
+    @staticmethod
+    def _phase2_reanalysis_line_figure(pairs: pd.DataFrame, summary: pd.DataFrame):
+        variables = list(pairs["variavel"].drop_duplicates())
+        columns = 3
+        rows = int(np.ceil(len(variables) / columns))
+        fig, axes = plt.subplots(rows, columns, figsize=(17, max(3.1 * rows, 6)), sharex=True)
+        axes_flat = np.atleast_1d(axes).ravel()
+        total = summary.loc[summary["segmento"].eq("UFS+GLORYS total")].set_index("variavel")
+        for axis, variable in zip(axes_flat, variables):
+            data = pairs.loc[pairs["variavel"].eq(variable)].sort_values("time")
+            axis.plot(data["time"], data["ufs_glorys"], color="#1d4ed8", lw=0.75, label="UFS+GLORYS mensalizado")
+            axis.plot(data["time"], data["oras5"], color="#d97706", lw=0.7, alpha=0.85, label="ORAS5 mensal")
+            r = total.at[variable, "r_pearson_anomalia_sazonal_removida"] if variable in total.index else np.nan
+            axis.set_title(f"{variable} | r anom={r:.3f}", fontsize=8)
+            axis.grid(axis="y", alpha=0.2)
+        for axis in axes_flat[len(variables):]:
+            axis.set_visible(False)
+        axes_flat[0].legend(loc="best", fontsize=6.8)
+        fig.suptitle("F2V — sanidade mensal comparativa UFS+GLORYS × ORAS5", fontsize=13, y=0.995)
+        fig.supxlabel("mês de referência; apenas comparação, sem entrada no master semanal")
+        fig.tight_layout(rect=(0.01, 0.02, 1, 0.98))
+        return fig
+
+    @staticmethod
+    def _phase2_correlation_figure(summary: pd.DataFrame):
+        data = summary.loc[summary["segmento"].eq("UFS+GLORYS total")].sort_values("r_pearson_anomalia_sazonal_removida")
+        fig, axis = plt.subplots(figsize=(12, max(6, 0.38 * len(data) + 2)))
+        colors = np.where(data["correlacao_anomalia_significativa_fdr_05"].astype(bool), "#15803d", "#b91c1c")
+        axis.barh(data["variavel"], data["r_pearson_anomalia_sazonal_removida"], color=colors)
+        axis.axvline(0, color="#111827", lw=0.7)
+        axis.set_xlim(-1, 1)
+        axis.set_xlabel("correlação de Pearson das anomalias mensais; sazonalidade removida")
+        axis.set_title("F2V — correlação estatística UFS+GLORYS × ORAS5 (FDR BH 5%)")
+        axis.grid(axis="x", alpha=0.2)
+        fig.tight_layout()
+        return fig
+
     def _phase2_diagnostics(self) -> tuple[list[tuple[int, str, pd.DataFrame, object, str]], list[str]]:
         master = pd.read_csv(self.input_paths()[0][0], parse_dates=["week_ending_sunday"])
         contract = self._phase2_contract(master, pd.read_csv(self.input_paths()[1][0]))
@@ -1006,7 +1067,7 @@ class NotebookWorkflow:
         variable_status["ultima_semana_comum_base_w_sun"] = common_week
         variable_status["semanas_validas"] = variable_status["variavel"].map(numeric_master.notna().sum())
         variable_status["frequencia_produto"] = "semanal W-SUN"
-        variable_status["criterio"] = "último fechamento semanal com valor observado para a variável"
+        variable_status["criterio"] = "último fechamento W-SUN com sete valores diários válidos para a variável"
         fig_status, axis_status = plt.subplots(figsize=(12, max(7, 0.28 * len(variable_status))))
         status_plot = variable_status.dropna(subset=["ultima_semana_valida_w_sun"]).sort_values("ultima_semana_valida_w_sun")
         colors = status_plot["familia"].astype("category").cat.codes
@@ -1021,6 +1082,7 @@ class NotebookWorkflow:
         freshness_source = pd.read_csv(self.input_paths()[4][0])
         freshness_table, freshness_figure = self._phase2_freshness_figure(freshness_source)
         ctd_table = pd.read_csv(self.input_paths()[5][0])
+        ocean_sources = pd.read_csv(self.input_paths()[7][0])
         diagnostics = [
             (1, "contrato_disponibilidade", contract, self._phase2_availability_figure(contract), "Painel de disponibilidade e contrato F2"),
             (2, "status_atualizacao_base_completa", variable_status, fig_status, "Relação completa das variáveis, fontes e últimas semanas válidas"),
@@ -1029,6 +1091,7 @@ class NotebookWorkflow:
             (5, "serie_anomalia_nino34", anomaly_table, self._phase2_series_figure(anomaly_table, title=f"F2 — grupo SST/SSTA Niño 3.4 · última semana completa {week_label(group_weeks['SST/SSTA Niño 3.4'])}", max_columns=1), "Sanidade temporal — grupo SST/SSTA Niño 3.4"),
             (6, "frescor_fontes", freshness_table, freshness_figure, "Frescor real das fontes de entrada"),
             (7, "validacao_ctd_wod", ctd_table, self._phase2_ctd_figure(ctd_table), "Validação CTD/WOD × UFS+GLORYS"),
+            (8, "fontes_oceanicas_frequencia_variaveis", ocean_sources, self._phase2_ocean_source_figure(ocean_sources), "Fontes oceanicas, frequencia e variaveis diretas/calculadas"),
         ]
         ibge_path = self.input_paths()[6][0]
         if ibge_path.is_file():
@@ -1039,17 +1102,22 @@ class NotebookWorkflow:
             axis.set_ylabel("geometrias")
             axis.grid(axis="y", alpha=0.2)
             fig.tight_layout()
-            diagnostics.append((8, "auditoria_ibge", ibge, fig, "Auditoria das malhas IBGE"))
+            diagnostics.append((9, "auditoria_ibge", ibge, fig, "Auditoria das malhas IBGE"))
         takeaways = [
             f"O master semanal cobre {master['week_ending_sunday'].min():%d/%m/%Y} a {master['week_ending_sunday'].max():%d/%m/%Y}.",
             f"{int(contract['apta_sem_tratamento_extra'].sum())}/{len(contract)} variáveis atendem ao contrato para estatística semanal sem limpeza adicional.",
             "As entradas nativas são diárias (ERA5 parte de registros horários) e o produto da F2 é semanal; não há variável mensal independente nesta fase.",
             "A reconstituição da F2 usa exclusivamente períodos semanais com fechamento no domingo (W-SUN); datas diárias são apenas insumos da agregação.",
+            "Nenhuma semana parcial é publicada: cada célula semanal exige sete dias válidos da respectiva variável.",
             f"A última semana comum às {len(variables)} variáveis da base é {week_label(common_week)}; a tabela de atualização preserva também a última semana individual de cada variável.",
             "A relação completa é publicada por variável, família e fonte; os agrupamentos servem apenas para organizar os gráficos e não substituem a auditoria integral da base.",
             f"A maior data válida observada no audit é {pd.to_datetime(freshness_source['fim']).max():%d/%m/%Y}; o eixo semanal sozinho não comprova atualização das fontes.",
             "O notebook publica a validação CTD/WOD e, quando disponível, a auditoria IBGE produzida pela F1.",
         ]
+        takeaways.extend([
+            "UFS+GLORYS fornece temperatura, salinidade e SSH diarias; D20, quatro camadas de OHC, WWV e inclinacao da termoclina sao calculados antes da agregacao semanal.",
+            "Os Zarr ORAS5 locais contem medias mensais reais: o volume decorre da grade espacial e das profundidades, e eles permanecem fora do master semanal.",
+        ])
         return diagnostics, takeaways
 
     def _phase2_insitu_diagnostics(self):
@@ -1076,7 +1144,62 @@ class NotebookWorkflow:
         axis.set_xlabel("observações/perfis nos Zarrs")
         axis.grid(axis="x", alpha=0.2)
         fig.tight_layout()
-        return [(1, "inventario_validacao_insitu", table, fig, "Cobertura CTD/WOD, TAO/TRITON e Argo")], ["As fontes in situ validam UFS+GLORYS e não preenchem lacunas da matriz principal.", "Comparações temporais usam fechamento semanal W-SUN somente quando existe observação."]
+
+        profile_table = pd.read_csv(self.input_paths()[3][0], parse_dates=["time"])
+        validation = pd.read_csv(self.input_paths()[4][0], parse_dates=["inicio", "fim"])
+        source_contract = pd.read_csv(self.input_paths()[5][0])
+        reanalysis_pairs = pd.read_csv(self.input_paths()[6][0], parse_dates=["time"])
+        reanalysis_summary = pd.read_csv(self.input_paths()[7][0], parse_dates=["inicio", "fim"])
+
+        fig_bias, axis_bias = plt.subplots(figsize=(11, max(5, 0.72 * len(validation))))
+        labels = validation["fonte_insitu"].astype(str) + " · " + validation["variavel"].astype(str)
+        values = pd.to_numeric(validation["bias_modelo_menos_insitu"], errors="coerce")
+        lower = values - pd.to_numeric(validation["bias_ic95_inf_bootstrap_perfil"], errors="coerce")
+        upper = pd.to_numeric(validation["bias_ic95_sup_bootstrap_perfil"], errors="coerce") - values
+        colors = np.where(validation["diferenca_significativa_fdr_05"].astype(bool), "#b91c1c", "#15803d")
+        for position, (value, low, high, color) in enumerate(zip(values, lower, upper, colors)):
+            axis_bias.errorbar(value, position, xerr=[[max(float(low), 0.0)], [max(float(high), 0.0)]], fmt="o", color=color, ecolor=color, capsize=3)
+        axis_bias.set_yticks(range(len(labels)))
+        axis_bias.set_yticklabels(labels)
+        axis_bias.axvline(0, color="#111827", lw=0.8, ls="--")
+        axis_bias.set_title("F2V — viés UFS+GLORYS menos observação in situ (IC95% por perfil)")
+        axis_bias.set_xlabel("diferença; °C para temperatura e 1e-3 para salinidade")
+        axis_bias.grid(axis="x", alpha=0.2)
+        fig_bias.tight_layout()
+
+        fig_profiles, axis_profiles = plt.subplots(figsize=(11, 5.5))
+        groups = []
+        group_labels = []
+        for keys, group in profile_table.groupby(["fonte_insitu", "variavel"], sort=True):
+            groups.append(pd.to_numeric(group["residuo_medio"], errors="coerce").dropna().to_numpy())
+            group_labels.append(" · ".join(map(str, keys)))
+        if groups:
+            axis_profiles.boxplot(groups, tick_labels=group_labels, showfliers=False, vert=True)
+        axis_profiles.axhline(0, color="#111827", lw=0.8, ls="--")
+        axis_profiles.set_title("F2V — distribuição dos resíduos médios por perfil/boia-dia")
+        axis_profiles.set_ylabel("UFS+GLORYS menos in situ")
+        axis_profiles.tick_params(axis="x", rotation=25)
+        axis_profiles.grid(axis="y", alpha=0.2)
+        fig_profiles.tight_layout()
+
+        significant = int(validation["diferenca_significativa_fdr_05"].astype(bool).sum())
+        diagnostics = [
+            (1, "inventario_validacao_insitu", table, fig, "Cobertura CTD/WOD, TAO/TRITON e Argo"),
+            (2, "comparacao_pareada_significancia", validation, fig_bias, "Validade UFS+GLORYS por comparação pareada com dados in situ"),
+            (3, "residuos_por_perfil", profile_table, fig_profiles, "Resíduos UFS+GLORYS menos CTD/WOD, TAO/TRITON e Argo"),
+            (4, "contrato_fontes_oceanicas", source_contract, self._phase2_ocean_source_figure(source_contract), "Contrato das fontes oceânicas da Fase 2"),
+            (5, "series_mensais_ufs_glorys_oras", reanalysis_pairs, self._phase2_reanalysis_line_figure(reanalysis_pairs, reanalysis_summary), "Sanidade comparativa mensal UFS+GLORYS e ORAS5"),
+            (6, "correlacoes_ufs_glorys_oras", reanalysis_summary, self._phase2_correlation_figure(reanalysis_summary), "Correlações estatísticas UFS+GLORYS versus ORAS5"),
+        ]
+        takeaways = [
+            "As fontes in situ validam UFS+GLORYS e não preenchem lacunas da matriz principal.",
+            "Cada observação é pareada ao dia, nó horizontal e profundidade mais próximos; o teste usa perfil/boia-dia, não cada profundidade como réplica independente.",
+            f"Foram avaliadas {len(validation)} combinações fonte–variável; {significant} apresentaram viés diferente de zero após correção FDR BH a 5%.",
+            "Diferença significativa indica viés sistemático detectável, não invalidação automática; magnitude, RMSE, correlação e adequação física devem ser examinadas conjuntamente.",
+            "ORAS5 é média mensal comprovada: participa somente da comparação mensal independente e nunca da formação das semanas.",
+            f"A comparação UFS+GLORYS × ORAS5 publicou {len(reanalysis_summary)} testes de correlação por segmento e variável, com tamanho amostral efetivo e FDR BH explícitos.",
+        ]
+        return diagnostics, takeaways
 
     @staticmethod
     def _f3_weekly_trend_figure(long: pd.DataFrame, *, title: str, columns: int = 3):
@@ -1616,7 +1739,7 @@ class NotebookWorkflow:
                 artifacts.append(asdict(artifact))
             return WorkflowResult(
                 artifacts=pd.DataFrame(artifacts),
-                summary=diagnostics[0][2],
+                summary=diagnostics[1][2] if self.code == "F2V" else diagnostics[0][2],
                 takeaways=takeaways,
                 limitations=[
                     "A aprovação vale para análise estatística semanal sem limpeza adicional; lacunas continuam explícitas na tabela de contrato.",

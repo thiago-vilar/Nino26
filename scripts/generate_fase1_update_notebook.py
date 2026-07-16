@@ -34,7 +34,7 @@ def build_notebook():
             "F1A — Atualização e ingestão das fontes do NINO26\n\n"
             "**CONTEXTO**\n\n"
             "A Fase 1 é responsável por baixar, atualizar, catalogar e auditar as fontes locais. "
-            "Este notebook organiza OISST, ERA5, CHIRPS, UFS+GLORYS, ORAS5, CTD/WOD e as malhas "
+            "Este notebook organiza OISST, ERA5, CHIRPS, UFS+GLORYS, CTD/WOD e as malhas "
             "IBGE de estados, regiões e biomas. Ele não trata nem interpreta os dados; essa função "
             "pertence à Fase 2 e às fases analíticas.\n\n"
             "**MOTIVAÇÃO**\n\n"

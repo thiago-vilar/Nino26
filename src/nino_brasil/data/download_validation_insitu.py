@@ -56,6 +56,7 @@ def download_tao_triton_year(
     raw_dir: Path,
     product: str,
     max_depth_m: float = 300.0,
+    start_date: date | None = None,
     end_date: date | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
@@ -66,7 +67,7 @@ def download_tao_triton_year(
         raise ValueError(f"Unknown TAO/TRITON product: {product}")
     spec = TAO_PRODUCTS[product]
     output_path = raw_dir / product / f"tao_triton_{product}_{year}.csv"
-    start, end = _year_time_bounds(year, end_date=end_date)
+    start, end = _year_time_bounds(year, start_date=start_date, end_date=end_date)
     quality_name, quality_min, quality_max = spec["quality"]
     constraints = [
         ("time>=", start),
@@ -97,6 +98,7 @@ def download_argo_year(
     year: int,
     raw_dir: Path,
     max_depth_m: float = 300.0,
+    start_date: date | None = None,
     end_date: date | None = None,
     dry_run: bool = True,
     overwrite: bool = False,
@@ -104,7 +106,7 @@ def download_argo_year(
     audit: AuditLog | None = None,
 ) -> Path:
     output_path = raw_dir / f"argo_nino34_{year}.csv"
-    start, end = _year_time_bounds(year, end_date=end_date)
+    start, end = _year_time_bounds(year, start_date=start_date, end_date=end_date)
     constraints = [
         ("time>=", start),
         ("time<=", end),
@@ -191,16 +193,34 @@ def _format_constraint_value(value: object) -> str:
     return str(value)
 
 
-def _year_time_bounds(year: int, *, end_date: date | None = None) -> tuple[str, str]:
+def _year_time_bounds(
+    year: int,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> tuple[str, str]:
     limit = end_date or date.today()
-    start_date = date(year, 1, 1)
+    first_date = max(date(year, 1, 1), start_date or date(year, 1, 1))
     final_date = min(date(year, 12, 31), limit)
-    if final_date < start_date:
-        final_date = start_date
+    if final_date < first_date:
+        final_date = first_date
     return (
-        datetime.combine(start_date, datetime.min.time()).strftime("%Y-%m-%dT00:00:00Z"),
+        datetime.combine(first_date, datetime.min.time()).strftime("%Y-%m-%dT00:00:00Z"),
         datetime.combine(final_date, datetime.max.time()).strftime("%Y-%m-%dT23:59:59Z"),
     )
+
+
+def validation_zarr_last_time(path: Path) -> pd.Timestamp | None:
+    """Return the latest incorporated observation without reading data arrays."""
+    if not path.exists():
+        return None
+    try:
+        with xr.open_zarr(path, consolidated=None) as dataset:
+            if "time" not in dataset or dataset["time"].size == 0:
+                return None
+            return pd.DatetimeIndex(dataset["time"].values).max()
+    except (OSError, ValueError, KeyError):
+        return None
 
 
 def validation_csv_to_zarr(
@@ -209,6 +229,7 @@ def validation_csv_to_zarr(
     *,
     source: str,
     delete_raw_after_zarr: bool = False,
+    merge_existing: bool = True,
 ) -> Path:
     """Converte a resposta tabular in situ em Zarr e só então remove o bruto."""
     if not raw_path.exists():
@@ -221,6 +242,15 @@ def validation_csv_to_zarr(
         raise ValueError(f"time ausente em {raw_path}")
     frame["time"] = pd.to_datetime(frame["time"], utc=True, errors="coerce").dt.tz_localize(None)
     frame = frame.dropna(subset=["time"]).sort_values("time").reset_index(drop=True)
+    if merge_existing and output_path.exists():
+        with xr.open_zarr(output_path, consolidated=None) as existing:
+            previous = existing.to_dataframe().reset_index(drop=True)
+        if "time" in previous:
+            previous["time"] = pd.to_datetime(previous["time"], errors="coerce")
+            frame = pd.concat([previous, frame], ignore_index=True, sort=False)
+            keys = [name for name in ("time", "station", "platform_number", "depth", "pres") if name in frame]
+            frame = frame.dropna(subset=["time"]).drop_duplicates(keys or None, keep="last")
+            frame = frame.sort_values("time").reset_index(drop=True)
     dataset = xr.Dataset.from_dataframe(frame)
     dataset.attrs.update(
         source=source,

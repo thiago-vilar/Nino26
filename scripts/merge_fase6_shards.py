@@ -32,6 +32,7 @@ from nino_brasil.targets.chirps_native import (  # noqa: E402
     native_pixel_table,
     validate_native_target,
 )
+from nino_brasil.data.phase2_master import PHYSICAL_COLUMNS  # noqa: E402
 
 RUNS = ROOT / "data" / "processed" / "runs" / "official" / "fase6"
 TARGET = ROOT / "data" / "processed" / "zarr" / "features" / "chirps_native_weekly_targets.zarr"
@@ -308,8 +309,9 @@ def load_source_shard(directory: Path, *, model: str | None = None) -> SourceSha
     if "variable" not in predictor_contract or predictor_contract["variable"].isna().any():
         raise KeyError(f"{directory}: predictor_contract sem variable completa.")
     predictor_names = predictor_contract["variable"].astype(str).tolist()
-    if len(predictor_names) != 31 or len(set(predictor_names)) != 31:
-        raise ValueError(f"{directory}: predictor_contract deve conter 31 variaveis unicas.")
+    expected_count = len(PHYSICAL_COLUMNS)
+    if len(predictor_names) != expected_count or len(set(predictor_names)) != expected_count:
+        raise ValueError(f"{directory}: predictor_contract deve conter {expected_count} variaveis unicas.")
 
     for frame in (metrics, predictions, inventory, importance):
         if "pixel_id" not in frame:
@@ -354,7 +356,7 @@ def load_source_shard(directory: Path, *, model: str | None = None) -> SourceSha
     expected_predictors = set(predictor_names)
     if not all(variables == expected_predictors for variables in importance_groups):
         raise ValueError(
-            f"{directory}: importance nao cobre as 31 variaveis em cada fold/pixel/condicao/lag."
+            f"{directory}: importance nao cobre as {expected_count} variaveis em cada fold/pixel/condicao/lag."
         )
 
     required_predictions = {

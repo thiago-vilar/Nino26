@@ -60,10 +60,23 @@ VARIABLE_SPECS: tuple[VariableSpec, ...] = (
     VariableSpec("sshf_anom", "ERA5", "W m-2", "upward_surface_cooling", "day_of_year_anomaly", "same_as_raw"),
     VariableSpec("ssr_anom", "ERA5", "W m-2", "downward_surface_warming", "day_of_year_anomaly", "same_as_raw"),
     VariableSpec("str_anom", "ERA5", "W m-2", "downward_surface_warming", "day_of_year_anomaly", "same_as_raw"),
-    VariableSpec("u850_anom", "ERA5", "m s-1", "eastward", "day_of_year_anomaly", "same_as_raw"),
     VariableSpec("u200_anom", "ERA5", "m s-1", "eastward", "day_of_year_anomaly", "same_as_raw"),
-    VariableSpec("omega850_anom", "ERA5", "Pa s-1", "downward_motion", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("u500_anom", "ERA5", "m s-1", "eastward", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("u850_anom", "ERA5", "m s-1", "eastward", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("v200_anom", "ERA5", "m s-1", "northward", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("v500_anom", "ERA5", "m s-1", "northward", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("v850_anom", "ERA5", "m s-1", "northward", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("q200_anom", "ERA5", "kg kg-1", "more_specific_humidity", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("q500_anom", "ERA5", "kg kg-1", "more_specific_humidity", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("q850_anom", "ERA5", "kg kg-1", "more_specific_humidity", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("z200_anom", "ERA5", "m2 s-2", "higher_geopotential", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("z500_anom", "ERA5", "m2 s-2", "higher_geopotential", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("z850_anom", "ERA5", "m2 s-2", "higher_geopotential", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("omega200_anom", "ERA5", "Pa s-1", "downward_motion", "day_of_year_anomaly", "same_as_raw"),
     VariableSpec("omega500_anom", "ERA5", "Pa s-1", "downward_motion", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("omega850_anom", "ERA5", "Pa s-1", "downward_motion", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("div200_anom", "ERA5", "s-1", "horizontal_divergence", "day_of_year_anomaly", "same_as_raw"),
+    VariableSpec("div500_anom", "ERA5", "s-1", "horizontal_divergence", "day_of_year_anomaly", "same_as_raw"),
     VariableSpec("div850_anom", "ERA5", "s-1", "horizontal_divergence", "day_of_year_anomaly", "same_as_raw"),
 )
 
@@ -340,7 +353,7 @@ def validate_master(master: pd.DataFrame, *, require_full_axis: bool = True) -> 
         if require_full_axis:
             add("eixo_1981_ao_ano_atual", index.min().year <= 1981 and index.max().year >= pd.Timestamp.today().year, f"{index.min().year}..{index.max().year}")
     actual_physical = [column for column in master.columns if column not in METADATA_COLUMNS]
-    add("contrato_31_variaveis_fisicas", tuple(actual_physical) == PHYSICAL_COLUMNS, f"esperadas=31; encontradas={len(actual_physical)}")
+    add("contrato_variaveis_fisicas", tuple(actual_physical) == PHYSICAL_COLUMNS, f"esperadas={len(PHYSICAL_COLUMNS)}; encontradas={len(actual_physical)}")
     add("source_code_apenas_metadado", "ocean_source_code" in master and "ocean_source_code" not in PHYSICAL_COLUMNS, "source_code nao e preditor fisico")
     empty = [column for column in PHYSICAL_COLUMNS if column not in master or master[column].notna().sum() == 0]
     add("nenhuma_variavel_totalmente_vazia", not empty, "vazias=" + (",".join(empty) if empty else "nenhuma"))
@@ -358,7 +371,7 @@ def validate_master(master: pd.DataFrame, *, require_full_axis: bool = True) -> 
         "defasadas=" + (",".join(stale) if stale else "nenhuma"),
     )
     numeric = all(column in master and pd.api.types.is_numeric_dtype(master[column]) for column in PHYSICAL_COLUMNS)
-    add("variaveis_fisicas_numericas", numeric, "todas as 31 colunas devem ser numericas")
+    add("variaveis_fisicas_numericas", numeric, f"todas as {len(PHYSICAL_COLUMNS)} colunas devem ser numericas")
     finite = True
     offending: list[str] = []
     for column in PHYSICAL_COLUMNS:

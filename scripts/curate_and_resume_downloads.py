@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 import requests
+import pandas as pd
 import xarray as xr
 
 
@@ -19,7 +20,7 @@ if str(SRC) not in sys.path:
 
 from nino_brasil.config import load_config, project_path
 from nino_brasil.data.audit import AuditLog
-from nino_brasil.data.availability import iter_available_years, record_source_latency
+from nino_brasil.data.availability import available_end_date, iter_available_years, record_source_latency
 from nino_brasil.data.download_chirps import download_chirps_year
 from nino_brasil.data.download_ibge import download_ibge
 from nino_brasil.data.download_oisst import download_oisst_year
@@ -118,6 +119,62 @@ def check_zarr(path: Path, *, fast: bool = False) -> tuple[bool, str]:
         return False, f"invalid zarr: {type(exc).__name__}: {exc}"
 
 
+def check_daily_zarr_coverage(
+    path: Path,
+    *,
+    variable: str,
+    year: int,
+    source: str,
+    fast: bool = False,
+) -> tuple[bool, str]:
+    """Validate the final daily time axis before considering any raw cache."""
+    basic_ok, detail = check_zarr(path, fast=fast)
+    if not basic_ok or fast:
+        return basic_ok, detail
+    expected_start = pd.Timestamp(f"{year}-01-01")
+    expected_end = min(pd.Timestamp(f"{year}-12-31"), available_end_date(source, load_config()))
+    try:
+        with xr.open_zarr(path, consolidated=None) as dataset:
+            if variable not in dataset or "time" not in dataset.coords:
+                return False, f"missing {variable} or time"
+            index = pd.DatetimeIndex(dataset.time.values).normalize()
+        expected = pd.date_range(expected_start, expected_end, freq="D")
+        missing = expected.difference(index)
+        extra_duplicates = int(index.duplicated().sum())
+        ok = not missing.size and not extra_duplicates and index.is_monotonic_increasing
+        return ok, (
+            f"coverage={index.min().date()}..{index.max().date()}; "
+            f"expected_through={expected_end.date()}; missing_days={len(missing)}; duplicates={extra_duplicates}"
+        )
+    except (OSError, ValueError, KeyError, IndexError) as exc:
+        return False, f"invalid daily coverage: {type(exc).__name__}: {exc}"
+
+
+def check_daily_netcdf_coverage(
+    path: Path,
+    *,
+    variable: str,
+    year: int,
+    source: str,
+    fast: bool = False,
+) -> tuple[bool, str]:
+    basic_ok, detail = check_netcdf(path, fast=fast)
+    if not basic_ok or fast:
+        return basic_ok, detail
+    expected_start = pd.Timestamp(f"{year}-01-01")
+    expected_end = min(pd.Timestamp(f"{year}-12-31"), available_end_date(source, load_config()))
+    try:
+        with xr.open_dataset(path, chunks={}) as dataset:
+            if variable not in dataset or "time" not in dataset.coords:
+                return False, f"missing {variable} or time"
+            index = pd.DatetimeIndex(dataset.time.values).normalize()
+        missing = pd.date_range(expected_start, expected_end, freq="D").difference(index)
+        ok = not missing.size and not index.duplicated().any() and index.is_monotonic_increasing
+        return ok, f"coverage={index.min().date()}..{index.max().date()}; expected_through={expected_end.date()}; missing_days={len(missing)}"
+    except (OSError, ValueError, KeyError, IndexError) as exc:
+        return False, f"invalid daily coverage: {type(exc).__name__}: {exc}"
+
+
 def download_with_retry(action: Callable[[], Path], *, retries: int, wait_seconds: int) -> Path:
     attempt = 0
     while True:
@@ -131,6 +188,47 @@ def download_with_retry(action: Callable[[], Path], *, retries: int, wait_second
                 raise
             print(f"retryable HTTP error on attempt {attempt}/{retries}: {exc}")
             time.sleep(wait_seconds)
+
+
+def materialize_daily_source(
+    raw_path: Path,
+    zarr_path: Path,
+    regrid_path: Path,
+    *,
+    variable: str,
+    dataset: str,
+    build_zarr: bool,
+    build_regrid: bool,
+    overwrite: bool,
+) -> Path:
+    """Complete all requested local stages in the same resumable action."""
+    result = raw_path
+    if build_zarr:
+        result = netcdf_to_daily_zarr(
+            raw_path,
+            zarr_path,
+            variables=[variable],
+            source_frequency="daily",
+            overwrite=overwrite or zarr_path.exists(),
+        )
+    if build_regrid:
+        result = regrid_zarr(
+            zarr_path,
+            regrid_path,
+            dataset=dataset,
+            overwrite=overwrite or regrid_path.exists(),
+        )
+    return result
+
+
+def download_and_materialize_daily_source(
+    download: Callable[[], Path],
+    zarr_path: Path,
+    regrid_path: Path,
+    **kwargs: object,
+) -> Path:
+    raw_path = download()
+    return materialize_daily_source(raw_path, zarr_path, regrid_path, **kwargs)
 
 
 def regrid_zarr(input_path: Path, output_path: Path, *, dataset: str, overwrite: bool = False) -> Path:
@@ -248,7 +346,29 @@ def add_chirps_actions(
 ) -> None:
     for year in years:
         raw_path = chirps_raw_path(year, resolution)
-        raw_ok, raw_detail = check_netcdf(raw_path, fast=fast)
+        zarr_path = chirps_zarr_path(year, resolution)
+        regrid_path = chirps_regrid_path(year, resolution)
+        final_zarr_ok, final_zarr_detail = check_daily_zarr_coverage(
+            zarr_path, variable="precip", year=year, source="chirps", fast=fast
+        )
+        final_regrid_ok, final_regrid_detail = check_daily_zarr_coverage(
+            regrid_path, variable="precip", year=year, source="chirps", fast=fast
+        )
+        if final_regrid_ok or final_zarr_ok:
+            checks.append(CheckResult("chirps", "raw", year, f"CHIRPS {resolution} {year}", raw_path, True, "cache not required; final Zarr validated"))
+            checks.append(CheckResult("chirps", "zarr", year, f"CHIRPS {resolution} {year}", zarr_path, final_zarr_ok, final_zarr_detail))
+            checks.append(CheckResult("chirps", "regrid", year, f"CHIRPS {resolution} {year}", regrid_path, final_regrid_ok, final_regrid_detail))
+            if final_zarr_ok and not final_regrid_ok and ("regrid" in selected_stages or "all" in selected_stages):
+                pending.append(PendingAction(
+                    "chirps", "regrid", year, f"CHIRPS {resolution} {year}", regrid_path, final_regrid_detail,
+                    lambda zarr_path=zarr_path, regrid_path=regrid_path, year=year: regrid_zarr(
+                        zarr_path, regrid_path, dataset=f"chirps_{resolution}_{year}", overwrite=overwrite
+                    ),
+                ))
+            continue
+        raw_ok, raw_detail = check_daily_netcdf_coverage(
+            raw_path, variable="precip", year=year, source="chirps", fast=fast
+        )
         checks.append(CheckResult("chirps", "raw", year, f"CHIRPS {resolution} {year}", raw_path, raw_ok, raw_detail))
         if ("raw" in selected_stages or "all" in selected_stages) and not raw_ok:
             pending.append(
@@ -259,23 +379,34 @@ def add_chirps_actions(
                     f"CHIRPS {resolution} {year}",
                     raw_path,
                     raw_detail,
-                    lambda year=year: download_with_retry(
-                        lambda: download_chirps_year(
-                            year=year,
-                            raw_dir=project_path("data/raw/chirps"),
-                            resolution=resolution,
-                            overwrite=overwrite,
-                            dry_run=False,
+                    lambda year=year, raw_path=raw_path, zarr_path=zarr_path, regrid_path=regrid_path: download_and_materialize_daily_source(
+                        lambda: download_with_retry(
+                            lambda: download_chirps_year(
+                                year=year,
+                                raw_dir=project_path("data/raw/chirps"),
+                                resolution=resolution,
+                                overwrite=overwrite or raw_path.exists(),
+                                dry_run=False,
+                            ),
+                            retries=retries,
+                            wait_seconds=retry_wait,
                         ),
-                        retries=retries,
-                        wait_seconds=retry_wait,
+                        zarr_path,
+                        regrid_path,
+                        variable="precip",
+                        dataset=f"chirps_{resolution}_{year}",
+                        build_zarr="all" in selected_stages or "zarr" in selected_stages or "regrid" in selected_stages,
+                        build_regrid="all" in selected_stages or "regrid" in selected_stages,
+                        overwrite=overwrite,
                     ),
                 )
             )
             continue
 
         zarr_path = chirps_zarr_path(year, resolution)
-        zarr_ok, zarr_detail = check_zarr(zarr_path, fast=fast)
+        zarr_ok, zarr_detail = check_daily_zarr_coverage(
+            zarr_path, variable="precip", year=year, source="chirps", fast=fast
+        )
         checks.append(CheckResult("chirps", "zarr", year, f"CHIRPS {resolution} {year}", zarr_path, zarr_ok, zarr_detail))
         if raw_ok and ("zarr" in selected_stages or "all" in selected_stages) and not zarr_ok:
             pending.append(
@@ -286,11 +417,14 @@ def add_chirps_actions(
                     f"CHIRPS {resolution} {year}",
                     zarr_path,
                     zarr_detail,
-                    lambda raw_path=raw_path, zarr_path=zarr_path: netcdf_to_daily_zarr(
+                    lambda raw_path=raw_path, zarr_path=zarr_path, regrid_path=regrid_path: materialize_daily_source(
                         raw_path,
                         zarr_path,
-                        variables=["precip"],
-                        source_frequency="daily",
+                        regrid_path,
+                        variable="precip",
+                        dataset=f"chirps_{resolution}_{year}",
+                        build_zarr=True,
+                        build_regrid="all" in selected_stages or "regrid" in selected_stages,
                         overwrite=overwrite,
                     ),
                 )
@@ -298,7 +432,9 @@ def add_chirps_actions(
             continue
 
         regrid_path = chirps_regrid_path(year, resolution)
-        regrid_ok, regrid_detail = check_zarr(regrid_path, fast=fast)
+        regrid_ok, regrid_detail = check_daily_zarr_coverage(
+            regrid_path, variable="precip", year=year, source="chirps", fast=fast
+        )
         checks.append(CheckResult("chirps", "regrid", year, f"CHIRPS {resolution} {year}", regrid_path, regrid_ok, regrid_detail))
         if zarr_ok and ("regrid" in selected_stages or "all" in selected_stages) and not regrid_ok:
             pending.append(
@@ -313,7 +449,7 @@ def add_chirps_actions(
                         zarr_path,
                         regrid_path,
                         dataset=f"chirps_{resolution}_{year}",
-                        overwrite=overwrite,
+                        overwrite=overwrite or regrid_path.exists(),
                     ),
                 )
             )
@@ -332,7 +468,29 @@ def add_oisst_actions(
 ) -> None:
     for year in years:
         raw_path = oisst_raw_path(year)
-        raw_ok, raw_detail = check_netcdf(raw_path, fast=fast)
+        zarr_path = oisst_zarr_path(year)
+        regrid_path = oisst_regrid_path(year)
+        final_zarr_ok, final_zarr_detail = check_daily_zarr_coverage(
+            zarr_path, variable="sst", year=year, source="noaa_oisst", fast=fast
+        )
+        final_regrid_ok, final_regrid_detail = check_daily_zarr_coverage(
+            regrid_path, variable="sst", year=year, source="noaa_oisst", fast=fast
+        )
+        if final_regrid_ok or final_zarr_ok:
+            checks.append(CheckResult("oisst", "raw", year, f"OISST {year}", raw_path, True, "cache not required; final Zarr validated"))
+            checks.append(CheckResult("oisst", "zarr", year, f"OISST {year}", zarr_path, final_zarr_ok, final_zarr_detail))
+            checks.append(CheckResult("oisst", "regrid", year, f"OISST {year}", regrid_path, final_regrid_ok, final_regrid_detail))
+            if final_zarr_ok and not final_regrid_ok and ("regrid" in selected_stages or "all" in selected_stages):
+                pending.append(PendingAction(
+                    "oisst", "regrid", year, f"OISST {year}", regrid_path, final_regrid_detail,
+                    lambda zarr_path=zarr_path, regrid_path=regrid_path, year=year: regrid_zarr(
+                        zarr_path, regrid_path, dataset=f"noaa_oisst_{year}", overwrite=overwrite
+                    ),
+                ))
+            continue
+        raw_ok, raw_detail = check_daily_netcdf_coverage(
+            raw_path, variable="sst", year=year, source="noaa_oisst", fast=fast
+        )
         checks.append(CheckResult("oisst", "raw", year, f"OISST {year}", raw_path, raw_ok, raw_detail))
         if ("raw" in selected_stages or "all" in selected_stages) and not raw_ok:
             pending.append(
@@ -343,22 +501,33 @@ def add_oisst_actions(
                     f"OISST {year}",
                     raw_path,
                     raw_detail,
-                    lambda year=year: download_with_retry(
-                        lambda: download_oisst_year(
-                            year=year,
-                            raw_dir=project_path("data/raw/cpc_noaa/oisst"),
-                            overwrite=overwrite,
-                            dry_run=False,
+                    lambda year=year, raw_path=raw_path, zarr_path=zarr_path, regrid_path=regrid_path: download_and_materialize_daily_source(
+                        lambda: download_with_retry(
+                            lambda: download_oisst_year(
+                                year=year,
+                                raw_dir=project_path("data/raw/cpc_noaa/oisst"),
+                                overwrite=overwrite or raw_path.exists(),
+                                dry_run=False,
+                            ),
+                            retries=retries,
+                            wait_seconds=retry_wait,
                         ),
-                        retries=retries,
-                        wait_seconds=retry_wait,
+                        zarr_path,
+                        regrid_path,
+                        variable="sst",
+                        dataset=f"noaa_oisst_{year}",
+                        build_zarr="all" in selected_stages or "zarr" in selected_stages or "regrid" in selected_stages,
+                        build_regrid="all" in selected_stages or "regrid" in selected_stages,
+                        overwrite=overwrite,
                     ),
                 )
             )
             continue
 
         zarr_path = oisst_zarr_path(year)
-        zarr_ok, zarr_detail = check_zarr(zarr_path, fast=fast)
+        zarr_ok, zarr_detail = check_daily_zarr_coverage(
+            zarr_path, variable="sst", year=year, source="noaa_oisst", fast=fast
+        )
         checks.append(CheckResult("oisst", "zarr", year, f"OISST {year}", zarr_path, zarr_ok, zarr_detail))
         if raw_ok and ("zarr" in selected_stages or "all" in selected_stages) and not zarr_ok:
             pending.append(
@@ -369,11 +538,14 @@ def add_oisst_actions(
                     f"OISST {year}",
                     zarr_path,
                     zarr_detail,
-                    lambda raw_path=raw_path, zarr_path=zarr_path: netcdf_to_daily_zarr(
+                    lambda raw_path=raw_path, zarr_path=zarr_path, regrid_path=regrid_path: materialize_daily_source(
                         raw_path,
                         zarr_path,
-                        variables=["sst"],
-                        source_frequency="daily",
+                        regrid_path,
+                        variable="sst",
+                        dataset=f"noaa_oisst_{year}",
+                        build_zarr=True,
+                        build_regrid="all" in selected_stages or "regrid" in selected_stages,
                         overwrite=overwrite,
                     ),
                 )
@@ -381,7 +553,9 @@ def add_oisst_actions(
             continue
 
         regrid_path = oisst_regrid_path(year)
-        regrid_ok, regrid_detail = check_zarr(regrid_path, fast=fast)
+        regrid_ok, regrid_detail = check_daily_zarr_coverage(
+            regrid_path, variable="sst", year=year, source="noaa_oisst", fast=fast
+        )
         checks.append(CheckResult("oisst", "regrid", year, f"OISST {year}", regrid_path, regrid_ok, regrid_detail))
         if zarr_ok and ("regrid" in selected_stages or "all" in selected_stages) and not regrid_ok:
             pending.append(
@@ -396,7 +570,7 @@ def add_oisst_actions(
                         zarr_path,
                         regrid_path,
                         dataset=f"noaa_oisst_{year}",
-                        overwrite=overwrite,
+                        overwrite=overwrite or regrid_path.exists(),
                     ),
                 )
             )
@@ -516,9 +690,27 @@ def execute_pending(pending: list[PendingAction], *, limit: int, continue_on_err
             # produto que tenha sido concluído por outra etapa/processo desde
             # a montagem da lista de pendências.
             if action.stage == "raw" and action.path.suffix.lower() == ".nc":
-                current_ok = check_netcdf(action.path, fast=False)[0]
+                if action.source == "chirps" and action.year is not None:
+                    current_ok = check_daily_netcdf_coverage(
+                        action.path, variable="precip", year=action.year, source="chirps", fast=False
+                    )[0]
+                elif action.source == "oisst" and action.year is not None:
+                    current_ok = check_daily_netcdf_coverage(
+                        action.path, variable="sst", year=action.year, source="noaa_oisst", fast=False
+                    )[0]
+                else:
+                    current_ok = check_netcdf(action.path, fast=False)[0]
             elif action.stage in {"zarr", "regrid"}:
-                current_ok = check_zarr(action.path, fast=False)[0]
+                if action.source == "chirps" and action.year is not None:
+                    current_ok = check_daily_zarr_coverage(
+                        action.path, variable="precip", year=action.year, source="chirps", fast=False
+                    )[0]
+                elif action.source == "oisst" and action.year is not None:
+                    current_ok = check_daily_zarr_coverage(
+                        action.path, variable="sst", year=action.year, source="noaa_oisst", fast=False
+                    )[0]
+                else:
+                    current_ok = check_zarr(action.path, fast=False)[0]
             else:
                 current_ok = False
             if current_ok:

@@ -29,6 +29,7 @@ from nino_brasil.data.download_cds import (
     ERA5_PRESSURE_VARIABLES,
     ERA5_SINGLE_VARIABLES,
 )
+from nino_brasil.data.phase2_master import PHYSICAL_COLUMNS
 
 
 @dataclass
@@ -126,7 +127,7 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     print(
         "Inventário atmosférico solicitado: "
         f"{len(era5_single_variables)} single-level + {len(era5_pressure_variables)} pressure-level "
-        f"em {len(regions)} região(ões); a F2 contará suas colunas derivadas pelo contrato produzido."
+        f"em {len(regions)} região(ões); a F2 publicará {len(PHYSICAL_COLUMNS)} variáveis físicas semanais."
     )
 
     # CHIRPS/OISST são curados em uma única execução global abaixo. Criar um
@@ -190,7 +191,6 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                                     "--start-year", str(current_year), "--end-year", str(current_year),
                                     "--month", str(month), "--kind", kind, "--region", region,
                                     "--variable", variable,
-                                    *(["--overwrite"] if month == available_era5.month else []),
                                     "--execute", *keep_going,
                                 ),
                             )
@@ -234,7 +234,6 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                 "--start-year", str(current_year),
                 "--end-year", str(current_year),
                 "--max-depth", "300",
-                "--overwrite",
                 "--etl-zarr",
                 "--delete-raw-after-zarr",
                 "--execute",
@@ -380,28 +379,11 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
 
     steps.append(
         (
-            "fonte_oras5_mensal_incremental",
+            "fonte_oceano_diario_ufs_glorys",
             python_cmd(
-                "scripts/ocean_monthly_pipeline.py",
-                "ingest",
-                "--start-year",
-                str(args.start_year),
-                "--build-features",
-                "--delete-raw-after-zarr",
+                "scripts/run_ocean_phase2.py",
                 "--execute",
                 *keep_going,
-            ),
-        )
-    )
-
-    steps.append(
-        (
-            "auditoria_oras5_mensal",
-            python_cmd(
-                "scripts/ocean_monthly_pipeline.py",
-                "audit",
-                "--start-year",
-                str(args.start_year),
             ),
         )
     )

@@ -55,7 +55,6 @@ def _copernicus_marine_preflight() -> tuple[bool, str]:
 
 def commands(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     operational_end = args.operational_end or (pd.Timestamp.now().normalize() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    oras_end = pd.Timestamp(args.oras_end)
     tasks: list[tuple[str, list[str]]] = [
         (
             "NOAA UFS daily core 1981-1992",
@@ -118,32 +117,13 @@ def commands(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                 ),
             ),
             (
-                "ORAS5 independent monthly memory",
-                _python(
-                    "scripts/ocean_monthly_pipeline.py",
-                    "ingest",
-                    "--start-year",
-                    "1981",
-                    "--end-year",
-                    str(oras_end.year),
-                    "--end-month",
-                    str(oras_end.month),
-                    "--build-features",
-                    "--delete-raw-after-zarr",
-                    "--execute",
-                    "--continue-on-error",
-                ),
-            ),
-            (
-                "Integrated Phase 2 audit",
+                "Daily ocean Phase 2 audit",
                 _python(
                     "scripts/audit_ocean_phase2.py",
                     "--glorys-my-end",
                     args.glorys_my_end,
                     "--operational-end",
                     operational_end,
-                    "--oras-end",
-                    oras_end.strftime("%Y-%m-01"),
                     *([] if args.skip_overlap else ["--overlap-year", "1993", "--overlap-year", "1994", "--overlap-year", "1995"]),
                 ),
             ),
@@ -157,10 +137,9 @@ def commands(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(description="Resumable orchestrator for the complete dual-frequency ocean Phase 2 plan.")
+    root = argparse.ArgumentParser(description="Resumable orchestrator for daily ocean inputs aggregated to complete W-SUN weeks.")
     root.add_argument("--glorys-my-end", default="2026-05-26")
     root.add_argument("--operational-end")
-    root.add_argument("--oras-end", default="2026-05-01")
     root.add_argument("--skip-overlap", action="store_true")
     root.add_argument("--execute", action="store_true")
     root.add_argument("--continue-on-error", action="store_true")

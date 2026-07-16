@@ -8,8 +8,12 @@ variáveis. Caminhos e comandos detalhados permanecem nos runbooks.
 | NOAA OISST | SST/SSTA local em Niño 3.4 e identificação oceânica ENSO |
 | ERA5 | variáveis atmosféricas candidatas |
 | CHIRPS | alvos de chuva no Brasil no pixel de tamanho original |
-| UFS+GLORYS | base diária de subsuperfície apresentada conjuntamente, com procedência interna por fonte |
-| ORAS5 | referência oceânica mensal independente |
+| UFS+GLORYS | base oceânica diária apresentada conjuntamente, com procedência interna por fonte e agregação em semanas completas W-SUN |
+
+Fontes primárias são aceitas quando nativamente diárias, subdiárias ou
+semanais. Séries mensais são proibidas no fluxo operacional. A única exceção é
+um índice consolidado empregado separadamente para comparação, sem integração,
+interpolação ou preenchimento da matriz semanal.
 | CTD/WOD | validação in situ de perfis e profundidades |
 | TAO/TRITON | validação equatorial por boias |
 | Argo | validação por perfis, especialmente a partir dos anos 2000 |

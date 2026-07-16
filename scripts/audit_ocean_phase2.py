@@ -15,14 +15,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from nino_brasil.data.download_ocean_monthly import ORAS5_VARIABLES, oras5_feature_path, oras5_variable_zarr_path
 from nino_brasil.data.download_ocean_daily import _validate_canonical_ocean_grid
 
 
 DAILY_ROOT = ROOT / "data/processed/zarr/ocean_daily"
 DAILY_FEATURE_ROOT = ROOT / "data/processed/zarr/features/ocean_daily"
-MONTHLY_ROOT = ROOT / "data/processed/zarr/ocean_monthly/oras5"
-MONTHLY_FEATURE_ROOT = ROOT / "data/processed/zarr/features/ocean_monthly/oras5"
 REPORT_PATH = ROOT / "data/audit/ocean_phase2_audit.json"
 TRANSITION_PATH = ROOT / "data/processed/parquet/ocean_source_transition_audit.csv"
 
@@ -109,43 +106,18 @@ def audit_core(args: argparse.Namespace) -> dict[str, object]:
         errors.extend(_check_daily_store(cube, expected))
         errors.extend(_check_feature_store(feature, expected))
 
-    oras_end = pd.Timestamp(args.oras_end).to_period("M").to_timestamp()
-    for year in range(1981, oras_end.year + 1):
-        last_month = oras_end.month if year == oras_end.year else 12
-        expected = pd.DatetimeIndex([pd.Timestamp(year=year, month=month, day=1) for month in range(1, last_month + 1)])
-        for variable in ORAS5_VARIABLES:
-            path = oras5_variable_zarr_path(MONTHLY_ROOT, year, variable)
-            if not path.exists():
-                errors.append(f"missing:{path}")
-                continue
-            with xr.open_zarr(path, consolidated=None) as ds:
-                actual = pd.DatetimeIndex(ds["time"].values)
-                if not actual.equals(expected):
-                    errors.append(f"monthly_calendar:{path}:expected={len(expected)}:actual={len(actual)}")
-                if str(ds.attrs.get("source_frequency")) != "monthly_mean":
-                    errors.append(f"monthly_frequency:{path}:{ds.attrs.get('source_frequency')}")
-                try:
-                    _validate_canonical_ocean_grid(ds)
-                except (KeyError, ValueError) as exc:
-                    errors.append(f"monthly_canonical_grid:{path}:{exc}")
-        feature = oras5_feature_path(MONTHLY_FEATURE_ROOT, year)
-        if not feature.exists():
-            errors.append(f"missing:{feature}")
-
     result = {
         "status": "complete" if not errors else "incomplete",
         "daily_period": f"1981-01-01/{operational_end:%Y-%m-%d}",
         "glorys_multiyear_end": f"{my_end:%Y-%m-%d}",
-        "oras_monthly_end": f"{oras_end:%Y-%m}",
         "error_count": len(errors),
         "errors": errors,
         "scientific_contract": {
-            "monthly_promoted_to_daily": False,
             "forecast_days_in_historical_series": False,
             "daily_sources": ["NOAA_UFS", "GLORYS12_MY", "GLO12_ANFC_analysis_only"],
-            "monthly_source": "ORAS5",
+            "output_frequency": "complete_weeks_W-SUN",
             "canonical_horizontal_grid_degrees": 0.25,
-            "canonical_grid_required_for": ["NOAA_UFS", "GLORYS12_MY", "GLO12_ANFC", "ORAS5"],
+            "canonical_grid_required_for": ["NOAA_UFS", "GLORYS12_MY", "GLO12_ANFC"],
         },
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -187,10 +159,9 @@ def audit_transition(years: list[int]) -> pd.DataFrame:
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(description="Audit the dual-frequency ocean contract required to close Phase 2.")
+    root = argparse.ArgumentParser(description="Audit native daily ocean inputs used to produce complete W-SUN weeks in Phase 2.")
     root.add_argument("--glorys-my-end", default="2026-05-26")
     root.add_argument("--operational-end", default=(pd.Timestamp.now().normalize() - pd.Timedelta(days=1)).strftime("%Y-%m-%d"))
-    root.add_argument("--oras-end", default="2026-05-01")
     root.add_argument("--overlap-year", type=int, action="append", default=[])
     return root
 
