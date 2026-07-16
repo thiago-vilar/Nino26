@@ -92,6 +92,19 @@ Toda figura analítica nasce de uma tabela numérica.
 - O primeiro notebook de cada fase começa, antes de **TÍTULO**, com o comando
   Bash/WSL2 para executar a fase inteira no terminal do VS Code.
 
+Na raiz do projeto, cada fase possui um único comando:
+
+```bash
+make fase1
+make fase2
+make fase3
+make fase4
+make fase5
+make fase6
+make fase7
+make fase8
+```
+
 ## Ambiente e saúde local
 
 ```powershell

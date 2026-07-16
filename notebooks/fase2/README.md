@@ -8,7 +8,7 @@ UFS+GLORYS entra com temperatura potencial, salinidade e altura da superfície d
 Execução completa no WSL2:
 
 ```bash
-cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase2_all.py
+make fase2
 ```
 
 A fonte canônica do ERA5 é o conjunto de Zarrs diários produzido pela Fase 1. A Fase 2 lê esses Zarrs diretamente, agrega os dados em períodos `W-SUN` e publica `data/processed/zarr/features/nino34_master_weekly.zarr`. O CSV semanal permanece como exportação de compatibilidade para consumidores ainda não migrados; o antigo cache diário em Parquet não é necessário.

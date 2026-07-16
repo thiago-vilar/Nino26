@@ -4851,37 +4851,15 @@ def collect_workspace_hygiene(
 
 def _commands() -> dict[str, list[str]]:
     return {
-        "ambiente": [
-            'cd /c/DEV/NINO26',
-            'PY=".venv/Scripts/python.exe"',
-            'export PYTHONPATH="$PWD/src"',
-        ],
-        "F1": [
-            '"$PY" scripts/run_full_download_pipeline.py --execute --stop-on-error',
-        ],
-        "F2": [
-            '"$PY" scripts/run_fase2_all.py',
-        ],
-        "F3": [
-            '"$PY" scripts/run_fase3_nino.py',
-            '"$PY" scripts/run_fase3_nina.py',
-        ],
-        "F4": [
-            '"$PY" scripts/run_fase4_nino.py',
-            '"$PY" scripts/run_fase4_nina.py',
-        ],
-        "F5": [
-            '"$PY" scripts/run_fase5_all.py',
-        ],
-        "F6": [
-            '"$PY" scripts/run_fase6_all.py',
-        ],
-        "F7": [
-            '"$PY" scripts/run_fase7_all.py --device cuda',
-        ],
-        "F8": [
-            '"$PY" scripts/run_fase8_all.py --device cuda',
-        ],
+        "ambiente": ["Execute na raiz do projeto pelo terminal WSL2."],
+        "F1": ["make fase1"],
+        "F2": ["make fase2"],
+        "F3": ["make fase3"],
+        "F4": ["make fase4"],
+        "F5": ["make fase5"],
+        "F6": ["make fase6"],
+        "F7": ["make fase7"],
+        "F8": ["make fase8"],
         "validação final": [
             '"$PY" scripts/run_final_validation.py --stop-on-failure',
             '"$PY" scripts/update_painel_executivo.py',

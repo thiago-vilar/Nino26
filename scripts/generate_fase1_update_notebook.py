@@ -29,7 +29,7 @@ def build_notebook():
     notebook["cells"] = [
         nbf.v4.new_markdown_cell(
             "**COMANDO WSL2 — EXECUTAR FASE COMPLETA**\n\n"
-            "```bash\ncd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_full_download_pipeline.py --execute --stop-on-error\n```\n\n"
+            "```bash\nmake fase1\n```\n\n"
             "**TÍTULO**\n\n"
             "F1A — Atualização e ingestão das fontes do NINO26\n\n"
             "**CONTEXTO**\n\n"

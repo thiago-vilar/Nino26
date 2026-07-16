@@ -23,13 +23,13 @@ from nino_brasil.notebook_catalog import CANONICAL_NOTEBOOKS, NotebookSpec
 
 FIRST_NOTEBOOK_CODES = {"F2Z", "F3NinoA", "F4NinoC", "F5A", "F6A", "F7A", "F8A"}
 WSL_PHASE_COMMANDS = {
-    2: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase2_all.py",
-    3: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase3_nino.py && .venv-wsl/bin/python scripts/run_fase3_nina.py",
-    4: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase4_nino.py && .venv-wsl/bin/python scripts/run_fase4_nina.py",
-    5: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase5_all.py",
-    6: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase6_all.py",
-    7: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase7_all.py --device cuda",
-    8: "cd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase8_all.py --device cuda",
+    2: "make fase2",
+    3: "make fase3",
+    4: "make fase4",
+    5: "make fase5",
+    6: "make fase6",
+    7: "make fase7",
+    8: "make fase8",
 }
 
 

@@ -37,8 +37,7 @@ def intro(code: str, title: str, context: str, hypothesis: str, motivation: str,
     if code == "F3NINO_01":
         command = (
             "**COMANDO WSL2 — EXECUTAR FASE COMPLETA**\n\n"
-            "```bash\ncd /mnt/c/DEV/NINO26 && .venv-wsl/bin/python scripts/run_fase3_nino.py "
-            "&& .venv-wsl/bin/python scripts/run_fase3_nina.py\n```\n\n"
+            "```bash\nmake fase3\n```\n\n"
         )
     return f"""{command}**TÍTULO**
 
