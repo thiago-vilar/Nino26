@@ -177,24 +177,24 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     if args.include_cds and not args.month:
         available_era5 = date.today() - timedelta(days=7)
         current_year = available_era5.year
+        tail_args: list[str] = []
         for month in range(1, available_era5.month + 1):
-            for region in regions:
-                for kind, variables in (("single", era5_single_variables), ("pressure", era5_pressure_variables)):
-                    if args.era5_kind not in {kind, "both"}:
-                        continue
-                    for variable in variables:
-                        steps.append(
-                            (
-                                f"fonte_era5_cauda_{current_year}_{month:02d}_{kind}_{safe_step_name(region)}_{safe_step_name(variable)}",
-                                python_cmd(
-                                    "scripts/data_pipeline.py", "download-era5",
-                                    "--start-year", str(current_year), "--end-year", str(current_year),
-                                    "--month", str(month), "--kind", kind, "--region", region,
-                                    "--variable", variable,
-                                    "--execute", *keep_going,
-                                ),
-                            )
-                        )
+            tail_args.extend(["--month", str(month)])
+        for region in regions:
+            tail_args.extend(["--region", region])
+        tail_args.extend(variable_args(args.era5_variable or [], bool(args.era5_variable)))
+        steps.append(
+            (
+                f"fonte_era5_cauda_{current_year}_inventario_unico",
+                python_cmd(
+                    "scripts/data_pipeline.py", "download-era5",
+                    "--start-year", str(current_year), "--end-year", str(current_year),
+                    "--kind", args.era5_kind,
+                    *tail_args,
+                    "--execute", *keep_going,
+                ),
+            )
+        )
 
     for year in sorted(source_years.get("chirps", set())):
         year_args = single_year(year)
@@ -391,21 +391,17 @@ def build_steps(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
     steps.extend(
         [
             (
+                # Inventário dinâmico da base tratada: períodos e variáveis
+                # lidos diretamente dos metadados dos Zarr processados.
+                "zz_inventario_zarr",
+                python_cmd("scripts/inventory_all_processed_variables.py"),
+            ),
+            (
                 "zz_atualizar_painel",
                 python_cmd("scripts/update_painel_executivo.py"),
             ),
-            (
-                "zz_curadoria_final",
-                python_cmd(
-                "scripts/curate_and_resume_downloads.py",
-                "--source",
-                    "core",
-                    "--stage",
-                    "all",
-                    *common_years,
-                    *fast,
-                ),
-            ),
+                    # Política raw_cache_policy: o bruto CHIRPS/OISST é cache
+                    # temporário e é apagado quando zarr+regrid do ano validam.
         ]
     )
     return steps

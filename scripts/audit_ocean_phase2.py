@@ -71,6 +71,45 @@ def _check_feature_store(path: Path, expected: pd.DatetimeIndex) -> list[str]:
     return errors
 
 
+def _check_segmented_operational_stores(
+    paths: list[Path],
+    expected: pd.DatetimeIndex,
+    *,
+    features: bool,
+) -> list[str]:
+    """Validate the union of incremental GLORYS stores without requiring a monolith."""
+    if not paths:
+        kind = "features" if features else "daily"
+        return [f"missing:glorys12_operational_{kind}_segments"]
+    errors: list[str] = []
+    covered = pd.DatetimeIndex([])
+    required = FEATURE_REQUIRED if features else DAILY_REQUIRED
+    for path in paths:
+        with xr.open_zarr(path, consolidated=None) as ds:
+            missing = required.difference(ds.data_vars)
+            if missing:
+                errors.append(f"segment_variables:{path}:{sorted(missing)}")
+            actual = pd.DatetimeIndex(ds["time"].values).normalize()
+            covered = covered.union(actual)
+            if not features:
+                if str(ds.attrs.get("temporal_transform")) != "none":
+                    errors.append(f"temporal_transform:{path}:{ds.attrs.get('temporal_transform')}")
+                try:
+                    _validate_canonical_ocean_grid(ds)
+                except (KeyError, ValueError) as exc:
+                    errors.append(f"canonical_grid:{path}:{exc}")
+    covered = covered.sort_values()
+    if not covered.equals(expected):
+        missing_days = expected.difference(covered)
+        extra_days = covered.difference(expected)
+        errors.append(
+            "operational_segment_calendar:"
+            f"expected={len(expected)}:covered={len(covered)}:"
+            f"missing={len(missing_days)}:extra={len(extra_days)}"
+        )
+    return errors
+
+
 def _daily_paths(source: str, year: int) -> tuple[Path, Path]:
     if source == "noaa_ufs":
         cube = DAILY_ROOT / source / str(year) / f"noaa_ufs_equatorial_pacific_{year}_daily.zarr"
@@ -99,12 +138,13 @@ def audit_core(args: argparse.Namespace) -> dict[str, object]:
     operational_end = pd.Timestamp(args.operational_end).normalize()
     operational_start = my_end + pd.Timedelta(days=1)
     if operational_end >= operational_start:
-        slug = f"{operational_start:%Y%m%d}_{operational_end:%Y%m%d}"
-        cube = DAILY_ROOT / "glorys12_operational" / str(operational_start.year) / f"glorys12_operational_{slug}_daily_0p25.zarr"
-        feature = DAILY_FEATURE_ROOT / "glorys12_operational" / str(operational_start.year) / f"glorys12_operational_ocean_features_{slug}_daily.zarr"
         expected = pd.date_range(operational_start, operational_end, freq="D")
-        errors.extend(_check_daily_store(cube, expected))
-        errors.extend(_check_feature_store(feature, expected))
+        cube_root = DAILY_ROOT / "glorys12_operational" / str(operational_start.year)
+        feature_root = DAILY_FEATURE_ROOT / "glorys12_operational" / str(operational_start.year)
+        cubes = sorted(cube_root.glob("glorys12_operational_*_daily_0p25.zarr"))
+        features = sorted(feature_root.glob("glorys12_operational_ocean_features_*_daily.zarr"))
+        errors.extend(_check_segmented_operational_stores(cubes, expected, features=False))
+        errors.extend(_check_segmented_operational_stores(features, expected, features=True))
 
     result = {
         "status": "complete" if not errors else "incomplete",

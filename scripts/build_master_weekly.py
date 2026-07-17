@@ -107,20 +107,11 @@ ERA5_PRESSURE = {
     "vertical_velocity": [(f"omega{level}", float(level)) for level in (200, 500, 850)],
     "divergence": [(f"div{level}", float(level)) for level in (200, 500, 850)],
 }
+# Derivado dos mapeamentos acima para nunca divergir do contrato: toda coluna
+# lida dos Zarrs ERA5 recebe anomalia e entra na matriz semanal.
 ATMO_RAW_COLUMNS = (
-    "u10",
-    "v10",
-    "mslp",
-    "tcwv",
-    "slhf",
-    "sshf",
-    "ssr",
-    "str",
-    "u850",
-    "u200",
-    "omega850",
-    "omega500",
-    "div850",
+    *ERA5_SINGLE.values(),
+    *(output for levels in ERA5_PRESSURE.values() for output, _ in levels),
 )
 
 
@@ -471,6 +462,24 @@ def _environment() -> dict[str, Any]:
 
 
 def _artifact(path: Path) -> dict[str, Any]:
+    if path.is_dir():
+        # Stores Zarr são diretórios: o digest cobre nome relativo + conteúdo
+        # de cada arquivo interno, em ordem determinística.
+        import hashlib
+
+        digest = hashlib.sha256()
+        total = 0
+        for item in sorted(path.rglob("*")):
+            if not item.is_file():
+                continue
+            digest.update(str(item.relative_to(path)).replace("\\", "/").encode("utf-8"))
+            digest.update(sha256_file(item).encode("ascii"))
+            total += item.stat().st_size
+        return {
+            "path": str(path.resolve()),
+            "size_bytes": total,
+            "sha256": f"zarr-dir:{digest.hexdigest()}",
+        }
     return {
         "path": str(path.resolve()),
         "size_bytes": path.stat().st_size,

@@ -173,40 +173,134 @@ def cmd_ingest_ufs(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_ingest_glorys_operational(args: argparse.Namespace) -> int:
-    import pandas as pd
+def _valid_operational_stores() -> list[Path]:
+    return [
+        path
+        for path in sorted(PROCESSED_OPERATIONAL_ROOT.rglob("*.zarr"))
+        if daily_store_valid(
+            path,
+            required_variables=GLORYS_PROCESSED_VARIABLES,
+            require_canonical_grid=True,
+        )
+    ]
 
-    start = pd.Timestamp(args.start_date).normalize()
+
+def _quarantine_store(path: Path, quarantine_root: Path) -> None:
+    if not path.exists():
+        return
+    quarantine_root.mkdir(parents=True, exist_ok=True)
+    target = quarantine_root / path.name
+    if target.exists():
+        stamp = pd.Timestamp.now().strftime("%Y%m%d%H%M%S")
+        target = quarantine_root / f"{path.stem}_{stamp}{path.suffix}"
+    shutil.move(str(path), str(target))
+    print(f"fragmento operacional em quarentena: {path} -> {target}")
+
+
+def _consolidate_operational_window(window_start: pd.Timestamp, window_end: pd.Timestamp) -> Path | None:
+    """Une os fragmentos GLO12 num único store canônico da janela operacional.
+
+    A atualização incremental baixa apenas a cauda que falta, mas a auditoria
+    (audit_ocean_phase2) exige exatamente um cubo e um store de features
+    cobrindo my_end+1..operational_end. Aqui os fragmentos são concatenados,
+    as features são recalculadas para a janela completa e os stores parciais
+    antigos vão para data/quarantine (nada é apagado).
+    """
+    from nino_brasil.data.zarr_store import ZARR_FORMAT
+
+    stores = _valid_operational_stores()
+    if not stores:
+        print("consolidação operacional: nenhum store válido encontrado")
+        return None
+    opened = [(path, xr.open_zarr(path, consolidated=None)) for path in stores]
+    try:
+        combined = xr.concat(
+            [dataset for _, dataset in opened],
+            dim="time",
+            data_vars="all",
+            coords="minimal",
+            compat="override",
+        ).sortby("time")
+        index = pd.DatetimeIndex(combined["time"].values).normalize()
+        combined = combined.isel(time=~index.duplicated(keep="last"))
+        combined = combined.sel(time=slice(window_start, window_end))
+        index = pd.DatetimeIndex(combined["time"].values).normalize()
+        if not len(index):
+            print("consolidação operacional: nenhum dia disponível dentro da janela")
+            return None
+        actual_end = index.max()
+        gaps = pd.date_range(window_start, actual_end, freq="D").difference(index)
+        if len(gaps):
+            raise ValueError(
+                f"lacunas internas na janela operacional GLO12: {[str(day.date()) for day in gaps[:5]]}"
+            )
+        if actual_end < window_end:
+            print(
+                f"consolidação operacional: GLO12 disponível até {actual_end.date()}; "
+                f"janela solicitada terminava em {window_end.date()}"
+            )
+        slug = f"{window_start:%Y%m%d}_{actual_end:%Y%m%d}"
+        canonical = PROCESSED_OPERATIONAL_ROOT / str(window_start.year) / f"glorys12_operational_{slug}_daily_0p25.zarr"
+        canonical_feature = FEATURE_ROOT / "glorys12_operational" / str(window_start.year) / (
+            f"glorys12_operational_ocean_features_{slug}_daily.zarr"
+        )
+        needs_merge = not (len(stores) == 1 and stores[0] == canonical)
+        if needs_merge:
+            combined = combined.load()
+            combined.attrs = dict(opened[-1][1].attrs)
+            for name in list(combined.variables):
+                combined[name].encoding = {}
+    finally:
+        for _, dataset in opened:
+            dataset.close()
+    if needs_merge:
+        if canonical.exists():
+            shutil.rmtree(canonical)
+        canonical.parent.mkdir(parents=True, exist_ok=True)
+        combined.chunk({"time": min(31, int(combined.sizes["time"]))}).to_zarr(
+            canonical, mode="w", consolidated=True, zarr_format=ZARR_FORMAT
+        )
+        print(f"store operacional consolidado: {canonical}")
+    if not daily_store_valid(
+        canonical,
+        required_variables=GLORYS_PROCESSED_VARIABLES,
+        expected_start=window_start,
+        expected_end=actual_end,
+        require_canonical_grid=True,
+    ):
+        raise ValueError(f"store operacional consolidado falhou na validação: {canonical}")
+    if not daily_store_valid(
+        canonical_feature,
+        required_variables=OCEAN_FEATURE_VARIABLES,
+        expected_start=window_start,
+        expected_end=actual_end,
+    ):
+        build_ocean_daily_features(canonical, canonical_feature, overwrite=canonical_feature.exists())
+    for path in sorted(PROCESSED_OPERATIONAL_ROOT.rglob("*.zarr")):
+        if path != canonical:
+            _quarantine_store(path, ROOT / "data/quarantine/zarr/ocean_daily/glorys12_operational")
+    for path in sorted((FEATURE_ROOT / "glorys12_operational").rglob("*.zarr")):
+        if path != canonical_feature:
+            _quarantine_store(path, ROOT / "data/quarantine/zarr/features/ocean_daily/glorys12_operational")
+    return canonical
+
+
+def cmd_ingest_glorys_operational(args: argparse.Namespace) -> int:
+    window_start = pd.Timestamp(args.start_date).normalize()
     end = pd.Timestamp(args.end_date).normalize() if args.end_date else pd.Timestamp.now().normalize() - pd.Timedelta(days=1)
+    start = window_start
     if not args.overwrite:
         covered = pd.DatetimeIndex([])
-        for processed in sorted(PROCESSED_OPERATIONAL_ROOT.rglob("*.zarr")):
-            if not daily_store_valid(
-                processed,
-                required_variables=GLORYS_PROCESSED_VARIABLES,
-                require_canonical_grid=True,
-            ):
-                continue
+        for processed in _valid_operational_stores():
             with xr.open_zarr(processed, consolidated=None) as dataset:
                 index = pd.DatetimeIndex(dataset.time.values).normalize()
             covered = covered.union(index)
-            match = re.search(r"(\d{8})_(\d{8})", processed.name)
-            if match:
-                feature = FEATURE_ROOT / "glorys12_operational" / str(index[0].year) / (
-                    f"glorys12_operational_ocean_features_{match.group(1)}_{match.group(2)}_daily.zarr"
-                )
-                if not daily_store_valid(
-                    feature,
-                    required_variables=OCEAN_FEATURE_VARIABLES,
-                    expected_start=index[0],
-                    expected_end=index[-1],
-                ):
-                    print(f"valid operational Zarr exists; rebuilding features locally: {processed}")
-                    build_ocean_daily_features(processed, feature, overwrite=feature.exists())
-        requested = pd.date_range(start, end, freq="D")
+        requested = pd.date_range(window_start, end, freq="D")
         missing = requested.difference(covered)
         if missing.empty:
             print(f"operational GLORYS already complete through {end.date()}; download skipped")
+            if args.execute:
+                _consolidate_operational_window(window_start, end)
             return 0
         start = missing[0]
         print(f"operational GLORYS incremental tail: {start.date()}..{end.date()}")
@@ -222,11 +316,12 @@ def cmd_ingest_glorys_operational(args: argparse.Namespace) -> int:
     slug = f"{start:%Y%m%d}_{end:%Y%m%d}"
     output = PROCESSED_OPERATIONAL_ROOT / str(start.year) / f"glorys12_operational_{slug}_daily_0p25.zarr"
     process_glorys_operational(sources, output, overwrite=args.overwrite)
-    feature = FEATURE_ROOT / "glorys12_operational" / str(start.year) / f"glorys12_operational_ocean_features_{slug}_daily.zarr"
-    build_ocean_daily_features(output, feature, overwrite=args.overwrite)
     if args.delete_source_after_zarr:
         for source in sources.values():
             _delete_validated_raw(source, RAW_OPERATIONAL_ROOT)
+    # A cauda recém-processada vira parte do store canônico da janela; as
+    # features são recalculadas lá dentro para o período completo.
+    _consolidate_operational_window(window_start, end)
     return 0
 
 

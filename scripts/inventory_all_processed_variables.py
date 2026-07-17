@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from collections import defaultdict
@@ -258,7 +259,18 @@ def build_inventory() -> tuple[pd.DataFrame, pd.DataFrame]:
     return raw.sort_values(["fonte", "variavel", "produto_zarr"]).reset_index(drop=True), grouped
 
 
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(description="Inventaria variaveis cientificas nos Zarr processados.")
+    root.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Exibe todas as combinacoes fonte/variavel; por padrao mostra apenas o resumo.",
+    )
+    return root
+
+
 def main() -> int:
+    args = parser().parse_args()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     raw, grouped = build_inventory()
     raw_path = OUT_DIR / "phase4_all_processed_variables_detail.csv"
@@ -267,7 +279,7 @@ def main() -> int:
     grouped.to_csv(grouped_path, index=False)
     print(f"Detalhe: {raw_path} ({len(raw)} linhas)")
     print(f"Tabela: {grouped_path} ({len(grouped)} linhas)")
-    if not grouped.empty:
+    if args.verbose and not grouped.empty:
         print(grouped[["fonte", "variavel", "intervalo", "serie_historica"]].to_string(index=False))
     return 0
 

@@ -37,6 +37,7 @@ from nino_brasil.data.download_cds import (
     ingest_era5_single_year,
     ingest_era5_single_year_kind,
     ingest_era5_single_year_variable,
+    era5_month_zarr_complete,
 )
 from nino_brasil.data.download_chirps import download_chirps_year
 from nino_brasil.data.download_ctd_noaa import (
@@ -1440,52 +1441,74 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
         return 0
 
     year_months = iter_available_year_months(args.start_year, args.end_year, "era5", cfg, args.month)
-    tasks = [
-        (year, month, region)
-        for year, month in year_months
-        for region in regions
-    ]
-    for year, month, region in tqdm(tasks, desc="ERA5 tasks", unit="task"):
-        if args.raw_only:
+    single_task_variables = single_variables or ERA5_SINGLE_VARIABLES
+    pressure_task_variables = pressure_variables or ERA5_PRESSURE_VARIABLES
+    candidates: list[tuple[int, int, str, str, str]] = []
+    for year, month in year_months:
+        for region in regions:
             if request_single:
+                candidates.extend((year, month, region, "single", variable) for variable in single_task_variables)
+            if request_pressure:
+                candidates.extend((year, month, region, "pressure", variable) for variable in pressure_task_variables)
+
+    if args.raw_only or args.overwrite:
+        tasks = candidates
+    else:
+        print(f"ERA5 inventory: checking {len(candidates)} Zarr stores from metadata...")
+        tasks = [
+            task for task in candidates
+            if not era5_month_zarr_complete(
+                zarr_root,
+                kind=task[3],
+                year=task[0],
+                month=task[1],
+                region=task[2],
+                variable=task[4],
+            )
+        ]
+    print(f"ERA5 inventory complete: {len(candidates) - len(tasks)} valid; {len(tasks)} gap task(s).")
+
+    for year, month, region, kind, variable in tqdm(tasks, desc="ERA5 gap tasks", unit="task"):
+        if args.raw_only:
+            if kind == "single":
                 run_or_continue(
-                    f"ERA5 single raw {year}-{month:02d} {region}",
-                    lambda year=year, month=month, region=region: download_era5_single_month(
+                    f"ERA5 single raw {year}-{month:02d} {region} {variable}",
+                    lambda year=year, month=month, region=region, variable=variable: download_era5_single_month(
                         year=year,
                         month=month,
                         region=region,
                         raw_dir=raw_dir,
-                        variables=single_variables,
+                        variables=[variable],
                         dry_run=not args.execute,
                         overwrite=args.overwrite,
                     ),
                     continue_on_error=args.continue_on_error,
                 )
-            if request_pressure:
+            else:
                 run_or_continue(
-                    f"ERA5 pressure raw {year}-{month:02d} {region}",
-                    lambda year=year, month=month, region=region: download_era5_pressure_month(
+                    f"ERA5 pressure raw {year}-{month:02d} {region} {variable}",
+                    lambda year=year, month=month, region=region, variable=variable: download_era5_pressure_month(
                         year=year,
                         month=month,
                         region=region,
                         raw_dir=raw_dir,
-                        variables=pressure_variables,
+                        variables=[variable],
                         dry_run=not args.execute,
                         overwrite=args.overwrite,
                     ),
                     continue_on_error=args.continue_on_error,
                 )
         else:
-            if request_single:
+            if kind == "single":
                 run_or_continue(
-                    f"ERA5 single {year}-{month:02d} {region}",
-                    lambda year=year, month=month, region=region: ingest_era5_single_month(
+                    f"ERA5 single {year}-{month:02d} {region} {variable}",
+                    lambda year=year, month=month, region=region, variable=variable: ingest_era5_single_month(
                         year=year,
                         month=month,
                         region=region,
                         raw_dir=raw_dir,
                         zarr_root=zarr_root,
-                        variables=single_variables,
+                        variables=[variable],
                         dry_run=not args.execute,
                         overwrite=args.overwrite,
                         include_hash=args.hash,
@@ -1493,16 +1516,16 @@ def cmd_download_era5(args: argparse.Namespace) -> int:
                     ),
                     continue_on_error=args.continue_on_error,
                 )
-            if request_pressure:
+            else:
                 run_or_continue(
-                    f"ERA5 pressure {year}-{month:02d} {region}",
-                    lambda year=year, month=month, region=region: ingest_era5_pressure_month(
+                    f"ERA5 pressure {year}-{month:02d} {region} {variable}",
+                    lambda year=year, month=month, region=region, variable=variable: ingest_era5_pressure_month(
                         year=year,
                         month=month,
                         region=region,
                         raw_dir=raw_dir,
                         zarr_root=zarr_root,
-                        variables=pressure_variables,
+                        variables=[variable],
                         dry_run=not args.execute,
                         overwrite=args.overwrite,
                         include_hash=args.hash,

@@ -127,10 +127,6 @@ def commands(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
                     *([] if args.skip_overlap else ["--overlap-year", "1993", "--overlap-year", "1994", "--overlap-year", "1995"]),
                 ),
             ),
-            (
-                "Executive panel",
-                _python("scripts/update_painel_executivo.py"),
-            ),
         ]
     )
     return tasks

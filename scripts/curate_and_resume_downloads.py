@@ -119,6 +119,20 @@ def check_zarr(path: Path, *, fast: bool = False) -> tuple[bool, str]:
         return False, f"invalid zarr: {type(exc).__name__}: {exc}"
 
 
+# Primeiro dia real de dados de cada fonte; antes disso não existe arquivo a
+# baixar. OISST v2.1 começa em 1981-09-01: exigir o ano civil completo forçava
+# um re-download infinito de 1981 a cada execução.
+SOURCE_DATA_START = {
+    "noaa_oisst": pd.Timestamp("1981-09-01"),
+}
+
+
+def expected_daily_bounds(year: int, source: str) -> tuple[pd.Timestamp, pd.Timestamp]:
+    start = max(pd.Timestamp(f"{year}-01-01"), SOURCE_DATA_START.get(source, pd.Timestamp(f"{year}-01-01")))
+    end = min(pd.Timestamp(f"{year}-12-31"), available_end_date(source, load_config()))
+    return start, end
+
+
 def check_daily_zarr_coverage(
     path: Path,
     *,
@@ -131,23 +145,47 @@ def check_daily_zarr_coverage(
     basic_ok, detail = check_zarr(path, fast=fast)
     if not basic_ok or fast:
         return basic_ok, detail
-    expected_start = pd.Timestamp(f"{year}-01-01")
-    expected_end = min(pd.Timestamp(f"{year}-12-31"), available_end_date(source, load_config()))
+    expected_start, expected_end = expected_daily_bounds(year, source)
     try:
         with xr.open_zarr(path, consolidated=None) as dataset:
             if variable not in dataset or "time" not in dataset.coords:
                 return False, f"missing {variable} or time"
             index = pd.DatetimeIndex(dataset.time.values).normalize()
+            empty_days = _sampled_empty_days(dataset[variable], index)
         expected = pd.date_range(expected_start, expected_end, freq="D")
         missing = expected.difference(index)
         extra_duplicates = int(index.duplicated().sum())
-        ok = not missing.size and not extra_duplicates and index.is_monotonic_increasing
+        ok = not missing.size and not extra_duplicates and index.is_monotonic_increasing and not empty_days
         return ok, (
             f"coverage={index.min().date()}..{index.max().date()}; "
-            f"expected_through={expected_end.date()}; missing_days={len(missing)}; duplicates={extra_duplicates}"
+            f"expected_through={expected_end.date()}; missing_days={len(missing)}; duplicates={extra_duplicates}; "
+            f"sampled_empty_days={len(empty_days)}"
         )
     except (OSError, ValueError, KeyError, IndexError) as exc:
         return False, f"invalid daily coverage: {type(exc).__name__}: {exc}"
+
+
+def _sampled_empty_days(array: xr.DataArray, index: pd.DatetimeIndex, samples: int = 6) -> list[str]:
+    """Sample days along the axis and flag those without any finite value.
+
+    Um eixo de tempo completo não garante dados: um regrid quebrado grava o
+    ano inteiro como NaN. Amostrar o primeiro/último dia e o interior pega
+    tanto o store totalmente vazio quanto a cauda vazia sem custar uma
+    varredura completa do ano.
+    """
+    if "time" not in array.dims or not len(index):
+        return []
+    positions = sorted({0, len(index) - 1, *(int(round(k * (len(index) - 1) / (samples - 1))) for k in range(1, samples - 1))})
+    spatial = [dim for dim in array.dims if dim != "time"]
+    empty: list[str] = []
+    for position in positions:
+        day = array.isel(time=position)
+        has_value = day.notnull()
+        if spatial:
+            has_value = has_value.any()
+        if not bool(has_value.compute().values):
+            empty.append(str(index[position].date()))
+    return empty
 
 
 def check_daily_netcdf_coverage(
@@ -161,8 +199,7 @@ def check_daily_netcdf_coverage(
     basic_ok, detail = check_netcdf(path, fast=fast)
     if not basic_ok or fast:
         return basic_ok, detail
-    expected_start = pd.Timestamp(f"{year}-01-01")
-    expected_end = min(pd.Timestamp(f"{year}-12-31"), available_end_date(source, load_config()))
+    expected_start, expected_end = expected_daily_bounds(year, source)
     try:
         with xr.open_dataset(path, chunks={}) as dataset:
             if variable not in dataset or "time" not in dataset.coords:
@@ -362,7 +399,7 @@ def add_chirps_actions(
                 pending.append(PendingAction(
                     "chirps", "regrid", year, f"CHIRPS {resolution} {year}", regrid_path, final_regrid_detail,
                     lambda zarr_path=zarr_path, regrid_path=regrid_path, year=year: regrid_zarr(
-                        zarr_path, regrid_path, dataset=f"chirps_{resolution}_{year}", overwrite=overwrite
+                        zarr_path, regrid_path, dataset=f"chirps_{resolution}_{year}", overwrite=overwrite or regrid_path.exists()
                     ),
                 ))
             continue
@@ -484,7 +521,7 @@ def add_oisst_actions(
                 pending.append(PendingAction(
                     "oisst", "regrid", year, f"OISST {year}", regrid_path, final_regrid_detail,
                     lambda zarr_path=zarr_path, regrid_path=regrid_path, year=year: regrid_zarr(
-                        zarr_path, regrid_path, dataset=f"noaa_oisst_{year}", overwrite=overwrite
+                        zarr_path, regrid_path, dataset=f"noaa_oisst_{year}", overwrite=overwrite or regrid_path.exists()
                     ),
                 ))
             continue
@@ -728,6 +765,45 @@ def execute_pending(pending: list[PendingAction], *, limit: int, continue_on_err
     return 0
 
 
+def purge_validated_raw(
+    checks: list[CheckResult],
+    *,
+    resolution: str,
+    execute: bool,
+) -> list[Path]:
+    """Apaga o cache bruto anual de CHIRPS/OISST quando zarr e regrid validam.
+
+    Implementa a política ``raw_cache_policy`` do project.yaml: o bruto é um
+    cache temporário; os produtos finais são os Zarr diários. O expurgo usa
+    somente checagens da execução corrente (nunca com --fast) e exige zarr e
+    regrid válidos para o mesmo ano.
+    """
+    status: dict[tuple[Source, Stage, int | None], bool] = {}
+    for check in checks:
+        key = (check.source, check.stage, check.year)
+        status[key] = check.ok and status.get(key, True)
+    purged: list[Path] = []
+    for (source, stage, year), ok in sorted(status.items(), key=lambda item: (item[0][0], str(item[0][2]))):
+        if stage != "zarr" or not ok or year is None:
+            continue
+        if not status.get((source, "regrid", year), False):
+            continue
+        if source == "oisst":
+            raw = oisst_raw_path(year)
+        elif source == "chirps":
+            raw = chirps_raw_path(year, resolution)
+        else:
+            continue
+        if raw.exists():
+            purged.append(raw)
+            if execute:
+                raw.unlink()
+                print(f"purge raw {source} {year}: {raw}")
+            else:
+                print(f"purge raw pendente {source} {year}: {raw}")
+    return purged
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Curate local NINO-BRASIL data status and resume the next missing download/transform."
@@ -744,6 +820,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--retry-wait", type=int, default=30)
     parser.add_argument("--continue-on-error", action="store_true", help="Keep running later pending actions after an item fails.")
+    parser.add_argument(
+        "--purge-raw",
+        action="store_true",
+        help="Apaga o NetCDF bruto anual de CHIRPS/OISST quando o Zarr diário e o regrid do ano validam (política raw_cache_policy).",
+    )
     return parser
 
 
@@ -798,6 +879,13 @@ def main(argv: list[str] | None = None) -> int:
 
     print_summary(checks, pending)
     returncode = 0
+    if args.purge_raw:
+        if args.fast:
+            print("purge-raw ignorado: exige checagem completa (sem --fast).")
+        else:
+            # A flag pede o expurgo explicitamente; não depende de --execute,
+            # que controla apenas as ações de download/transformação.
+            purge_validated_raw(checks, resolution=args.chirps_resolution, execute=True)
     if args.execute:
         returncode = execute_pending(pending, limit=args.limit, continue_on_error=args.continue_on_error)
     else:

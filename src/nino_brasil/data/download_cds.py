@@ -13,6 +13,7 @@ from pathlib import Path
 
 import cdsapi
 import numpy as np
+import pandas as pd
 import xarray as xr
 from tqdm import tqdm
 
@@ -207,15 +208,18 @@ def _era5_variable_zarr_path(
 def _zarr_valid(path: Path, *, expected_variable: str | None = None) -> bool:
     if not path.exists():
         return False
-    summary = dataset_summary(path, zarr=True)
-    variables = set(summary.get("variables", []))
+    # O resumo de auditoria não inclui atributos globais. Ler diretamente os
+    # metadados impede que acumulados válidos sejam baixados em toda execução.
+    with xr.open_zarr(path, consolidated=None) as dataset:
+        variables = set(dataset.data_vars)
+        attrs = dict(dataset.attrs)
     if not variables:
         return False
     if expected_variable and expected_variable not in variables:
         return False
     if expected_variable:
         expected_aggregation = era5_daily_aggregation(expected_variable)
-        recorded = str(summary.get("attrs", {}).get("nino_brasil_daily_aggregation", ""))
+        recorded = str(attrs.get("nino_brasil_daily_aggregation", ""))
         # Produtos legados instantâneos já eram calculados por média e podem
         # ser reutilizados. Acumulações legadas sem contrato explícito devem
         # ser refeitas, pois antes também recebiam média indevidamente.
@@ -231,7 +235,13 @@ def _zarr_daily_values_complete(
     expected_start: pd.Timestamp,
     expected_end: pd.Timestamp,
 ) -> bool:
-    """Require one finite spatial value for every expected calendar day."""
+    """Validate daily calendar coverage using Zarr metadata only.
+
+    Phase 1 uses this inexpensive inventory check to decide whether a remote
+    request is needed. Reading every spatial chunk of every existing store made
+    a no-op update slower than the original download. Value-level/finite-data
+    sanity remains the responsibility of the Phase 2 audit.
+    """
     if not path.exists():
         return False
     try:
@@ -239,14 +249,15 @@ def _zarr_daily_values_complete(
             if variable not in dataset or "time" not in dataset.coords:
                 return False
             array = dataset[variable]
-            spatial_dims = [dim for dim in array.dims if dim != "time"]
-            valid = array.notnull()
-            if spatial_dims:
-                valid = valid.any(spatial_dims)
-            valid_mask = np.asarray(valid.compute().values, dtype=bool)
-            valid_days = pd.DatetimeIndex(array["time"].values[valid_mask]).normalize()
+            if "time" not in array.dims:
+                return False
+            valid_days = pd.DatetimeIndex(array["time"].values).normalize()
         expected = pd.date_range(expected_start, expected_end, freq="D")
-        return expected.difference(valid_days).empty
+        return (
+            valid_days.is_unique
+            and valid_days.is_monotonic_increasing
+            and expected.difference(valid_days).empty
+        )
     except (OSError, ValueError, KeyError, IndexError):
         return False
 
@@ -255,6 +266,42 @@ def _era5_expected_month_bounds(year: int, month: int) -> tuple[pd.Timestamp, pd
     start, end = _month_bounds(year, month)
     availability = pd.Timestamp.today().normalize() - pd.Timedelta(days=7)
     return pd.Timestamp(start), min(pd.Timestamp(end), availability)
+
+
+def era5_month_zarr_path(
+    zarr_root: Path,
+    *,
+    kind: str,
+    year: int,
+    month: int,
+    region: str,
+    variable: str,
+) -> Path:
+    """Return the canonical monthly ERA5 daily store path."""
+    task_id = f"era5_{kind}_{region}_{variable}_{year}{month:02d}"
+    return zarr_root / "era5" / f"{kind}_levels" / str(year) / variable / f"{task_id}_daily.zarr"
+
+
+def era5_month_zarr_complete(
+    zarr_root: Path,
+    *,
+    kind: str,
+    year: int,
+    month: int,
+    region: str,
+    variable: str,
+) -> bool:
+    """Fast inventory predicate for one canonical ERA5 monthly store."""
+    path = era5_month_zarr_path(
+        zarr_root, kind=kind, year=year, month=month, region=region, variable=variable
+    )
+    expected_start, expected_end = _era5_expected_month_bounds(year, month)
+    return _zarr_valid(path, expected_variable=variable) and _zarr_daily_values_complete(
+        path,
+        variable=variable,
+        expected_start=expected_start,
+        expected_end=expected_end,
+    )
 
 
 def _all_zarrs_valid(paths: list[Path], *, overwrite: bool, expected_variables: list[str] | None = None) -> bool:

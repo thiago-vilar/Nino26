@@ -70,6 +70,10 @@ def regrid_dataset(
         if method not in {"bilinear", "nearest_s2d"}:
             raise ImportError("Install xesmf and ESMF/ESMPy to use conservative regridding.") from exc
         interp_method = "nearest" if method == "nearest_s2d" else "linear"
+        # ds.interp não é esférico: a longitude da fonte precisa estar na
+        # mesma convenção da grade alvo, senão o resultado é todo NaN.
+        target_convention = "-180_180" if float(target["lon"].min()) < 0 else "0_360"
+        ds = normalize_longitudes(ds, lon_name="lon", convention=target_convention)
         out = ds.interp(lat=target["lat"], lon=target["lon"], method=interp_method)
         out.attrs.update(ds.attrs)
         out.attrs["regrid_method"] = f"xarray_{interp_method}"

@@ -9,7 +9,7 @@ fase2:
 	$(PYTHON) scripts/run_fase2_all.py
 
 fase3:
-	$(PYTHON) scripts/run_fase3_all.py
+	$(PYTHON) scripts/run_fase3_nino_all.py
 
 fase4:
 	$(PYTHON) scripts/run_fase4_all.py
